@@ -91,7 +91,11 @@
                         <div class="card h-lg-100">
                             <div class="card-header">
                                 <div class="card-title flex-column">
-                                    <h3 class="fw-bold m-0"># {{ $selectedInvoice->number }}</h3>
+                                    <h3 class="fw-bold m-0">
+                                    {{ $selectedInvoice 
+                                        ? "# {$selectedInvoice->number}" 
+                                        : 'Select an invoice' }}
+                                    </h3>
                                     @if($selectedInvoice)
                                         <span class="fs-6 fw-semibold text-muted">
                                             Date: {{ $selectedInvoice->date->format('M d, Y') }}
