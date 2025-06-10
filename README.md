@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Laravel 11 User Management with Roles and Permissions Example Code
 
   Build an Laravel 11 User Roles and Permissions Example. you have to simply follow the below steps:
@@ -96,3 +97,6 @@
 ## 🚀 Published By
 
 Publish one article daily about Laravel on the [ItSolutionStuff.com](https://www.itsolutionstuff.com).
+=======
+# CouncilDesk_1.0
+>>>>>>> df275a87d169e7fd4c6d0914d018dccd6a0d6808
