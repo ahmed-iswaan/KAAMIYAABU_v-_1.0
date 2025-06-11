@@ -4,15 +4,22 @@
 	<head><base href=""/>
 		<title>CouncilDesk | @yield('title', 'Council Property System')</title>
 		<meta charset="utf-8" />
-		<meta name="description" content="Craft admin dashboard live demo. Check out all the features of the admin panel. A large number of settings, additional services and widgets." />
-		<meta name="keywords" content="Craft, bootstrap, bootstrap 5, admin themes, dark mode, free admin themes, bootstrap admin, bootstrap dashboard" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta property="og:locale" content="en_US" />
-		<meta property="og:type" content="article" />
-		<meta property="og:title" content="Craft - Bootstrap 5 HTML Admin Dashboard Theme" />
-		<meta property="og:url" content="https://themes.getbootstrap.com/product/craft-bootstrap-5-admin-dashboard-theme" />
-		<meta property="og:site_name" content="Keenthemes | Craft" />
-		<link rel="canonical" href="https://preview.keenthemes.com/craft" />
+		<meta name="description"
+			content="CouncilDesk is a municipal property management portal built for local governments in the Maldives—track assets, manage leases, automate land‐rent and more." />
+		<meta name="keywords"
+			content="council property, land management, Maldives, municipal software, rent portal, property dashboard, local government" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+		<!-- Open Graph / Facebook -->
+		<meta property="og:locale"        content="en_MV" />
+		<meta property="og:type"          content="website" />
+		<meta property="og:title"         content="@yield('title', 'Council Property System') — CouncilDesk" />
+		<meta property="og:description"   content="Streamline your municipality’s property and land‐rent processes with CouncilDesk." />
+		<meta property="og:url"           content="{{ config('app.url') }}" />
+		<meta property="og:site_name"     content="CouncilDesk" />
+
+		<!-- Canonical -->
+		<link rel="canonical" href="{{ url()->current() }}" />
 		<link rel="shortcut icon" href="{{ asset('assets/media/logos/favicon.svg') }}" />
 		<!--begin::Fonts(mandatory for all pages)-->
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
