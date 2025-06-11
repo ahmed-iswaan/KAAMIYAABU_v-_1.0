@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             RegistrationTypeSeeder::class,
             PropertyTypesSeeder::class,
             InvoiceCategorySeeder::class,
+            PropertySeeder::class,
         ]);
     }
 }

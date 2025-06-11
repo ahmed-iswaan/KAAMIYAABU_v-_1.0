@@ -14,11 +14,13 @@ return new class extends Migration
         Schema::create('properties', function (Blueprint $table) {
         $table->uuid('id')->primary();
                 $table->string('name');
-                $table->string('register_number', 100)->unique();
+                $table->string('register_number', 100)->unique()->nullable();
+                $table->string('number', 100)->unique()->nullable();
+                $table->string('street_address')->nullable();
                 $table->uuid('property_type_id');
-                $table->decimal('latitude', 10, 7);
-                $table->decimal('longitude', 10, 7);
-                $table->decimal('square_feet', 10, 2);
+                $table->decimal('latitude', 10, 7)->nullable();
+                $table->decimal('longitude', 10, 7)->nullable();
+                $table->decimal('square_feet', 10, 2)->nullable();
                 $table->uuid('island_id');
                 $table->uuid('ward_id')->nullable();
                 $table->timestamps();

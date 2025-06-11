@@ -10,6 +10,7 @@ use App\Models\Wards;
 use App\Models\PropertyTypes;
 use Illuminate\Validation\Rule;
 use App\Models\EventLog;
+use Illuminate\Support\Str;
 
 class PropertyManagement extends Component
 {
@@ -24,6 +25,7 @@ class PropertyManagement extends Component
     public $name;
     public $property_type_id;
     public $register_number;
+    public $number;
     public $square_feet;
     public $island_id;
     public $ward_id;
@@ -41,6 +43,7 @@ class PropertyManagement extends Component
         'name'              => 'required|string|max:255',
         'property_type_id'  => 'required|exists:property_types,id',
         'register_number'   => 'required|string|max:100|unique:properties,register_number',
+        'number'            => 'required|string|max:100|unique:properties,number',
         'square_feet'       => 'required|numeric|min:0',
         'island_id'         => 'required|exists:islands,id',
         'ward_id'           => 'nullable|exists:wards,id',
@@ -51,6 +54,7 @@ class PropertyManagement extends Component
     protected $validationAttributes = [
         'property_type_id' => 'property type',
         'register_number'  => 'registration number',
+        'number'           => 'number',
         'square_feet'      => 'square feet',
         'island_id'        => 'island',
         'ward_id'          => 'ward',
@@ -80,9 +84,15 @@ class PropertyManagement extends Component
     public function loadLookups()
     {
         $this->types   = PropertyTypes::orderBy('name')->get();
-        $this->islands = Island::orderBy('name')->get();
+        $this->islands = Island::with('atoll')->orderBy('name')->get();
         // wards will be loaded after island selection
         $this->wards   = collect();
+
+        $mulah = $this->islands
+        ->first(fn($isl) => optional($isl->atoll)->code === 'M' 
+                          && Str::contains($isl->name, 'Mulah'));
+        $this->island_id = $mulah->id ?? null;
+        
     }
 
     public function updatedIslandId($value)
@@ -106,6 +116,7 @@ class PropertyManagement extends Component
             'name'             => $this->name,
             'property_type_id' => $this->property_type_id,
             'register_number'  => $this->register_number,
+            'number'           => $this->number,
             'square_feet'      => $this->square_feet,
             'island_id'        => $this->island_id,
             'ward_id'          => $this->ward_id,
@@ -122,6 +133,7 @@ class PropertyManagement extends Component
         'event_data'      => [
             'name'             => $property->name,
             'register_number'  => $property->register_number,
+            'number'           => $property->number,
             'square_feet'      => $property->square_feet,
             'island_id'        => $property->island_id,
             'ward_id'          => $property->ward_id,

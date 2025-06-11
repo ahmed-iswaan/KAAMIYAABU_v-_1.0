@@ -11,8 +11,8 @@ use App\Livewire\Property\ViewProperty;
 use App\Livewire\Invoice\InvoiceManager;
 
 
-Route::get('', function () {
-    return view('home')->name('dashboard');
+Route::get('/', function () {
+    return redirect()->route('login');
 });
 
 

@@ -21,10 +21,11 @@ class Property extends Model
         'longitude',
         'square_feet',
         'register_number',
-        'country_code',
+        'number',
         'island_id',
         'ward_id',
         'property_type_id',
+        'street_address',
     ];
 
     public function island(): BelongsTo

@@ -43,12 +43,22 @@
 
                             {{-- Registration Number --}}
                             <div class="fv-row mb-5">
+                                <label class="required fw-semibold fs-6 mb-2">Number</label>
+                                <input type="number" wire:model.defer="number"
+                                       class="form-control form-control-solid @error('number') is-invalid @enderror"
+                                       placeholder="e.g. 0001">
+                                @error('number') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+
+                            {{-- Registration Number --}}
+                            <div class="fv-row mb-5">
                                 <label class="required fw-semibold fs-6 mb-2">Registration Number</label>
                                 <input type="text" wire:model.defer="register_number"
                                        class="form-control form-control-solid @error('register_number') is-invalid @enderror"
                                        placeholder="e.g. REG-2025-001">
                                 @error('register_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
+                            
 
                             {{-- Square Feet --}}
                             <div class="fv-row mb-5">
@@ -66,7 +76,7 @@
                                         class="form-select form-select-solid @error('island_id') is-invalid @enderror">
                                     <option value="">Select Island…</option>
                                     @foreach($islands as $isl)
-                                        <option value="{{ $isl->id }}">{{ $isl->name }}</option>
+                                        <option value="{{ $isl->id }}"> {{ optional($isl->atoll)->code }}. {{ $isl->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('island_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -97,7 +107,8 @@
                             style="width:100%; height:300px; border:1px solid #ddd; border-radius:4px">
                         </div>
                         <small class="text-gray-600">Click or drag marker to select coordinates {{$latitude}} - {{$longitude}}</small>
-
+                            @error('latitude') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            @error('longitude') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         
 
