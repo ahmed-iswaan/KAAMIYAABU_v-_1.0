@@ -28,6 +28,16 @@
                                 @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
+                             {{-- Street_address --}}
+                            <div class="fv-row mb-5">
+                                <label class="required fw-semibold fs-6 mb-2">Street Address</label>
+                                <input type="text" wire:model.defer="street_address"
+                                       class="form-control form-control-solid @error('street_address') is-invalid @enderror"
+                                       placeholder="Enter property Street Address">
+                                @error('street_address') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+
+
                             {{-- Property Type --}}
                             <div class="fv-row mb-5">
                                 <label class="required fw-semibold fs-6 mb-2">Property Type</label>
@@ -68,34 +78,6 @@
                                        placeholder="Area in sq. ft.">
                                 @error('square_feet') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
-
-                            {{-- Island --}}
-                            <div class="fv-row mb-5">
-                                <label class="required fw-semibold fs-6 mb-2">Island</label>
-                                <select wire:model="island_id"
-                                        class="form-select form-select-solid @error('island_id') is-invalid @enderror">
-                                    <option value="">Select Island…</option>
-                                    @foreach($islands as $isl)
-                                        <option value="{{ $isl->id }}"> {{ optional($isl->atoll)->code }}. {{ $isl->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('island_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-
-                            @if($wards->isNotEmpty())
-                                {{-- Ward --}}
-                                <div class="fv-row mb-5">
-                                    <label class="fw-semibold fs-6 mb-2">Ward</label>
-                                    <select wire:model.defer="ward_id"
-                                            class="form-select form-select-solid @error('ward_id') is-invalid @enderror">
-                                        <option value="">Select Ward…</option>
-                                        @foreach($wards as $w)
-                                            <option value="{{ $w->id }}">{{ $w->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('ward_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            @endif
 
 
                          {{-- Map picker --}}

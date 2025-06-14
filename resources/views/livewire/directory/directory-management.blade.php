@@ -84,9 +84,10 @@
                                   <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
                                     <th class="min-w-125px">Name</th>
                                     <th class="min-w-125px">Type</th>
-                                    <th class="min-w-125px">Reg. No.</th>
+                                    <th class="min-w-125px">Reg. No. / DOB</th>
                                     <th class="min-w-125px">Contact</th>
-                                    <th class="min-w-125px">Location</th>
+                                    <th class="min-w-125px">Address</th>
+                                      <th class="min-w-125px">Status</th>
                                     <th class="text-end min-w-100px">Actions</th>
                                   </tr>
                                 </thead>
@@ -111,22 +112,60 @@
                                           </div>
                                         @endif
                                         <div class="d-flex flex-column">
-                                          <span class="text-gray-800 text-hover-primary mb-1">{{ $entry->name }}</span>
-                                          <small class="text-muted">{{ $entry->description }}</small>
+                                          <span class="text-gray-800 text-hover-primary mb-1">
+                                           @if($entry->type->name === 'Individual')
+                                                @if(strtolower($entry->gender) === 'male')
+                                                    <i class="bi bi-gender-male fs-5 text-primary"></i>
+                                                @elseif(strtolower($entry->gender) === 'female')
+                                                    <i class="bi bi-gender-female fs-5" style="color: #FF69B4;"></i>
+                                                @else
+                                                    <i class="bi bi-question-circle fs-5 text-muted"></i>
+                                                @endif
+
+                                            @elseif($entry->type->name === 'Company')
+                                                <i class="bi bi-building fs-5 text-secondary"></i>
+
+                                            @else
+                                                <i class="bi bi-person-fill fs-5 text-gray-600"></i>
+                                            @endif
+
+
+                                             {{ ucwords(strtolower($entry->name)) }}</span>
+                                          <small class="text-muted">{{ optional($entry->registrationType)->name }} : {{ $entry->registration_number }}</small>
                                         </div>
                                       </td>
 
                                       <td>{{ $entry->type->name }}</td>
-                                      <td>{{ $entry->registration_number ?? '' }}</td>
+                                      @php 
+                                          $dob = $entry->date_of_birth
+                                              ? \Carbon\Carbon::parse($entry->date_of_birth)
+                                              : null;
+
+                                          if ($dob) {
+                                              $diff = $dob->diff(\Carbon\Carbon::now());
+                                              $ageString = "{$diff->y}y {$diff->m}m {$diff->d}d";
+                                          } else {
+                                              $ageString = '';
+                                          }
+                                      @endphp
+                                      <td>
+                                        <span class="text-gray-800 text-hover-primary mb-1">{{ $entry->date_of_birth ?? '' }} </span> <br>
+                                        <small class="text-muted">  
+                                          @if($ageString)
+                                            ({{ $ageString }})
+                                          @endif
+                                        </small>
+                                      </td>
                                       <td>
                                         <div>{{ $entry->contact_person ?? '' }}</div>
                                         <div>{{ $entry->phone ?? '' }}</div>
                                       </td>
                                       <td>
-                                        {{ optional($entry->country)->name ?? '' }}
-                                        -
-                                        {{ optional($entry->island)->name ?? '' }}
+                                        {{ optional($entry->property)->name }} {{ $entry->address }} {{ $entry->street_address ? ' / '.$entry->street_address : '' }}
+                                        <div class="fw-semibold fs-7 text-muted">{{ optional($entry->island->atoll)->code }}. {{ optional($entry->island)->name }},
+                                        {{ optional($entry->country)->name ?? '' }}</div>
                                       </td>
+                                      <td><div class="badge badge-light-success fw-bold">{{ $entry->status }}</div></td>
                                    <td class="text-end">
                                             <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                             <i class="ki-duotone ki-down fs-5 ms-1"></i></a>
@@ -136,18 +175,11 @@
                                                 <div class="menu-item px-3">
                                                     <a href="#"
                                                     class="menu-link px-3"
-                                                    wire:click="editUser({{ $entry->id }})">
+                                                    wire:click="editUser({{ $entry->status }})">
                                                     Edit
                                                  </a>
                                                 </div>
                                                 <!--end::Menu item-->
-                                         
-                                                    <!--begin::Menu item-->
-                                                        <div class="menu-item px-3">
-                                                            <a href="#" class="menu-link px-3" wire:click="removeRole({{ $entry->id }})" >Remove Role</a>
-                                                        </div>
-                                                   <!--end::Menu item-->
-                                              
 
                                             </div>
                                             <!--end::Menu-->

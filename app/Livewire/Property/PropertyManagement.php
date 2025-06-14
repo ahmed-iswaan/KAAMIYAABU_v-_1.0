@@ -28,6 +28,7 @@ class PropertyManagement extends Component
     public $number;
     public $square_feet;
     public $island_id;
+    public $street_address;
     public $ward_id;
     public $latitude;
     public $longitude;
@@ -41,6 +42,7 @@ class PropertyManagement extends Component
 
     protected $rules = [
         'name'              => 'required|string|max:255',
+        'street_address'    => 'required|string|max:255',
         'property_type_id'  => 'required|exists:property_types,id',
         'register_number'   => 'required|string|max:100|unique:properties,register_number',
         'number'            => 'required|string|max:100|unique:properties,number',
@@ -104,7 +106,7 @@ class PropertyManagement extends Component
     public function openAddModal()
     {
         // reset fields
-        $this->reset(['propertyId','name','property_type_id','register_number','square_feet','island_id','ward_id','latitude','longitude']);
+        $this->reset(['propertyId','name','property_type_id','number','street_address','register_number','square_feet','island_id','ward_id','latitude','longitude']);
         $this->dispatch('showAddPropertyModal');
     }
 
@@ -114,6 +116,7 @@ class PropertyManagement extends Component
 
        $property = Property::create([
             'name'             => $this->name,
+            'street_address'   => $this->street_address,
             'property_type_id' => $this->property_type_id,
             'register_number'  => $this->register_number,
             'number'           => $this->number,
@@ -132,6 +135,7 @@ class PropertyManagement extends Component
         'description'     => 'A new property was added.',
         'event_data'      => [
             'name'             => $property->name,
+            'street_address'   => $property->street_address,
             'register_number'  => $property->register_number,
             'number'           => $property->number,
             'square_feet'      => $property->square_feet,

@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             PropertyTypesSeeder::class,
             InvoiceCategorySeeder::class,
             PropertySeeder::class,
+            DirectoriesTableSeeder::class,
         ]);
     }
 }

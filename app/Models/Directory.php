@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo; // Import BelongsTo
 
 class Directory extends Model
 {
@@ -19,25 +20,32 @@ class Directory extends Model
         'gender', 'date_of_birth',
         'contact_person', 'phone', 'email', 'website',
         'country_id', 'island_id', 'address', 'location_type',
+        'properties_id', // Make sure to add this to fillable if you want to mass assign it
     ];
 
-    public function type()
+    public function type(): BelongsTo
     {
         return $this->belongsTo(DirectoryType::class, 'directory_type_id');
     }
 
-    public function registrationType()
+    public function registrationType(): BelongsTo
     {
         return $this->belongsTo(RegistrationType::class, 'registration_type_id');
     }
 
-    public function country()
+    public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class);
     }
 
-    public function island()
+    public function island(): BelongsTo
     {
         return $this->belongsTo(Island::class);
+    }
+
+    // --- New relationship added ---
+    public function property(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'properties_id');
     }
 }

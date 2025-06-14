@@ -23,10 +23,12 @@ return new class extends Migration
             $table->uuid('directory_type_id');
             $table->uuid('registration_type_id')->nullable();
             $table->string('registration_number')->unique()->nullable();
+            $table->string('gst_number')->nullable();
 
             // Individual-specific fields
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->date('date_of_birth')->nullable();
+            $table->date('death_date')->nullable();
 
             // Contact Info
             $table->string('contact_person')->nullable();
@@ -38,6 +40,10 @@ return new class extends Migration
             $table->uuid('country_id')->nullable();
             $table->uuid('island_id')->nullable();
             $table->string('address')->nullable();
+            $table->string('street_address')->nullable();
+            $table->uuid('properties_id')->nullable();
+
+            $table->string('status')->default('Active');
 
             // Residence type: inland vs outer islander
             $table->enum('location_type', ['inland', 'outer_islander'])->default('inland');
@@ -57,6 +63,9 @@ return new class extends Migration
                   ->cascadeOnDelete();
             $table->foreign('island_id')
                   ->references('id')->on('islands')
+                  ->cascadeOnDelete();
+            $table->foreign('properties_id')
+                  ->references('id')->on('properties')
                   ->cascadeOnDelete();
 
             // Indexes

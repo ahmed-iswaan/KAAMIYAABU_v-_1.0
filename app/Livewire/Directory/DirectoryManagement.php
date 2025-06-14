@@ -16,7 +16,7 @@ class DirectoryManagement extends Component
     use WithPagination, WithFileUploads;
 
     public $search = '';
-    public $perPage = 6;
+    public $perPage = 10;
     public $pageTitle = 'Directory';
 
     public function render()
