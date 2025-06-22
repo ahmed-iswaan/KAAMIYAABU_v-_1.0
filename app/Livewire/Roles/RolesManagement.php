@@ -10,6 +10,7 @@ use Livewire\Component;
 use App\Models\EventLog;
 use Spatie\Permission\Models\Permission;
 use DB;
+use App\Services\DhiraaguSmsService;
 
 use App\Models\PendingTelegramNotification;
 
@@ -189,7 +190,7 @@ class RolesManagement extends Component
                     'chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
                     'message' => $msg,
                 ]);
-
+                app(DhiraaguSmsService::class)->queue('9609996759', 'Favara Transfer to your account 90403***01000 for MVR 100000000.00 was processed on 18/06/2025 16:46:53. Ref. no. 703567895-742683729');
                 // Reset fields
                 $this->reset(['role_name', 'role_description', 'selectedPermission']);
 

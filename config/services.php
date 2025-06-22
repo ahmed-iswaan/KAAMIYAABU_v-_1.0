@@ -39,4 +39,10 @@ return [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
     ],
 
+        'dhiraagu_sms' => [
+        'userid'   => env('DHIRAAGU_SMS_USERID'),
+        'password' => env('DHIRAAGU_SMS_PASSWORD'),
+        'url'      => env('DHIRAAGU_SMS_URL', 'https://bulkmessage.dhiraagu.com.mv/jsp/receiveSMS.jsp'),
+    ],
+
 ];

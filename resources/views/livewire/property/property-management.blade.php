@@ -97,7 +97,7 @@
                                             <div class="d-flex align-items-center">
                                                 <!--begin::Thumbnail-->
                                                 <a href="{{ route('properties.view', $property->id) }}" class="symbol symbol-50px">
-                                                    <span class="symbol-label" style="background-image:url(/craft/assets/media//stock/ecommerce/1.png);">
+                                                    <span class="symbol-label">
                                                     <span class="badge badge-light">
                                                       @if($property->propertyType->name === 'Residential')
                                                        <i class="ki-duotone ki-home fs-1">

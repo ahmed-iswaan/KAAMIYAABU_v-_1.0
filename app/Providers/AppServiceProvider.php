@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
 use App\Services\TelegramService;
+use App\Services\DhiraaguSmsService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -16,6 +17,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TelegramService::class, function ($app) {
             return new TelegramService();
         });
+        $this->app->singleton(DhiraaguSmsService::class);
     }
 
     /**

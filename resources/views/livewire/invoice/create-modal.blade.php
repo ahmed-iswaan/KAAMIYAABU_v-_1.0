@@ -148,6 +148,21 @@
                         <i class="ki-duotone ki-plus fs-2"></i> Add Line
                     </button>
 
+                    {{-- Reference Details --}}
+                    <h5 class="mt-4">Reference Details</h5>
+                    <div class="row gx-4 mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Invoice Tag</label>
+                            <input type="text" wire:model.defer="invoice.invoice_tag" class="form-control"/>
+                            @error('invoice.invoice_tag') <div class="text-danger">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Reference ID</label>
+                            <input type="text" wire:model.defer="invoice.ref_id" class="form-control"/>
+                            @error('invoice.ref_id') <div class="text-danger">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
                     {{-- Messages --}}
                     <h5 class="mt-4">Messages</h5>
                     <div class="mb-3">

@@ -83,11 +83,11 @@
                                 <thead>
                                   <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
                                     <th class="min-w-125px">Name</th>
-                                    <th class="min-w-125px">Type</th>
-                                    <th class="min-w-125px">Reg. No. / DOB</th>
-                                    <th class="min-w-125px">Contact</th>
-                                    <th class="min-w-125px">Address</th>
-                                      <th class="min-w-125px">Status</th>
+                                    <th class="min-w-100px">Type</th>
+                                    <th class="min-w-100px">Reg. No. / DOB</th>
+                                    <th class="min-w-100px">Contact</th>
+                                    <th class="min-w-100px">Address</th>
+                                      <th class="min-w-100px">Status</th>
                                     <th class="text-end min-w-100px">Actions</th>
                                   </tr>
                                 </thead>

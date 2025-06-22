@@ -20,6 +20,8 @@ return new class extends Migration
             $table->date('date');
             $table->date('due_date')->nullable();
             $table->decimal('total_amount', 15, 2)->default(0);
+            $table->decimal('subtotal', 15, 2)->default(0);
+            $table->decimal('total_fine', 15, 2)->default(0);
 
             // invoice features
             $table->string('invoice_type')->default('standard');
@@ -33,6 +35,9 @@ return new class extends Migration
             // free-text messages
             $table->text('message_on_statement')->nullable();
             $table->text('message_to_customer')->nullable();
+
+            $table->string('invoice_tag')->nullable();
+            $table->string('ref_id')->nullable();
 
             $table->timestamps();
 
