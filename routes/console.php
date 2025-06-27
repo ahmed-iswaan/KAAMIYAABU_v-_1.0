@@ -14,3 +14,7 @@ Schedule::command('invoices:update-fines')
              ->everyTenSeconds()
              ->withoutOverlapping()
              ->description('Recalculate invoice fines every hour');
+
+Schedule::command('invoices:generate-scheduled')->everyTenSeconds();
+
+Schedule::command('waste:generate-tasks')->everyTenSeconds();

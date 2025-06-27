@@ -1,247 +1,125 @@
-<!-- resources/views/livewire/user/user-edit-modal.blade.php -->
-
-<div>
-    <!--begin::Modal - Edit User-->
-    <div class="modal fade" id="kt_modal_view_user" tabindex="-1" aria-hidden="true" wire:ignore.self>
-      <div class="modal-dialog modal-dialog-centered mw-650px">
+<div wire:ignore.self class="modal fade" id="kt_modal_add_register" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered mw-650px">
         <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="fw-bold">Waste Management Registration</h2>
+                <button type="button" class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal">
+                    <i class="ki-duotone ki-cross fs-1"></i>
+                </button>
+            </div>
 
-          <!-- Modal header -->
-          <div class="modal-header" id="kt_modal_view_user_header">
-            <h2 class="fw-bold">Edit User</h2>
-            <button type="button" class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal">
-              <i class="ki-duotone ki-cross fs-1">
-                <span class="path1"></span><span class="path2"></span>
-              </i>
-            </button>
-          </div>
+            <div class="modal-body">
+                <form wire:submit.prevent="register" class="px-5">
 
-          <!-- Modal body -->
-          <div class="modal-body px-5 my-7">
-            <form wire:submit.prevent="updateUser" id="kt_modal_view_user_form">
-
-              <div 
-                class="d-flex flex-column scroll-y px-5 px-lg-10" 
-                id="kt_modal_view_user_scroll"
-                data-kt-scroll="true"
-                data-kt-scroll-activate="true"
-                data-kt-scroll-max-height="auto"
-                data-kt-scroll-dependencies="#kt_modal_view_user_header"
-                data-kt-scroll-wrappers="#kt_modal_view_user_scroll"
-                data-kt-scroll-offset="300px"
-                style="max-height: 558px;"
-              >
-
-@php
-    // 1) Decide which URL to show
-    if (isset($edit_profile_picture) && is_object($edit_profile_picture)) {
-        $url = $edit_profile_picture->temporaryUrl();
-    } elseif (!empty($edit_profile_picture_path)) {
-        $url = asset('storage/'.$edit_profile_picture_path);
-    } else {
-        $url = asset('assets/media/svg/files/blank-image.svg');
-    }
-@endphp
-
-<div class="fv-row mb-7">
-  <label class="d-block fw-semibold fs-6 mb-5">Profile Picture</label>
-
-  <div
-    class="image-input image-input-outline image-input-placeholder"
-    data-kt-image-input="true"
-    wire:key="edit-avatar-{{ $edit_profile_picture_path }}-{{ optional($edit_profile_picture)->getFilename() }}"
-  >
-    <!-- 2) Apply it here, no nested quotes or backslashes -->
-    <div
-      class="image-input-wrapper w-125px h-125px"
-      style="background-image: url('{{ $url }}');"
-    ></div>
-
-    <!-- Change button -->
-    <label
-      class="btn btn-icon btn-circle btn-active-color-primary w-25px h-25px bg-body shadow"
-      data-kt-image-input-action="change"
-      title="Change avatar"
-    >
-      <i class="ki-duotone ki-pencil fs-7"><span class="path1"></span><span class="path2"></span></i>
-      <input type="file" wire:model="edit_profile_picture" accept=".png,.jpg,.jpeg" />
-    </label>
-
-    <!-- Cancel upload -->
-    <span
-      class="btn btn-icon btn-circle btn-active-color-primary w-25px h-25px bg-body shadow"
-      data-kt-image-input-action="cancel"
-      title="Cancel upload"
-      onclick="@this.set('edit_profile_picture', null)"
-    >
-      <i class="ki-duotone ki-cross fs-2"><span class="path1"></span><span class="path2"></span></i>
-    </span>
-  </div>
-
-  @error('edit_profile_picture')
-    <div class="text-danger mt-2">{{ $message }}</div>
-  @enderror
-</div>
-
-
-
-
-
-                <div class="separator mb-7"></div>
-
-                <!-- Full Name -->
-                <div class="fv-row mb-5">
-                  <label class="fw-semibold fs-6 mb-2">Full Name</label>
-                  <input 
-                    type="text" 
-                    wire:model.defer="editname" 
-                    class="form-control form-control-solid"
-                  >
-                  @error('editname') 
-                    <div class="text-danger">{{ $message }}</div> 
-                  @enderror
-                </div>
-
-                <!-- Email -->
-                <div class="fv-row mb-5">
-                  <label class="fw-semibold fs-6 mb-2">Email</label>
-                  <input 
-                    type="email" 
-                    wire:model.defer="editemail" 
-                    class="form-control form-control-solid"
-                  >
-                  @error('editemail') 
-                    <div class="text-danger">{{ $message }}</div> 
-                  @enderror
-                </div>
-
-                <!-- Staff ID -->
-                <div class="fv-row mb-5">
-                  <label class="fw-semibold fs-6 mb-2">Staff ID</label>
-                  <input 
-                    type="text" 
-                    wire:model.defer="editstaff_id" 
-                    class="form-control form-control-solid"
-                  >
-                  @error('editstaff_id') 
-                    <div class="text-danger">{{ $message }}</div> 
-                  @enderror
-                </div>
-
-                <!-- Job Title -->
-                <div class="fv-row mb-5">
-                  <label class="fw-semibold fs-6 mb-2">Job Title</label>
-                  <input 
-                    type="text" 
-                    wire:model.defer="editjob_title" 
-                    class="form-control form-control-solid"
-                  >
-                  @error('editjob_title') 
-                    <div class="text-danger">{{ $message }}</div> 
-                  @enderror
-                </div>
-
-                <div class="separator mb-7"></div>
-
-                <!-- Roles -->
-                <div class="mb-5">
-                  <label class="fw-semibold fs-6 mb-3">Roles</label>
-                  @error('editselectedRoles') 
-                    <div class="text-danger mb-2">{{ $message }}</div> 
-                  @enderror
-                  @foreach($roles_list as $role)
-                    <div class="form-check form-check-custom form-check-solid mb-3">
-                      <input
-                        class="form-check-input me-3"
-                        type="checkbox"
-                        wire:model="editselectedRoles"
-                        value="{{ $role->name }}"
-                        id="edit_role_{{ $role->id }}"
-                      >
-                      <label class="form-check-label" for="edit_role_{{ $role->id }}">
-                        <div class="fw-bold">{{ $role->name }}</div>
-                        <div class="text-gray-600">{{ $role->details }}</div>
-                      </label>
+                    <div class="mb-5">
+                        <label class="form-label">Property</label>
+                        <select id="property_select" class="form-select" name="property_id">
+                            <option value="">Select Property</option>
+                            @foreach($properties as $property)
+                                <option value="{{ $property->id }}" @if($property->id == $property_id) selected @endif>{{ $property->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('property_id') <span class="text-danger">{{ $message }}</span> @enderror
                     </div>
-                  @endforeach
-                </div>
 
-                <div class="separator mb-7"></div>
+                    <div class="mb-5">
+                        <label class="form-label">Directory</label>
+                        <select id="directory_select" class="form-select" name="directories_id">
+                            <option value="">Select Directory</option>
+                            @foreach($directories as $dir)
+                                <option value="{{ $dir->id }}" @if($dir->id == $directories_id) selected @endif>{{ $dir->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('directories_id') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
-                <!-- Read-only Details -->
-                <div class="pb-5 fs-6 text-gray-700">
-                  <div class="fw-bold">Last Login</div>
-                  <div class="mb-5">
-                    @php
-                      $last = $editlastlogin 
-                        ? \Carbon\Carbon::parse($editlastlogin) 
-                        : null;
-                    @endphp
-                    {{ $last
-                        ? ($last->diffInSeconds() < 60
-                            ? 'Just now'
-                            : $last->diffForHumans()
-                          )
-                        : 'Never logged in'
-                    }}
-                  </div>
+                    <div class="mb-5">
+                        <label class="form-label">Price List</label>
+                        <select id="price_list_select" class="form-select" name="fk_waste_price_list">
+                            <option value="">Select Price</option>
+                            @foreach($priceLists as $price)
+                                <option value="{{ $price->id }}" @if($price->id == $fk_waste_price_list) selected @endif>{{ $price->name }} - {{ $price->amount }} MVR</option>
+                            @endforeach
+                        </select>
+                        @error('fk_waste_price_list') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
-                  <div class="fw-bold">Joined Date</div>
-                  <div>
-                    {{ \Carbon\Carbon::parse($created_at ?? now())
-                        ->format('d M Y, g:i a')
-                    }}
-                  </div>
-                </div>
+                    <div class="mb-5">
+                        <label class="form-label">Floor (optional)</label>
+                        <input type="text" wire:model.defer="floor" class="form-control" name="floor">
+                    </div>
 
-              </div>
+                    <div class="mb-5">
+                        <label class="form-label">Applicant</label>
+                        <select wire:model.defer="applicant_is" class="form-select" name="applicant_is">
+                            <option value="">Select</option>
+                            <option value="owner">Owner</option>
+                            <option value="renter">Renter</option>
+                        </select>
+                        @error('applicant_is') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
-              <!-- Actions -->
-              <div class="text-center pt-10">
-                <button 
-                  type="button" 
-                  class="btn btn-light me-3" 
-                  data-bs-dismiss="modal"
-                >
-                  Discard
-                </button>
-                <button 
-                  type="submit" 
-                  class="btn btn-primary" 
-                  wire:loading.attr="disabled"
-                >
-                  <span class="indicator-label">Submit</span>
-                  <span 
-                    wire:loading 
-                    wire:target="updateUser" 
-                    class="indicator-progress"
-                  >
-                    Please wait...
-                    <span class="spinner-border spinner-border-sm align-middle ms-2"></span>
-                  </span>
-                </button>
-              </div>
+                    <div class="mb-5">
+                        <label class="form-label">Vehicle (optional)</label>
+                        <select id="vehicle_select" class="form-select" name="vehicle_id">
+                            <option value="">Select vehicle</option>
+                            @foreach($vehicles as $vehicle)
+                                <option value="{{ $vehicle->id }}" @if($vehicle->id == $vehicle_id) selected @endif>{{ $vehicle->registration_number }} ({{ $vehicle->model }})</option>
+                            @endforeach
+                        </select>
+                        @error('vehicle_id') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
-            </form>
-          </div>
+                    <div class="mb-5">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" wire:model.defer="start_date" class="form-control" name="start_date">
+                        @error('start_date') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
+                    <div class="text-center pt-5">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="indicator-label">Submit</span>
+                            <span wire:loading wire:target="register" class="spinner-border spinner-border-sm ms-2"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-      </div>
     </div>
-    <!--end::Modal - Edit User-->
-
-    <!-- Livewire + Bootstrap modal hooks -->
-    <script>
-document.addEventListener('DOMContentLoaded', () => {
-  if (!window.Livewire) {
-    console.warn('Livewire JS not loaded yet!');
-    return;
-  }
-  const el = document.getElementById('kt_modal_view_user');
-  const bsModal = new bootstrap.Modal(el);
-  Livewire.on('showModaledit',  () => bsModal.show());
-  Livewire.on('closeModaledit', () => bsModal.hide());
-});
-
-    </script>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const modalEl = document.getElementById('kt_modal_add_register');
+
+        const mappings = [
+            { id: 'property_select', model: 'property_id' },
+            { id: 'directory_select', model: 'directories_id' },
+            { id: 'price_list_select', model: 'fk_waste_price_list' },
+            { id: 'vehicle_select', model: 'vehicle_id' }
+        ];
+
+        mappings.forEach(({ id, model }) => {
+            const $el = $('#' + id);
+            $el.select2({
+                dropdownParent: $('#kt_modal_add_register'),
+                width: '100%',
+                placeholder: 'Select',
+                allowClear: true
+            });
+
+            $el.on('change', function () {
+                const selectedValue = $(this).val();
+                window.livewire.emit('setLivewireValue', model, selectedValue);
+            });
+        });
+
+        Livewire.on('showModal', () => {
+            $('#kt_modal_add_register').modal('show');
+        });
+
+        Livewire.on('closeModal', () => {
+            $('#kt_modal_add_register').modal('hide');
+        });
+    });
+</script>

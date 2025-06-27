@@ -23,6 +23,7 @@ class DirectoryManagement extends Component
     {
         $directory = Directory::where('name', 'like', '%' . $this->search . '%')
         ->orWhere('email', 'like', '%' . $this->search . '%')
+        ->orWhere('registration_number', 'like', '%' . $this->search . '%')
         ->latest()
         ->paginate($this->perPage);
 

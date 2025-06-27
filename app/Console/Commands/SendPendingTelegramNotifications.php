@@ -43,6 +43,7 @@ class SendPendingTelegramNotifications extends Command
             try {
                 $response = $telegramService->sendMessage(
                     $notification->chat_id,
+                    $notification->message_thread_id,
                     $notification->message
                 );
 
@@ -53,12 +54,13 @@ class SendPendingTelegramNotifications extends Command
                         'attempted_at'=> Carbon::now(),
                     ]);
 
-                    $this->info("✅ Sent notification ID {$notification->id} to chat {$notification->chat_id}");
+                    $this->info("✅ Sent notification ID {$notification->id} to chat {$notification->chat_id} to message thread {$notification->message_thread_id}");
                 } else {
                     // Log if Telegram returned “ok”: false
                     Log::error('Telegram API returned an error', [
                         'notification_id' => $notification->id,
                         'chat_id'         => $notification->chat_id,
+                        'message_thread_id'         => $notification->message_thread_id,
                         'response'        => $response,
                     ]);
 
@@ -72,6 +74,7 @@ class SendPendingTelegramNotifications extends Command
                 Log::error('Exception when sending Telegram notification', [
                     'notification_id' => $notification->id,
                     'chat_id'         => $notification->chat_id,
+                    'message_thread_id'         => $notification->message_thread_id,
                     'error_message'   => $e->getMessage(),
                     'stack_trace'     => $e->getTraceAsString(),
                 ]);

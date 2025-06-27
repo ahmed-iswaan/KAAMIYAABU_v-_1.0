@@ -68,6 +68,24 @@
                                         <!--end:Menu link-->
                                     </div>
                                  <!--end:Menu item-->
+
+                                 <!--begin:Menu item-->
+                                    <div class="menu-item">
+                                        <!--begin:Menu link-->
+                                        <a class="menu-link {{ request()->is('waste-collection') ? 'active' : '' }}" href="/waste-collection">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-delivery-door fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                                <span class="path3"></span>
+                                                <span class="path4"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Waste Collection</span>
+                                        </a>
+                                        <!--end:Menu link-->
+                                    </div>
+                                 <!--end:Menu item-->
                           
 
 								<!--end:Menu item-->

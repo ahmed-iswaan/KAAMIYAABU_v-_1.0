@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('pending_telegram_notifications', function (Blueprint $table) {
             $table->id();
             $table->string('chat_id');
+            $table->string('message_thread_id')->nullable();
             $table->text('message');
             $table->boolean('is_sent')->default(false);
             $table->timestamp('attempted_at')->nullable();

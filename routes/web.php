@@ -9,6 +9,7 @@ use App\Livewire\Directory\DirectoryManagement;
 use App\Livewire\Property\PropertyManagement;
 use App\Livewire\Property\ViewProperty;
 use App\Livewire\Waste\WasteManagement;
+use App\Livewire\Waste\TaskList;
 use App\Livewire\Invoice\InvoiceManager;
 
 
@@ -31,6 +32,7 @@ Route::get('properties/{property}', ViewProperty::class)
          ->whereUuid('property');
 
 Route::get('/waste', WasteManagement::class)->name('waste');
+Route::get('/waste-collection', TaskList::class)->name('waste-collection');
 
 Route::get('/invoices', InvoiceManager::class)
          ->name('invoices.index');

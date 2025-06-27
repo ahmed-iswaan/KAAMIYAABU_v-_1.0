@@ -11,6 +11,7 @@ class PendingTelegramNotification extends Model
 
         protected $fillable = [
         'chat_id',
+        'message_thread_id',
         'message',
         'is_sent',
         'attempted_at',

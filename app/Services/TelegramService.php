@@ -24,13 +24,14 @@ class TelegramService
      * @param  string      $message  The text you want to send
      * @return array
      */
-    public function sendMessage($chatId, string $message): array
+    public function sendMessage($chatId,$message_thread_id, string $message): array
     {
         $endpoint = $this->baseUrl . 'sendMessage';
 
         $response = $this->http->post($endpoint, [
             'json' => [
                 'chat_id'    => $chatId,
+                'message_thread_id'    => $message_thread_id,
                 'text'       => $message,
                 'parse_mode' => 'HTML',
             ],

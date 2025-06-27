@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             InvoiceCategorySeeder::class,
             PropertySeeder::class,
             DirectoriesTableSeeder::class,
+            WasteCollectionPriceListTranslatedSeeder::class,
+            VehicleSeeder::class,
         ]);
     }
 }
