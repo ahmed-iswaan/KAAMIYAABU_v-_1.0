@@ -22,6 +22,7 @@
 							</div>
 						</div>
 						<!--end::Toolbar-->
+						    @include('livewire.waste.collection-form')
 						<!--begin::Post-->
 						<div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
 							<!--begin::Container-->
@@ -80,12 +81,17 @@
                                                                             <div class="fw-semibold ms-5">
                                                                                 <div class="fs-7 mb-1">{{ $time }}</div>
                                                                                 <a href="#" class="fs-5 fw-bold text-dark text-hover-primary mb-2">
-                                                                                    {{ $task->property->name ?? 'N/A' }} / {{ $task->register->floor ?? '-' }} ({{ $task->register->register_number ?? '-' }})
+                                                                                    {{ $task->property->name ?? 'N/A' }} /  ({{ $task->register->register_number ?? '-' }})
                                                                                 </a>
+																				 <div class="fs-7 text-muted">Floor: {{ $task->register->floor ?? '-' }}</div>
                                                                                 <div class="fs-7 text-muted">Owner: {{ $task->directory->name ?? 'No Directory' }}</div>
                                                                                 <div class="fs-7 text-muted">Vehicle: {{ $task->vehicle->registration_number ?? 'N/A' }} | Driver: {{ $task->driver->name ?? 'N/A' }}</div>
                                                                             </div>
-                                                                            <a href="#" class="btn btn-light bnt-active-light-primary btn-sm">View</a>
+                                                                               <a href="#" class="btn btn-light btn-active-light-primary btn-sm"
+																					wire:click.prevent="openModal('{{ $task->register->register_number }}')">
+																					View
+																				</a>
+
                                                                         </div>
                                                                     @endforeach
                                                                 </div>

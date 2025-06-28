@@ -17,7 +17,23 @@ class WasteType extends Model
     protected $fillable = [
         'name',
         'unit',
-        'default_amount',
+        'unit_quantity',
         'index',
+        'total_collection',
     ];
+
+    protected $casts = [
+        'unit_quantity' => 'decimal:2',
+        'total_collection' => 'decimal:2',
+    ];
+
+    public function addToTotal($amount)
+    {
+        $this->increment('total_collection', $amount);
+    }
+
+    public function subtractFromTotal($amount)
+    {
+        $this->decrement('total_collection', $amount);
+    }
 }

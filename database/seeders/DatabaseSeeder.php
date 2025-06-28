@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             DirectoriesTableSeeder::class,
             WasteCollectionPriceListTranslatedSeeder::class,
             VehicleSeeder::class,
+            WasteTypeSeeder::class,
         ]);
     }
 }

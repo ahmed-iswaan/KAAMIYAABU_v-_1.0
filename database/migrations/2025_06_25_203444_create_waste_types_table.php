@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('waste_types', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name');
-            $table->string('unit')->nullable();
-            $table->decimal('default_amount', 10, 2)->nullable();
-            $table->unsignedInteger('index')->nullable();
+            $table->string('unit'); // e.g., 'kg', 'ltr'
+            $table->decimal('unit_quantity', 8, 2)->default(1); // value like 10kg = 10
+            $table->integer('index')->nullable();
+            $table->decimal('total_collection', 10, 2)->default(0); // auto-updated
             $table->timestamps();
         });
     }
