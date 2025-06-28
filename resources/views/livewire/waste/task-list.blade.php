@@ -6,7 +6,7 @@
 								<!--begin::Info-->
 								<div class="d-flex flex-column align-items-start justify-content-center flex-wrap me-2">
 									<!--begin::Title-->
-									<h1 class="text-dark fw-bold my-1 fs-2">Waste Collection</h1>
+									<h1 class="text-dark fw-bold my-1 fs-2 d-none d-md-block">Waste Collection</h1>
 									<!--end::Title-->
 									<!--begin::Breadcrumb-->
 									<ul class="breadcrumb fw-semibold fs-base my-1">
@@ -32,43 +32,17 @@
 									<!--begin::Content-->
 									<div class="flex-lg-row-fluid ms-lg-15">
 										<!--begin:::Tabs-->
-                                    <ul class="nav nav-custom nav-tabs nav-line-tabs nav-line-tabs-2x border-0 fs-4 fw-semibold mb-8">
-                                        <!--begin:::Tab item-->
-                                        <li class="nav-item">
-                                            <a wire:click="$set('statusFilter', 'pending')" href="#"
-                                            class="nav-link text-active-primary pb-4 {{ $statusFilter === 'pending' ? 'active' : '' }}">
-                                                Pending 
-                                            </a>
-                                        </li>
-                                        <!--end:::Tab item-->
-
-                                        <!--begin:::Tab item-->
-                                        <li class="nav-item">
-                                            <a wire:click="$set('statusFilter', 'in_progress')" href="#"
-                                            class="nav-link text-active-primary pb-4 {{ $statusFilter === 'in_progress' ? 'active' : '' }}">
-                                                In Progress
-                                            </a>
-                                        </li>
-                                        <!--end:::Tab item-->
-
-                                        <!--begin:::Tab item-->
-                                        <li class="nav-item">
-                                            <a wire:click="$set('statusFilter', 'completed')" href="#"
-                                            class="nav-link text-active-primary pb-4 {{ $statusFilter === 'completed' ? 'active' : '' }}">
-                                                Completed
-                                            </a>
-                                        </li>
-                                        <!--end:::Tab item-->
-
-                                        <!--begin:::Tab item-->
-                                        <li class="nav-item">
-                                            <a wire:click="$set('statusFilter', 'cancelled')" href="#"
-                                            class="nav-link text-active-primary pb-4 {{ $statusFilter === 'cancelled' ? 'active' : '' }}">
-                                                Cancelled
-                                            </a>
-                                        </li>
-                                        <!--end:::Tab item-->
-                                    </ul>
+                                        <ul class="nav nav-custom nav-tabs nav-line-tabs nav-line-tabs-2x border-0 fw-semibold mb-8 mt-6 flex-wrap flex-md-nowrap">
+                                            @foreach(['pending', 'in_progress', 'completed', 'cancelled'] as $status)
+                                                <li class="nav-item">
+                                                    <a class="nav-link text-active-primary pb-4 {{ $statusFilter === $status ? 'active' : '' }} fs-7 fs-sm-6 fs-md-4"
+                                                    href="#"
+                                                    wire:click.prevent="$set('statusFilter', '{{ $status }}')">
+                                                    {{ ucfirst(str_replace('_', ' ', $status)) }}
+                                                    </a>
+                                                </li>
+                                            @endforeach
+                                        </ul>
 
 										<!--end:::Tabs-->
 										<!--begin:::Tab content-->

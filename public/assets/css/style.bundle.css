@@ -49792,7 +49792,7 @@ body {
 }
 @media (max-width: 991.98px) {
   .toolbar {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
 }
 .aside.aside-default {
@@ -49989,6 +49989,6 @@ body {
 }
 @media (max-width: 991.98px) {
   .content {
-    padding: 20px 0;
+    padding: 10px 0;
   }
 }
