@@ -98,7 +98,20 @@ class TaskList extends Component
     {
         if (!$this->selectedTask || !$this->newStatus) return;
 
-        // Step 1: Roll back previously saved waste_data
+        // ✅ Check if location is available
+        if (empty($this->completed_latitude) || empty($this->completed_longitude)) {
+            $this->dispatch('swal', [
+                'title' => 'Location Required',
+                'text' => '📍 Please allow location access before submitting.',
+                'icon' => 'error',
+                'buttonsStyling' => false,
+                'confirmButtonText' => 'Ok',
+                'confirmButton' => 'btn btn-danger',
+            ]);
+            return;
+        }
+
+        // Step 1: Roll back previous waste_data
         if ($this->selectedTask->waste_data) {
             foreach ($this->selectedTask->waste_data as $old) {
                 if (!empty($old['waste_type_id']) && !empty($old['amount'])) {
@@ -107,16 +120,15 @@ class TaskList extends Component
             }
         }
 
-        // Step 2: Clean and apply new waste data
+        // Step 2: Apply new waste data
         $cleanedWasteInputs = array_filter($this->wasteInputs, fn($item) => !empty($item['amount']));
-
         foreach ($cleanedWasteInputs as $item) {
             if (!empty($item['waste_type_id']) && !empty($item['amount'])) {
                 WasteType::where('id', $item['waste_type_id'])->increment('total_collection', $item['amount']);
             }
         }
 
-        // Step 3: Update task
+        // Step 3: Update task details
         $this->selectedTask->status = $this->newStatus;
         $this->selectedTask->waste_data = $cleanedWasteInputs;
         $this->selectedTask->total_collected = collect($cleanedWasteInputs)->pluck('amount')->sum();
@@ -124,23 +136,21 @@ class TaskList extends Component
         $this->selectedTask->completed_longitude = $this->completed_longitude;
         $this->selectedTask->completed_at = now();
         $this->selectedTask->driver_id = auth()->id();
-        $this->selectedTask->completed_latitude = $this->completed_latitude;
-        $this->selectedTask->completed_longitude = $this->completed_longitude;
         $this->selectedTask->save();
 
         session()->flash('message', 'Status and waste data updated successfully.');
         $this->dispatch('hide-change-status-modal');
-        
-        $this->dispatch('swal', [
-                'title' => 'Success',
-                'text' => 'Waste Collected.',
-                'icon' => 'success',
-                'buttonsStyling' => false,
-                'confirmButtonText' => 'Ok!',
-                'confirmButton' => 'btn btn-primary',
-            ]);
 
+        $this->dispatch('swal', [
+            'title' => 'Success',
+            'text' => 'Waste Collected.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Ok!',
+            'confirmButton' => 'btn btn-primary',
+        ]);
     }
+
 
     public function render()
     {
