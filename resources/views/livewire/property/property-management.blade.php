@@ -57,11 +57,17 @@
                     <!--begin::Card toolbar-->
                     <div class="card-toolbar">
                         <div class="d-flex justify-content-end" data-kt-property-table-toolbar="base">
+                         <!--begin::Export-->
+                            <button type="button" class="btn btn-light-primary me-3" data-bs-toggle="modal" data-bs-target="#kt_modal_export_property">
+                                    <i class="ki-duotone ki-exit-up fs-2">
+                                        <span class="path1"></span>
+                                        <span class="path2"></span>
+                            </i>Export</button>
+                                    <!--end::Export-->
                             <button
                                 type="button"
                                 class="btn btn-primary"
-                                data-bs-toggle="modal"
-                                data-bs-target="#kt_modal_add_property">
+                                wire:click.prevent="openAddModal">
                                 <i class="ki-duotone ki-plus fs-2"></i>Add Property
                             </button>
                         </div>
@@ -70,7 +76,10 @@
                 </div>
                 <!--end::Card header-->
 
+                @include('livewire.property.property-export')
                  @include('livewire.property.property-add')
+                 @include('livewire.property.property-edit')
+
 
                 <!--begin::Card body-->
                 <div class="card-body py-4">
@@ -191,7 +200,7 @@
                                                 <div class="menu-item px-3">
                                                     <a href="#"
                                                     class="menu-link px-3"
-                                                   wire:click="openEditModal({{ $property->id }})">
+                                                 wire:click.prevent="editProperty('{{ $property->id }}')">
                                                     Edit
                                                  </a>
                                                 </div>

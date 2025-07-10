@@ -62,8 +62,7 @@
                         </select>
                         @error('applicant_is') <span class="text-danger">{{ $message }}</span> @enderror
                     </div>
-
-
+                    
                     <div class="mb-5">
                         <label class="form-label">Inactive After Due Invoices</label>
                         <input type="number" wire:model.defer="block_count" max="12" min="0" class="form-control form-control-solid" min="1" placeholder="e.g. 2">

@@ -59,6 +59,17 @@ class WasteManagementRegister extends Model
         return $this->belongsTo(Property::class);
     }
 
+    public function wasteCollectionSchedule()
+    {
+        return $this->hasOne(WasteCollectionSchedule::class,'waste_management_register_id');
+    }
+
+    public function invoiceSchedule()
+    {
+        return $this->hasOne(InvoiceSchedule::class, 'ref_id');
+    }
+
+
     public function directory()
     {
         return $this->belongsTo(Directory::class, 'directories_id');

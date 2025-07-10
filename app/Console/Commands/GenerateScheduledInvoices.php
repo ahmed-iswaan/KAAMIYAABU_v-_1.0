@@ -61,16 +61,21 @@ class GenerateScheduledInvoices extends Command
             }
 
             $schedule->save();
+            
+            $envLabel = app()->environment('production') ? '🟢 Production' : '🧪 Development';
 
-                     $msg = "<b>📢 New Invoice Created Successfully</b>\n\n" .
-                    "<b>Invoice Number:</b> {$invoice->number}\n" .
-                    "<b>Property:</b> " . ($invoice->property->name ?? 'N/A') . "\n" .
-                    "<b>Customer:</b> " . ($invoice->directory->name ?? 'N/A') . "\n" .
-                    "<b>Due Date:</b> " . ($invoice->due_date ? $invoice->due_date->format('d M Y') : 'N/A') . "\n" .
-                    "<b>Total Amount:</b> " . number_format($invoice->total_amount, 2) . " MVR\n" .
-                    "<b>Status:</b> " . ($invoice->status ? $invoice->status->value : 'N/A') . "\n" .
-                    "<b>Created By:</b> System\n" .
-                    "<b>Created At:</b> " . now()->format('d M Y H:i');
+            $msg = "<b>📢 Invoice Created</b>\n" .
+                "<i>{$envLabel} Environment</i>\n" .
+                "──────────────────────────────\n" .
+                "<b>🧾 Invoice No:</b> {$invoice->number}\n" .
+                "<b>🏢 Property:</b> " . ($invoice->property->name ?? 'N/A') . "\n" .
+                "<b>👤 Customer:</b> " . ($invoice->directory->name ?? 'N/A') . "\n" .
+                "<b>📅 Due Date:</b> " . ($invoice->due_date ? $invoice->due_date->format('d M Y') : 'N/A') . "\n" .
+                "<b>💰 Amount:</b> " . number_format($invoice->total_amount, 2) . " MVR\n" .
+                "<b>📌 Status:</b> " . ($invoice->status ? $invoice->status->value : 'N/A') . "\n" .
+                "──────────────────────────────\n" .
+                "<b>👨‍💻 Created By:</b> System\n" .
+                "<b>🕒 Created At:</b> " . now()->format('d M Y H:i');
 
                 PendingTelegramNotification::create([
                     'chat_id' => env('TELEGRAM_GROUP_INVOICE'),

@@ -81,9 +81,10 @@ class GenerateWasteCollectionTasks extends Command
                 $property = $schedule->property;
                 $directory = $schedule->directory;
 
+                  $envLabel = app()->environment('production') ? 'Live' : 'Dev';
                 // Telegram success message
                     $msg =
-                        "<b>🗑️ Waste Collection Task Generated</b>\n\n" .
+                        "<b>🗑️ [{$envLabel}] Waste Collection Task Generated</b>\n\n" .
                         "<b>Number #:</b> " . ($register->register_number ?? '-') . "\n" .
                         "<b>Property:</b> " . ($property->name ?? '-') . "\n" .
                         "<b>Owner:</b> " . ($directory->name ?? '-') . "\n" .

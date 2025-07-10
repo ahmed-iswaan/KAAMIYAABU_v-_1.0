@@ -1,4 +1,5 @@
 @section('title', $pageTitle)
+
 <!--begin::Content-->
 	<div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
 		<!--begin::Toolbar-->
@@ -22,6 +23,8 @@
 					</div>
 				</div>
 			<!--end::Toolbar-->
+
+@include('livewire.directory.add-directory-modal')
 
             <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
                 <!--begin::Container-->
@@ -99,7 +102,7 @@
                                           <div class="symbol symbol-circle symbol-50px overflow-hidden me-3">
                                             <a href="#">
                                               <div class="symbol-label">
-                                                <img src="{{ asset('storage/'.$entry->profile_picture) }}"
+                                                <img src="{{ asset('storage/' . $entry->profile_picture) }}"
                                                     alt="{{ $entry->name }}" class="w-100">
                                               </div>
                                             </a>
@@ -162,8 +165,8 @@
                                       </td>
                                       <td>
                                         {{ optional($entry->property)->name }} {{ $entry->address }} {{ $entry->street_address ? ' / '.$entry->street_address : '' }}
-                                        <div class="fw-semibold fs-7 text-muted">{{ optional($entry->island->atoll)->code }}. {{ optional($entry->island)->name }},
-                                        {{ optional($entry->country)->name ?? '' }}</div>
+                                        <div class="fw-semibold fs-7 text-muted">    {{ $entry->island?->atoll?->code }}. {{ $entry->island?->name }},
+    {{ $entry->country?->name }}</div>
                                       </td>
                                       <td><div class="badge badge-light-success fw-bold">{{ $entry->status }}</div></td>
                                    <td class="text-end">

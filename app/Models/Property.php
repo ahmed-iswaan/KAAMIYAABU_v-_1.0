@@ -33,7 +33,7 @@ class Property extends Model
         return $this->belongsTo(Island::class);
     }
 
-    public function wards(): BelongsTo
+    public function ward(): BelongsTo
     {
         return $this->belongsTo(Wards::class);
     }
