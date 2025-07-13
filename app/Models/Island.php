@@ -18,6 +18,7 @@ class Island extends Model
         'atoll_id',
         'name',
         'code',
+        'status',
     ];
 
     /**

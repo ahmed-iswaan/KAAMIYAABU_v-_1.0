@@ -15,6 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('name')->unique();  // e.g. Company, Institute, Individual, Club
             $table->string('slug')->unique();
+            $table->string('status')->default('Active');
             $table->timestamps();
         });
     }

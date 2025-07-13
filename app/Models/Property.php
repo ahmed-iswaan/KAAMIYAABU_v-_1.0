@@ -26,6 +26,7 @@ class Property extends Model
         'ward_id',
         'property_type_id',
         'street_address',
+        'status',
     ];
 
     public function island(): BelongsTo

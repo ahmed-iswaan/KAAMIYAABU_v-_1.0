@@ -31,9 +31,8 @@ return new class extends Migration
             $table->date('death_date')->nullable();
 
             // Contact Info
-            $table->string('contact_person')->nullable();
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
+            $table->string('phone')->unique()->nullable();
+            $table->string('email')->unique()->nullable();
             $table->string('website')->nullable();
 
             // Location references

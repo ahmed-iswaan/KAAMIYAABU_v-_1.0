@@ -23,6 +23,7 @@ return new class extends Migration
                 $table->decimal('square_feet', 10, 2)->nullable();
                 $table->uuid('island_id');
                 $table->uuid('ward_id')->nullable();
+                $table->string('status')->default('Active');
                 $table->timestamps();
 
                 $table

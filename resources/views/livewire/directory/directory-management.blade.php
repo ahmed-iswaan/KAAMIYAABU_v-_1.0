@@ -24,7 +24,8 @@
 				</div>
 			<!--end::Toolbar-->
 
-@include('livewire.directory.add-directory-modal')
+            @include('livewire.directory.add-directory-modal')
+            @include('livewire.directory.directory-edit')
 
             <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
                 <!--begin::Container-->
@@ -58,7 +59,7 @@
                                     </i>Export</button>
                                     <!--end::Export-->
                                     <!--begin::Add user-->
-                                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#kt_modal_add_user">
+                                    <button type="button" class="btn btn-primary" wire:click.prevent="openAddModal">
                                     <i class="ki-duotone ki-plus fs-2"></i>Add</button>
                                     <!--end::Add user-->
                                 </div>
@@ -160,7 +161,7 @@
                                         </small>
                                       </td>
                                       <td>
-                                        <div>{{ $entry->contact_person ?? '' }}</div>
+                                        <div>{{ $entry->contact_person->name ?? '' }}</div>
                                         <div>{{ $entry->phone ?? '' }}</div>
                                       </td>
                                       <td>
@@ -178,7 +179,7 @@
                                                 <div class="menu-item px-3">
                                                     <a href="#"
                                                     class="menu-link px-3"
-                                                    wire:click="editUser({{ $entry->status }})">
+                                                    wire:click.prevent="openEditModal('{{ $entry->id }}')">
                                                     Edit
                                                  </a>
                                                 </div>

@@ -16,7 +16,7 @@ class Wards extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = ['island_id', 'name'];
+    protected $fillable = ['island_id', 'name','status'];
 
     public function island(): BelongsTo
     {

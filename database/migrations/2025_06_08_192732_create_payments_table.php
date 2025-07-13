@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('date');
             $table->decimal('amount', 15, 2);
             $table->string('method')->nullable();
-
+            $table->string('status')->default('Pending');
             $table->timestamps();
 
             // FKs

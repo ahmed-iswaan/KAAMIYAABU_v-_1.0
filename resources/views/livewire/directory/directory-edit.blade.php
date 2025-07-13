@@ -1,9 +1,8 @@
-<div wire:ignore.self class="modal fade" id="kt_modal_add_user" tabindex="-1" aria-hidden="true">
+<div wire:ignore.self class="modal fade" id="kt_modal_edit_user" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered mw-900px">
         <div class="modal-content rounded shadow-sm">
-            <!-- Header -->
             <div class="modal-header pb-0 border-0">
-                <h2 class="fw-bold">Add New Directory</h2>
+                <h2 class="fw-bold">Edit Directory</h2>
                     <button type="button" class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal">
                         <i class="ki-duotone ki-cross fs-1">
                             <span class="path1"></span>
@@ -12,273 +11,241 @@
                     </button>
             </div>
 
-            <!-- Body -->
             <div class="modal-body py-10 px-lg-17">
-                <form wire:submit.prevent="save" class="form">
+                <form wire:submit.prevent="edit" class="form">
 
-               <!-- Profile Picture -->
-                    <div class="mb-7">
-                            <!--begin::Label-->
-                                <label class="d-block fw-semibold fs-6 mb-5">Profile Picture</label>
-                                <!--end::Label-->
+                @php
+                    if (isset($edit_profile_picture) && is_object($edit_profile_picture)) {
+                        $url = $edit_profile_picture->temporaryUrl();
+                    } elseif (!empty($edit_profile_picture_path)) {
+                        $url = asset('storage/'.$edit_profile_picture_path);
+                    } else {
+                        $url = asset('assets/media/svg/files/blank-image.svg');
+                    }
+                @endphp
 
-                                <!--begin::Image placeholder styles-->
-                                <style>
-                                    .image-input-placeholder {
-                                        background-image: url('{{ asset("assets/media/svg/files/blank-image.svg") }}');
-                                    }
+                <div class="fv-row mb-7">
+                <label class="d-block fw-semibold fs-6 mb-5">Profile Picture</label>
 
-                                    [data-bs-theme="dark"] .image-input-placeholder {
-                                        background-image: url('{{ asset("assets/media/svg/files/blank-image-dark.svg") }}');
-                                    }
+                <div
+                    class="image-input image-input-outline image-input-placeholder"
+                    data-kt-image-input="true"
+                    wire:key="edit-avatar-{{ $edit_profile_picture_path }}-{{ optional($edit_profile_picture)->getFilename() }}"
+                >
+                    <!-- 2) Apply it here, no nested quotes or backslashes -->
+                    <div
+                    class="image-input-wrapper w-125px h-125px"
+                    style="background-image: url('{{ $url }}');"
+                    ></div>
 
-                                </style>
-                                <!--end::Image placeholder styles-->
+                    <!-- Change button -->
+                    <label
+                    class="btn btn-icon btn-circle btn-active-color-primary w-25px h-25px bg-body shadow"
+                    data-kt-image-input-action="change"
+                    title="Change avatar"
+                    >
+                    <i class="ki-duotone ki-pencil fs-7"><span class="path1"></span><span class="path2"></span></i>
+                    <input type="file" wire:model="edit_profile_picture" accept=".png,.jpg,.jpeg" />
+                    </label>
 
-                                <!--begin::Image input-->
-                                <div class="image-input image-input-outline image-input-placeholder image-input-empty"
-                                    data-kt-image-input="true" wire:ignore>
-                                    <!-- Preview existing or uploaded avatar -->
-                                    <div class="image-input-wrapper w-125px h-125px" style="background-image: 
-                                        @if($profile_picture)
-                                                                            url('{{ $profile_picture->temporaryUrl() }}')
-                                        @elseif(isset($user) && $user->profile_picture)
-                                                                            url('{{ asset('storage/'.$user->profile_picture) }}')
-                                        @else
-                                                                            none
-                                        @endif
-                                    ;">
-                                    </div>
-                                    <!-- End preview -->
+                    <!-- Cancel upload -->
+                    <span
+                    class="btn btn-icon btn-circle btn-active-color-primary w-25px h-25px bg-body shadow"
+                    data-kt-image-input-action="cancel"
+                    title="Cancel upload"
+                    onclick="@this.set('edit_profile_picture', null)"
+                    >
+                    <i class="ki-duotone ki-cross fs-2"><span class="path1"></span><span class="path2"></span></i>
+                    </span>
+                </div>
 
-                                    <!-- Change Profile Picture button -->
-                                    <label
-                                        class="btn btn-icon btn-circle btn-active-color-primary w-25px h-25px bg-body shadow"
-                                        data-kt-image-input-action="change" data-bs-toggle="tooltip"
-                                        title="Change Uploade Picture">
-                                        <i class="ki-duotone ki-pencil fs-7">
-                                            <span class="path1"></span><span class="path2"></span>
-                                        </i>
-                                        <!-- file input wired to Livewire -->
-                                        <input type="file" wire:model="profile_picture" accept=".png, .jpg, .jpeg">
-                                        <!-- this hidden input can be used if you implement a “remove” action -->
-                                        <input type="hidden" wire:model="profile_picture_remove" value="1">
-                                    </label>
-                                    <!-- End change -->
+                <!--begin::Hint-->
+                    <div class="form-text">Allowed file types: png, jpg, jpeg. Max size: 1MB.</div>
+                <!--end::Hint-->
 
-                                    <!-- Cancel upload -->
-                                    <span
-                                        class="btn btn-icon btn-circle btn-active-color-primary w-25px h-25px bg-body shadow"
-                                        data-kt-image-input-action="cancel" data-bs-toggle="tooltip"
-                                        title="Cancel avatar">
-                                        <i class="ki-duotone ki-cross fs-2">
-                                            <span class="path1"></span><span class="path2"></span>
-                                        </i>
-                                    </span>
-                                    <!-- End cancel -->
+                @error('edit_profile_picture')
+                    <div class="text-danger mt-2">{{ $message }}</div>
+                @enderror
+                </div>
 
-                                    <!-- Remove avatar -->
-                                    <span class="btn btn-icon btn-circle …" data-kt-image-input-action="remove"
-                                        data-bs-toggle="tooltip" title="Remove avatar"
-                                        onclick="@this.set('profile_picture', null)">
-                                        <i class="ki-duotone ki-cross fs-2"><span class="path1"></span><span
-                                                class="path2"></span></i>
-                                    </span>
-                                    <!-- End remove -->
-                                </div>
-                                <!--end::Image input-->
-
-                                <!--begin::Hint-->
-                                <div class="form-text">Allowed file types: png, jpg, jpeg. Max size: 1MB.</div>
-                                <!--end::Hint-->
-                    </div>
-
-                    <!-- SECTION: Directory Info -->
                     <div class="row mb-6">
                         <div class="col-md-6">
                             <label class="form-label required">Name</label>
-                            <input type="text" class="form-control form-control-solid" wire:model.defer="name" placeholder="Enter name">
-                            @error('name') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="text" class="form-control form-control-solid" wire:model.defer="edit_name" placeholder="Enter name">
+                            @error('edit_name') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Description</label>
-                            <textarea class="form-control form-control-solid" wire:model.defer="description" rows="2" placeholder="Enter description"></textarea>
-                              @error('description') <div class="text-danger">{{ $message }}</div> @enderror
+                            <textarea class="form-control form-control-solid" wire:model.defer="edit_description" rows="2" placeholder="Enter description"></textarea>
+                             @error('edit_description') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
                     <div class="row mb-6">
                         <div class="col-md-6">
                             <label class="form-label required">Directory Type</label>
-                            <select class="form-select form-select-solid" wire:model.live.defer="directory_type_id">
+                            <select class="form-select form-select-solid" wire:model.live.defer="edit_directory_type_id">
                                 <option value="">Select...</option>
                                 @foreach($directoryTypes as $type)
                                     <option value="{{ $type->id }}">{{ $type->name }}</option>
                                 @endforeach
                             </select>
-                            @error('directory_type_id') <div class="text-danger">{{ $message }}</div> @enderror
+                            @error('edit_directory_type_id') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label required">Registration Type</label>
-                            <select class="form-select form-select-solid" wire:model.live.defer="registration_type_id">
+                            <select class="form-select form-select-solid" wire:model.live.defer="edit_registration_type_id">
                                 <option value="">Select...</option>
                                 @foreach($registrationTypes as $reg)
                                     <option value="{{ $reg->id }}">{{ $reg->name }}</option>
                                 @endforeach
                             </select>
-                            @error('registration_type_id') <div class="text-danger">{{ $message }}</div> @enderror
+                            @error('edit_registration_type_id') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
-                    <!-- SECTION: Registration & GST -->
                     <div class="row mb-6">
                         <div class="col-md-6">
-                            <label class="form-label required">{{ $registration_label }} Number</label>
-                            <input type="text" class="form-control form-control-solid" wire:model.defer="registration_number">
-                            @error('registration_number') <div class="text-danger">{{ $message }}</div> @enderror
+                            <label class="form-label required">{{ $edit_registration_label }} Number</label>
+                            <input type="text" class="form-control form-control-solid" wire:model.defer="edit_registration_number">
+                            @error('edit_registration_number') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
 
-                        <div class="col-md-6" x-data="{ show: @entangle('is_gst_visible') }" x-show="show">
+                        <div class="col-md-6" x-data="{ show: @entangle('edit_is_gst_visible') }" x-show="show">
                             <label class="form-label">GST Number</label>
-                            <input type="text" class="form-control form-control-solid" wire:model.defer="gst_number">
-                            @error('gst_number') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="text" class="form-control form-control-solid" wire:model.defer="edit_gst_number">
+                            @error('edit_gst_number') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
 
                     </div>
 
-                    <!-- SECTION: Gender & DOB -->
                     <div class="row mb-6">
-                        <div class="col-md-4" x-data="{ show: @entangle('is_gender_visible') }" x-show="show">
+                        <div class="col-md-4" x-data="{ show: @entangle('edit_is_gender_visible') }" x-show="show">
                             <label class="form-label">Gender</label>
-                            <select class="form-select form-select-solid" wire:model.defer="gender">
+                            <select class="form-select form-select-solid" wire:model.defer="edit_gender">
                                 <option value="">Select...</option>
                                 <option value="male">Male</option>
                                 <option value="female">Female</option>
                                 <option value="other">Other</option>
                             </select>
-                            @error('gender') <div class="text-danger">{{ $message }}</div> @enderror
+                            @error('edit_gender') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">{{ $date_label }}</label>
-                            <input type="date" class="form-control form-control-solid" wire:model.defer="date_of_birth">
-                             @error('date_of_birth') <div class="text-danger">{{ $message }}</div> @enderror
+                            <label class="form-label">{{ $edit_date_label }}</label>
+                            <input type="date" class="form-control form-control-solid" wire:model.defer="edit_date_of_birth">
+                             @error('edit_date_of_birth') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
-                    <!-- SECTION: Contact -->
                     <div class="row mb-6">
                         <div class="col-md-6">
                             <label class="form-label">Phone</label>
-                            <input type="text" class="form-control form-control-solid" wire:model.defer="phone">
-                            @error('phone') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="text" class="form-control form-control-solid" wire:model.defer="edit_phone">
+                            @error('edit_phone') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
                     <div class="row mb-6">
                         <div class="col-md-6">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control form-control-solid" wire:model.defer="email">
-                            @error('email') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="email" class="form-control form-control-solid" wire:model.defer="edit_email">
+                            @error('edit_email') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Website</label>
-                            <input type="url" class="form-control form-control-solid" wire:model.defer="website">
-                             @error('website') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="url" class="form-control form-control-solid" wire:model.defer="edit_website">
+                             @error('edit_website') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
-                    <!-- SECTION: Select2 Location Fields -->
                     <div class="mb-6" wire:ignore>
                         <label class="form-label required">Country</label>
-                        <select class="form-select form-select-solid" id="kt_select2_country_id" data-placeholder="Select Country">
+                        <select class="form-select form-select-solid" id="kt_select2_edit_country_id" data-placeholder="Select Country">
                             <option></option>
                             @foreach($countries as $country)
                                 <option value="{{ $country->id }}">{{ $country->name }}</option>
                             @endforeach
                         </select>
-                        <input type="hidden" id="hidden_country_id" wire:model.live.defer="country_id">
-                        @error('country_id') <div class="text-danger">{{ $message }}</div> @enderror
+                        <input type="hidden" id="hidden_edit_country_id" wire:model.live.defer="edit_country_id">
+                        @error('edit_country_id') <div class="text-danger">{{ $message }}</div> @enderror
                     </div>
-        
-                    <div class="mb-6" x-data="{ show: @entangle('is_island_visible') }" x-show="show" wire:ignore>
+
+                    <div class="mb-6" x-data="{ show: @entangle('edit_is_island_visible') }" x-show="show" wire:ignore>
                         <label class="form-label required">Island</label>
-                        <select class="form-select form-select-solid" id="kt_select2_island_id" data-placeholder="Select Island">
+                        <select class="form-select form-select-solid" id="kt_select2_edit_island_id" data-placeholder="Select Island">
                             <option></option>
                             @foreach($islands as $island)
                                 <option value="{{ $island->id }}">{{ $island?->atoll?->code }}. {{ $island->name }}</option>
                             @endforeach
                         </select>
-                        <input type="hidden" id="hidden_island_id" wire:model.defer="island_id">
-                        @error('island_id') <div class="text-danger">{{ $message }}</div> @enderror
+                        <input type="hidden" id="hidden_edit_island_id" wire:model.defer="edit_island_id">
+                        @error('edit_island_id') <div class="text-danger">{{ $message }}</div> @enderror
                     </div>
-        
-                    <div class="mb-6" x-data="{ show: @entangle('is_property_visible') }" x-show="show" wire:ignore>
+
+                    <div class="mb-6" x-data="{ show: @entangle('edit_is_property_visible') }" x-show="show" wire:ignore>
                         <label class="form-label required">Property</label>
-                        <select class="form-select form-select-solid" id="kt_select2_property_id" data-placeholder="Select Property">
+                        <select class="form-select form-select-solid" id="kt_select2_edit_property_id" data-placeholder="Select Property">
                             <option></option>
                             @foreach($properties as $property)
                                 <option value="{{ $property->id }}">{{ $property->name }}</option>
                             @endforeach
                         </select>
-                        <input type="hidden" id="hidden_property_id" wire:model.defer="property_id">
-                        @error('property_id') <div class="text-danger">{{ $message }}</div> @enderror
+                        <input type="hidden" id="hidden_edit_property_id" wire:model.defer="edit_property_id">
+                        @error('edit_property_id') <div class="text-danger">{{ $message }}</div> @enderror
                     </div>
-                   
-                     <!-- SECTION: Address -->
+
                     <div class="row mb-6">
                         <div class="col-md-6">
                             <label class="form-label">Address</label>
-                            <input type="text" class="form-control form-control-solid" wire:model.defer="address">
-                            @error('address') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="text" class="form-control form-control-solid" wire:model.defer="edit_address">
+                            @error('edit_address') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Street Address</label>
-                            <input type="text" class="form-control form-control-solid" wire:model.defer="street_address">
-                             @error('street_address') <div class="text-danger">{{ $message }}</div> @enderror
+                            <input type="text" class="form-control form-control-solid" wire:model.defer="edit_street_address">
+                             @error('edit_street_address') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
                     <div class="separator my-10"></div>
 
-                  <div class="mb-5" x-data="{ show: @entangle('has_contact_person') }">
+                  <div class="mb-5" x-data="{ show: @entangle('edit_has_contact_person') }">
                     <label class="form-label">Add Contact Person?</label>
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" wire:model.live="has_contact_person" id="has_contact_person">
-                        <label class="form-check-label" for="has_contact_person">Yes</label>
+                        <input class="form-check-input" type="checkbox" wire:model.live="edit_has_contact_person" id="edit_has_contact_person">
+                        <label class="form-check-label" for="edit_has_contact_person">Yes</label>
                     </div>
 
-                    <!-- Conditional Fields -->
                     <div x-show="show" x-transition>
                         <div class="mb-5" wire:ignore>
                             <label class="form-label required">Contact Person</label>
-                            <select class="form-select form-select-solid" id="kt_select2_contact_contact_directory_id" data-placeholder="Select Contact Person">
+                            <select class="form-select form-select-solid" id="kt_select2_edit_contact_directory_id" data-placeholder="Select Contact Person">
                                 <option></option>
                                 @foreach($contacts as $contact)
                                     <option value="{{ $contact->id }}">{{ $contact->name }}- {{ $contact->registration_number }}</option>
                                 @endforeach
                             </select>
-                            <input type="hidden" id="hidden_contact_directory_id" wire:model.defer="contact_directory_id">
-                            @error('contact_directory_id') <span class="text-danger">{{ $message }}</span> @enderror
+                            <input type="hidden" id="hidden_edit_contact_directory_id" wire:model.defer="edit_contact_directory_id">
+                            @error('edit_contact_directory_id') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
 
                         <div class="mb-6">
                             <label class="form-label">Designation</label>
-                            <input type="text" wire:model.defer="contact_designation" class="form-control form-control-solid" placeholder="E.g. Manager, Agent">
-                            @error('contact_designation') <span class="text-danger">{{ $message }}</span> @enderror
+                            <input type="text" wire:model.defer="edit_contact_designation" class="form-control form-control-solid" placeholder="E.g. Manager, Agent">
+                            @error('edit_contact_designation') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                     </div>
                 </div>
 
-                    <!-- Buttons -->
                     <div class="text-end mt-8">
                         <button type="submit" class="btn btn-primary">
                                 <span class="indicator-label">Save</span>
-                                <span wire:loading wire:target="save" class="indicator-progress">
+                                <span wire:loading wire:target="edit" class="indicator-progress">
                                     Please wait...
                                     <span class="spinner-border spinner-border-sm align-middle ms-2"></span>
                                 </span>
-                         </button>
+                             </button>
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                     </div>
 
@@ -290,14 +257,14 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const modalEl = document.getElementById('kt_modal_add_user');
+    const modalEl = document.getElementById('kt_modal_edit_user');
     const mainContent = document.getElementById('main-content');
 
     const selectsConfig = [
-        { id: 'kt_select2_country_id', hiddenId: 'hidden_country_id', livewireProperty: 'country_id' },
-        { id: 'kt_select2_island_id', hiddenId: 'hidden_island_id', livewireProperty: 'island_id' },
-        { id: 'kt_select2_property_id', hiddenId: 'hidden_property_id', livewireProperty: 'property_id' },
-        { id: 'kt_select2_contact_contact_directory_id', hiddenId: 'hidden_contact_directory_id', livewireProperty: 'contact_directory_id' },
+        { id: 'kt_select2_edit_country_id', hiddenId: 'hidden_edit_country_id', livewireProperty: 'edit_country_id' },
+        { id: 'kt_select2_edit_island_id', hiddenId: 'hidden_edit_island_id', livewireProperty: 'edit_island_id' },
+        { id: 'kt_select2_edit_property_id', hiddenId: 'hidden_edit_property_id', livewireProperty: 'edit_property_id' },
+        { id: 'kt_select2_edit_contact_directory_id', hiddenId: 'hidden_edit_contact_directory_id', livewireProperty: 'edit_contact_directory_id' },
     ];
 
     // Function to initialize a single Select2 instance
@@ -324,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Initialize Select2
         $select.select2({
-            dropdownParent: $('#kt_modal_add_user .modal-content'), // CRUCIAL for modals
+            dropdownParent: $('#kt_modal_edit_user .modal-content'), // CRUCIAL for modals
             placeholder: $select.data('placeholder') || 'Select...',
             allowClear: true,
             minimumResultsForSearch: 0,
@@ -385,6 +352,15 @@ $select.off('change').on('change', function () {
         initAllSelect2s();
     });
 
+    document.addEventListener('reinit-edit-select2', () => {
+    setTimeout(() => {
+        if (typeof initAllSelect2s === 'function') {
+            initAllSelect2s();
+        }
+    }, 150);
+});
+
+
     // Destroy ALL Select2s when the modal is hidden for cleanup
     modalEl.addEventListener('hidden.bs.modal', () => {
         console.log('Modal hidden. Destroying ALL Select2s and disposing modal instance.');
@@ -400,14 +376,14 @@ $select.off('change').on('change', function () {
 
     // --- Livewire Event Listeners for Modal Control ---
 
-    Livewire.on('showAddDirectoryModal', () => {
-        console.log('Livewire event: showAddDirectoryModal received.');
+    Livewire.on('showEditDirectoryModal', () => {
+        console.log('Livewire event: showEditDirectoryModal received.');
         mainContent?.setAttribute('inert', '');
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
 
-    Livewire.on('closeAddDirectoryModal', () => {
-        console.log('Livewire event: closeAddDirectoryModal received.');
+    Livewire.on('closeEditDirectoryModal', () => {
+        console.log('Livewire event: closeEditDirectoryModal received.');
         bootstrap.Modal.getInstance(modalEl)?.hide();
     });
 
@@ -436,7 +412,7 @@ Livewire.hook('message.processed', () => {
     setTimeout(() => {
         console.log('Livewire updated DOM. Re-initializing Select2...');
         initAllSelect2s();
-    }, 150); // Wait to ensure the DOM is ready
+    }, 100); // Wait to ensure the DOM is ready
 });
 
 

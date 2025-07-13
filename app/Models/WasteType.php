@@ -20,6 +20,7 @@ class WasteType extends Model
         'unit_quantity',
         'index',
         'total_collection',
+        'status',
     ];
 
     protected $casts = [

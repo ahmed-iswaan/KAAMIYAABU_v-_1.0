@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('island_code')->nullable();
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();
+            $table->string('status')->default('Active');
             $table->timestamps();
 
             $table->foreign('atoll_id')->references('id')->on('atolls')->cascadeOnDelete();

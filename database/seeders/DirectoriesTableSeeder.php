@@ -105,7 +105,6 @@ class DirectoriesTableSeeder extends Seeder
                 'gender'                => strtolower($row['Sex']) === 'm' ? 'male' : 'female',
                 'date_of_birth'         => $dob,
                 'death_date'            => null,
-                'contact_person'        => null,
                 'phone'                 => null,
                 'email'                 => null,
                 'website'               => null,

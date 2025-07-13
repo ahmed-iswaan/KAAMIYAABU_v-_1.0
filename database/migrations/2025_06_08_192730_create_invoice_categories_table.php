@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('invoice_categories', function (Blueprint $table) {
             $table->uuid('id')->primary();        // UUID PK
             $table->string('name');               // Category name
+            $table->string('status')->default('Active');
             $table->timestamps();
         });
     }

@@ -20,5 +20,6 @@ class Country extends Model
         'iso_codes',
         'country_code',
         'dialing_code',
+        'status',
     ];
 }

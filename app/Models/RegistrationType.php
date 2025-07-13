@@ -13,7 +13,7 @@ class RegistrationType extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['name', 'slug'];
+    protected $fillable = ['name', 'slug','status'];
 
     public function directories()
     {

@@ -14,7 +14,7 @@ class InvoiceCategory extends Model
     public $incrementing = false;
     protected $keyType    = 'string';
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name','status'];
 
     public function lines()
     {

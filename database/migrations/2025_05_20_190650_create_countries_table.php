@@ -17,6 +17,7 @@ return new class extends Migration
         $table->string('iso_codes', 3)->unique();      // ISO 3166-1 alpha-3
         $table->string('country_code', 4)->unique();   // Numeric code as string
         $table->string('dialing_code')->nullable(); 
+        $table->string('status')->default('Active');
         $table->timestamps();
         });
     }

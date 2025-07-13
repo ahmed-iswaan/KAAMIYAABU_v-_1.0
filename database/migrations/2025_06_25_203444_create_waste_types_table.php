@@ -18,6 +18,7 @@ return new class extends Migration
             $table->decimal('unit_quantity', 8, 2)->default(1); // value like 10kg = 10
             $table->integer('index')->nullable();
             $table->decimal('total_collection', 10, 2)->default(0); // auto-updated
+            $table->string('status')->default('Active');
             $table->timestamps();
         });
     }

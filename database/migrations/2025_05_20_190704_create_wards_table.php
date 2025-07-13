@@ -15,6 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('island_id');
             $table->string('name');
+            $table->string('status')->default('Active');
             $table->timestamps();
 
             $table

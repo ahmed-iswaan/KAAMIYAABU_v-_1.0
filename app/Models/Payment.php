@@ -16,7 +16,7 @@ class Payment extends Model
 
     protected $fillable = [
         'property_id', 'directories_id',
-        'date', 'amount', 'method',
+        'date', 'amount', 'method','status',
     ];
 
     protected $casts = [
