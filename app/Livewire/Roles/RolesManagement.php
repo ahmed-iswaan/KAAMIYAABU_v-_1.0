@@ -43,6 +43,7 @@ class RolesManagement extends Component
     public function updatingSearch()
     {
         $this->resetPage(); // Reset pagination when search query changes
+        $this->dispatch('TableUpdated'); 
     }
 
     public function render()

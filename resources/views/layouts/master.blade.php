@@ -208,12 +208,13 @@
     <!--end::Custom Javascript-->
     <!--end::Javascript-->
 
+@livewireScripts          <!-- Load Livewire JavaScript first -->
+@stack('scripts')  
     <script>
         document.addEventListener('livewire:init', () => {
             Livewire.on('swal', (eventData) => {
 
                 const data = eventData[0];
-
                 Swal.fire({
                     text: data.text,
                     icon: data.icon,
@@ -228,11 +229,44 @@
 
     </script>
 
+    <script>
+    console.log('🔥 Script loaded');
 
+    document.addEventListener('livewire:init', () => {
+        console.log('✅ Livewire is initialized');
 
-    @livewireScripts
-        @stack('scripts')
+        // Initial KTMenu setup
+        requestAnimationFrame(() => {
+            console.log('🔁 Reinitializing KTMenu after initial load');
+            if (typeof KTMenu !== 'undefined') {
+                KTMenu.createInstances();
+            }
+        });
 
+        // After Livewire search or updates
+        Livewire.on('TableUpdated', () => {
+            console.log('🔁 Reinitializing KTMenu after Livewire search');
+
+            // Delay to ensure DOM is ready
+            setTimeout(() => {
+                if (typeof KTMenu !== 'undefined') {
+                    console.log('📦 Running KTMenu.createInstances() after delay');
+                    KTMenu.createInstances();
+                } else {
+                    console.warn('⚠ KTMenu not found');
+                }
+            }, 50);
+        });
+
+        // Just in case general DOM morphing occurs
+        Livewire.hook('morph.finished', () => {
+            console.log('🔁 Reinitializing KTMenu after morph.finished');
+            if (typeof KTMenu !== 'undefined') {
+                KTMenu.createInstances();
+            }
+        });
+    });
+</script>
 </body>
 <!--end::Body-->
 

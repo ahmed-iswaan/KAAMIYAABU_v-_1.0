@@ -115,6 +115,7 @@ class UserManagement extends Component
     public function updatingSearch()
     {
         $this->resetPage(); // Reset pagination when search changes
+        $this->dispatch('TableUpdated'); 
     }
 
     public function rules()

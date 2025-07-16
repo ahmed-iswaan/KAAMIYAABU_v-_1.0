@@ -16,7 +16,7 @@
                             <option></option>
                             @foreach($properties as $property)
                                 <option value="{{ $property->id }}">
-                                    {{ $property->name }}
+                                    {{ $property->name }} / {{ $property->island?->atoll?->code }}. {{ $property->island?->name }}
                                 </option>
                             @endforeach
                         </select>

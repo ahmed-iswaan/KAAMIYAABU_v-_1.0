@@ -80,7 +80,7 @@
                                                                             <div class="position-absolute h-100 w-4px bg-secondary rounded top-0 start-0"></div>
                                                                             <div class="fw-semibold ms-5">
                                                                                 <div class="fs-7 mb-1">{{ $time }}</div>
-                                                                                <a href="#" class="fs-5 fw-bold text-dark text-hover-primary mb-2">
+                                                                                <a href="#" class="fs-5 fw-bold text-dark text-hover-primary mb-2" wire:click.prevent="openModal('{{ $task->register->register_number }}')">
                                                                                     {{ $task->property->name ?? 'N/A' }} /  ({{ $task->register->register_number ?? '-' }})
                                                                                 </a>
 																				 <div class="fs-7 text-muted">Floor: {{ $task->register->floor ?? '-' }}</div>

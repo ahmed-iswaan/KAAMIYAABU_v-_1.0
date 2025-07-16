@@ -167,10 +167,10 @@
                                       <td>
                                         {{ optional($entry->property)->name }} {{ $entry->address }} {{ $entry->street_address ? ' / '.$entry->street_address : '' }}
                                         <div class="fw-semibold fs-7 text-muted">    {{ $entry->island?->atoll?->code }}. {{ $entry->island?->name }},
-    {{ $entry->country?->name }}</div>
+                                          {{ $entry->country?->name }}</div>
                                       </td>
                                       <td><div class="badge badge-light-success fw-bold">{{ $entry->status }}</div></td>
-                                   <td class="text-end">
+                                   <td class="text-end position-relative" wire:ignore>
                                             <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                             <i class="ki-duotone ki-down fs-5 ms-1"></i></a>
                                             <!--begin::Menu-->
@@ -185,8 +185,8 @@
                                                 </div>
                                                 <!--end::Menu item-->
 
-                                            </div>
                                             <!--end::Menu-->
+                                            </div>
                                         </td>
                                     </tr>
                                   @endforeach
@@ -194,17 +194,17 @@
                               </table>
                             </div>
 
-    <div class="row">
-      <div class="col-sm-12 col-md-5 d-flex align-items-center justify-content-center justify-content-md-start">
-        <!-- You can add per-page selector here -->
-      </div>
-      <div class="col-sm-12 col-md-7 d-flex align-items-center justify-content-center justify-content-md-end">
-        {{ $directory->links('vendor.pagination.new') }}
-      </div>
-    </div>
-  </div>
-  <!--end::Table-->
-</div>
+                          <div class="row">
+                            <div class="col-sm-12 col-md-5 d-flex align-items-center justify-content-center justify-content-md-start">
+                              <!-- You can add per-page selector here -->
+                            </div>
+                            <div class="col-sm-12 col-md-7 d-flex align-items-center justify-content-center justify-content-md-end">
+                              {{ $directory->links('vendor.pagination.new') }}
+                            </div>
+                          </div>
+                        </div>
+                        <!--end::Table-->
+                      </div>
 
                         <!--end::Card body-->
                     </div>
@@ -214,3 +214,5 @@
             </div>
 
    </div>
+
+

@@ -100,6 +100,13 @@ class DirectoryManagement extends Component
         $this->edit_registration_label = $defaultRegType?->name ?? 'ID Card';
     }
 
+    public function updatingSearch()
+    {
+        $this->resetPage();
+        $this->dispatch('TableUpdated'); 
+    }
+
+
     public function updatedHasContactPerson($value)
     {
         if (!$value) {
@@ -457,6 +464,7 @@ class DirectoryManagement extends Component
             'edit_name' => 'required|string|max:255',
             'edit_directory_type_id' => 'required|uuid|exists:directory_types,id',
             'edit_registration_type_id' => 'nullable|uuid|exists:registration_types,id',
+            'edit_country_id' => 'required|uuid|exists:countries,id',
             'edit_registration_number' => [
                 'nullable',
                 'string',
@@ -478,7 +486,6 @@ class DirectoryManagement extends Component
                 Rule::unique('directories', 'email')->ignore($directory->id),
             ],
             'edit_website' => 'nullable|url|max:255',
-            'edit_country_id' => 'nullable|uuid|exists:countries,id',
             'edit_island_id' => 'nullable|uuid|exists:islands,id',
             'edit_property_id' => 'nullable|uuid|exists:properties,id',
             'edit_address' => 'nullable|string|max:255',

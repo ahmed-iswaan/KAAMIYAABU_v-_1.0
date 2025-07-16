@@ -47,6 +47,13 @@ class PropertyManagement extends Component
     {
         $this->loadLookups();
     }
+
+    public function updatingSearch()
+    {
+        $this->resetPage();
+        $this->dispatch('TableUpdated'); 
+    }
+
     
 
     public function loadLookups()
