@@ -16,6 +16,7 @@ return new class extends Migration
             $table->uuid('payment_id');           // FK → payments.id
             $table->uuid('invoice_id');           // FK → invoices.id
             $table->decimal('applied_amount', 15, 2);
+            $table->string('status')->default('active');
             $table->timestamps();
 
             // FKs

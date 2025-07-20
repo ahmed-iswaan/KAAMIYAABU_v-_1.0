@@ -42,7 +42,7 @@ class UpdateInvoiceFines extends Command
         // It logs the exact query, bindings, and enum/now() values.
         $debugQuery = Invoice::whereNotNull('due_date')
             ->where('due_date', '<', now())
-            ->where('status', InvoiceStatus::PENDING)
+            ->whereIn('status', [InvoiceStatus::PENDING, InvoiceStatus::PARTIAL])
             ->with('lines'); // Include eager loads in debug query if relevant
 
         // Log::info('DEBUGGING QUERY:');
@@ -65,7 +65,7 @@ class UpdateInvoiceFines extends Command
         // when the 'saved' event triggers during saveQuietly().
         Invoice::whereNotNull('due_date')
             ->where('due_date', '<', now())
-            ->where('status', InvoiceStatus::PENDING)
+            ->whereIn('status', [InvoiceStatus::PENDING, InvoiceStatus::PARTIAL])
             ->with('lines') // Eager load the invoice lines
             ->chunkById(100, function ($invoices) use (&$processedCount, &$errorCount) {
                 // If no invoices are found in a chunk, we'll just skip.

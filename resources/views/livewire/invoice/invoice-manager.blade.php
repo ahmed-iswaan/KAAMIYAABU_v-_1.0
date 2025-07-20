@@ -18,7 +18,12 @@
                 </div>
                 {{-- Actions (if any) --}}
                 <div class="d-flex align-items-center flex-nowrap text-nowrap py-1">
-                    <button class="btn btn-primary" wire:click="showCreateModal">
+                    @if($selectedInvoices)
+                    <button class="btn btn-success me-4" wire:click="makePayment">
+                        Pay {{ count($selectedInvoices) }} Invoice{{ count($selectedInvoices) > 1 ? 's' : '' }}
+                    </button>
+                    @endif
+                    <button class="btn btn-primary " wire:click="showCreateModal">
                         <i class="ki-duotone ki-plus fs-2"></i> New Invoice
                     </button>
                 </div>
@@ -37,7 +42,17 @@
                         <div class="card mb-6 mb-lg-0">
                             <div class="card-header px-6" id="kt_sidebar_header">
                                 <div class="card-title m-0">
-                                    <h3 class="fw-bold m-0 text-gray-800">Invoices</h3>
+                                    <div class="d-flex align-items-center position-relative my-1">
+                                        <i class="ki-duotone ki-magnifier fs-3 position-absolute ms-5">
+                                            <span class="path1"></span>
+                                            <span class="path2"></span>
+                                        </i>
+                                        <input
+                                            type="text"
+                                            wire:model.live.debounce.500ms="search"
+                                            class="form-control form-control-solid w-100 ps-13"
+                                            placeholder="Search" />
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body py-7 px-5">
@@ -51,27 +66,32 @@
                                              menu-title-gray-600 menu-bullet-gray-300
                                              menu-state-bg menu-state-bullet-primary
                                              fw-semibold fs-6">
-                                        @foreach($invoices as $inv)
+                                      @foreach($invoices as $inv)
                                             <li class="menu-item pt-0 pb-1">
-                                                <a href="#"
-                                                   wire:click.prevent="selectInvoice('{{ $inv->id }}')"
-                                                   class="menu-link px-5 py-4 nav-link align-items-start
-                                                         {{ $selectedInvoiceId === $inv->id ? 'bg-light-primary' : '' }}">
-                                                    <span class="menu-bullet mt-3"><span class="bullet"></span></span>
-                                                    <div class="d-flex flex-column">
-                                                        <span class="menu-title text-gray-800 fw-bold">
-                                                            {{ $inv->directory->name }}
-                                                        </span>
-                                                        <span class="menu-content p-0 fs-7 text-gray-400 fw-semibold">
-                                                             {{ $inv->property->name }}
-                                                        </span>
-                                                        <span class="menu-content p-0 fs-7 text-gray-400 fw-semibold">
-                                                            Invoice #: {{ $inv->number }}
-                                                        </span>
+                                                <div class="d-flex align-items-start px-5 py-4 nav-link {{ $selectedInvoiceId === $inv->id ? 'bg-light-primary' : '' }}">
+                                                    {{-- ✅ Payment checkbox --}}
+                                                    <div class="form-check form-check-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            class="form-check-input"
+                                                            wire:model.live="selectedInvoices"
+                                                            value="{{ $inv->id }}"
+                                                             />
                                                     </div>
-                                                </a>
+
+                                                    {{-- ✅ Clickable invoice info --}}
+                                                    <a href="#"
+                                                    wire:click.prevent="selectInvoice('{{ $inv->id }}')"
+                                                    class="d-flex flex-column text-start text-gray-800 text-hover-primary flex-grow-1">
+                                                        <span class="fw-bold">{{ $inv->directory->name }}</span>
+                                                        <span class="fs-8 text-gray-500">{{ $inv->property->name }}</span>
+                                                        <span class="fs-8 text-gray-500">Invoice #: {{ $inv->number }}</span>
+                                                    </a>
+                                                </div>
                                             </li>
                                         @endforeach
+
+                                  
 
                                            {{-- Load More button --}}
                                         @if($invoices->hasMorePages())
@@ -103,11 +123,29 @@
                                         </span>
                                     @endif
                                 </div>
+                                @php
+                                    use App\Enums\InvoiceStatus;
+                                @endphp
+
                                 <div class="card-toolbar">
-                                    <a href="#" class="btn btn-flex btn-color-primary">
-                                        <i class="ki-duotone ki-arrow-left fs-4"></i> Orders
-                                    </a>
+                                    @switch($selectedInvoice->status)
+                                        @case(InvoiceStatus::PENDING)
+                                            <div class="badge badge-light-warning fs-4">Pending</div>
+                                            @break
+
+                                        @case(InvoiceStatus::PAID)
+                                            <div class="badge badge-light-success fs-4">Paid</div>
+                                            @break
+
+                                        @case(InvoiceStatus::CANCELLED)
+                                            <div class="badge badge-light-danger fs-4">Cancelled</div>
+                                            @break
+
+                                        @default
+                                            <div class="badge badge-light-secondary fs-4">{{ ucfirst($selectedInvoice->status->value) }}</div>
+                                    @endswitch
                                 </div>
+
                             </div>
 
                             <div class="card-body">
@@ -250,5 +288,6 @@
     {{-- end::Content --}}
 
     @include('livewire.invoice.create-modal')
+    @include('livewire.invoice.pay-modal')
 
 </div>

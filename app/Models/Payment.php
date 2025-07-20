@@ -15,22 +15,15 @@ class Payment extends Model
     protected $keyType    = 'string';
 
     protected $fillable = [
-        'property_id', 'directories_id',
+        'directories_id',
         'date', 'amount', 'method','status',
+        'bank', 'ref','payment_slip','note',
     ];
 
     protected $casts = [
         'date'   => 'date',
         'amount' => 'decimal:2',
     ];
-
-    /**
-     * The property this payment applies to.
-     */
-    public function property()
-    {
-        return $this->belongsTo(Property::class);
-    }
 
     /**
      * The directory this payment applies to.

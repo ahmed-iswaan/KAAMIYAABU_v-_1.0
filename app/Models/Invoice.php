@@ -43,6 +43,7 @@ class Invoice extends Model
         'total_amount',
         'invoice_tag',
         'ref_id',
+        'discount',
     ];
 
     protected $casts = [

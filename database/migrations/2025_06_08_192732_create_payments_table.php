@@ -14,19 +14,19 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('number')->unique();
-            $table->uuid('property_id');
             $table->uuid('directories_id');
 
             $table->date('date');
             $table->decimal('amount', 15, 2);
             $table->string('method')->nullable();
+            $table->string('bank')->nullable();
+            $table->string('ref')->nullable();
             $table->string('status')->default('Pending');
+             $table->string('payment_slip')->nullable();
+            $table->text('note')->nullable();
             $table->timestamps();
 
             // FKs
-            $table->foreign('property_id')
-                  ->references('id')->on('properties')
-                  ->onDelete('cascade');
             $table->foreign('directories_id')
                   ->references('id')->on('directories')
                   ->onDelete('cascade');

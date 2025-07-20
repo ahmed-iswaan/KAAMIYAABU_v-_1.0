@@ -22,6 +22,8 @@ return new class extends Migration
             $table->decimal('total_amount', 15, 2)->default(0);
             $table->decimal('subtotal', 15, 2)->default(0);
             $table->decimal('total_fine', 15, 2)->default(0);
+            $table->decimal('discount', 15, 2)->default(0);
+            $table->decimal('paid_amount', 15, 2)->default(0);
 
             // invoice features
             $table->string('invoice_type')->default('standard');

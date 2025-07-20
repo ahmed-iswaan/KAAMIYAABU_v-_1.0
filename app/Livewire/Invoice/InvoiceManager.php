@@ -14,6 +14,7 @@ use App\Enums\FineInterval;
 use Illuminate\Validation\Rules\Enum as EnumRule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 use App\Models\EventLog;
 use App\Models\PendingTelegramNotification;
 
@@ -26,6 +27,16 @@ class InvoiceManager extends Component
     public ?string $selectedInvoiceId = null;
     public ?Invoice $selectedInvoice  = null;
 
+    public Collection $invoicesToPay;
+    public float $totalInvoiceAmount = 0;
+
+    public array $selectedInvoices = []; // ✅ for payment selection
+
+    public float $paymentAmount = 0;
+    public array $paymentPreview = [];
+    public array $unpayableInvoices = [];
+
+
     public array $invoice;
     public array $lines;
 
@@ -36,6 +47,7 @@ class InvoiceManager extends Component
     public $statuses;
     public $intervals;
     public int $perPage = 10;
+    public $search = '';
 
     public function mount()
     {
@@ -52,6 +64,12 @@ class InvoiceManager extends Component
         if ($first) {
             $this->selectInvoice($first->id);
         }
+    }
+
+        public function updatingSearch()
+    {
+        $this->resetPage();
+        $this->dispatch('TableUpdated'); 
     }
 
     protected function rules(): array
@@ -105,6 +123,105 @@ class InvoiceManager extends Component
     {
         $this->resetForm();
         $this->dispatch('showInvoiceModal');
+    }
+
+    public function updatedPaymentAmount($value)
+    {
+        $this->paymentAmount = floatval($value);
+        $this->preparePaymentPreview();
+    }
+
+    public function preparePaymentPreview()
+    {
+        $remaining = $this->paymentAmount;
+        $this->paymentPreview = [];
+        $this->unpayableInvoices = [];
+
+        foreach ($this->invoicesToPay as $invoice) {
+            $due = $invoice->total_amount;
+
+            if ($remaining <= 0) {
+                $this->unpayableInvoices[] = $invoice->number;
+                $this->paymentPreview[] = [
+                    'invoice' => $invoice,
+                    'applied' => 0,
+                ];
+                continue;
+            }
+
+            $applied = min($remaining, $due);
+            $remaining -= $applied;
+
+            $this->paymentPreview[] = [
+                'invoice' => $invoice,
+                'applied' => $applied,
+            ];
+        }
+    }
+
+    public function submitPayment()
+    {
+        if ($this->paymentAmount <= 0) {
+            $this->addError('paymentAmount', 'Please enter a valid amount.');
+            return;
+        }
+
+        $this->preparePaymentPreview();
+
+        $payables = collect($this->paymentPreview)->filter(fn($p) => $p['applied'] > 0);
+
+        if ($payables->isEmpty()) {
+            $this->addError('paymentAmount', 'Amount too small to apply to selected invoices.');
+            return;
+        }
+
+        // Create Payment
+        $payment = \App\Models\Payment::create([
+            'directories_id' => $this->selectedInvoice?->directories_id ?? $payables->first()['invoice']->directories_id,
+            'property_id' => $this->selectedInvoice?->property_id ?? $payables->first()['invoice']->property_id,
+            'amount' => $this->paymentAmount,
+            'method' => 'manual', // or from form
+            'date' => now(),
+        ]);
+
+        foreach ($payables as $p) {
+            $invoice = $p['invoice'];
+            $applied = $p['applied'];
+
+            $payment->invoices()->attach($invoice->id, ['applied_amount' => $applied]);
+
+            if ($applied < $invoice->total_amount) {
+                $invoice->status = InvoiceStatus::PARTIAL;
+            } else {
+                $invoice->status = InvoiceStatus::PAID;
+            }
+            $invoice->save();
+        }
+
+        $this->dispatch('closePayModal');
+        $this->reset(['selectedInvoices', 'paymentAmount', 'paymentPreview', 'unpayableInvoices']);
+        session()->flash('success', 'Payment recorded successfully.');
+    }
+
+
+
+
+    public function makePayment()
+    {
+        $this->resetForm();
+
+        $this->invoicesToPay = Invoice::with('property', 'directory')
+            ->whereIn('id', $this->selectedInvoices)
+            ->get();
+
+        $this->totalInvoiceAmount = $this->invoicesToPay->sum('total_amount');
+
+        $this->paymentAmount = $this->totalInvoiceAmount;
+
+        // 🧾 Trigger the preview calculation (if used)
+        $this->preparePaymentPreview();
+
+        $this->dispatch('showPayModal');
     }
 
     public function loadMore()
@@ -226,9 +343,21 @@ class InvoiceManager extends Component
 
     public function render()
     {
-        $invoices = Invoice::with('property', 'directory')
-            ->orderBy('number', 'desc')
-            ->paginate($this->perPage);
+    $invoices = Invoice::with('property', 'directory')
+        ->when($this->search, function ($query) {
+            $query->where(function ($q) {
+                $q->where('number', 'like', '%' . $this->search . '%')
+                  ->orWhere('status', 'like', '%' . $this->search . '%')
+                  ->orWhereHas('directory', function ($q) {
+                      $q->where('name', 'like', '%' . $this->search . '%');
+                  })
+                  ->orWhereHas('property', function ($q) {
+                      $q->where('name', 'like', '%' . $this->search . '%');
+                  });
+            });
+        })
+        ->orderBy('number', 'desc')
+        ->paginate($this->perPage); 
 
         return view('livewire.invoice.invoice-manager', [
             'invoices' => $invoices,
@@ -236,4 +365,5 @@ class InvoiceManager extends Component
             'selectedInvoice' => $this->selectedInvoice,
         ])->layout('layouts.master');
     }
+
 }
