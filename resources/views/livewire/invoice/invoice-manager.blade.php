@@ -128,23 +128,28 @@
                                 @endphp
 
                                 <div class="card-toolbar">
+                                @if($selectedInvoice)
                                     @switch($selectedInvoice->status)
-                                        @case(InvoiceStatus::PENDING)
+                                        @case(App\Enums\InvoiceStatus::PENDING)
                                             <div class="badge badge-light-warning fs-4">Pending</div>
                                             @break
 
-                                        @case(InvoiceStatus::PAID)
+                                        @case(App\Enums\InvoiceStatus::PAID)
                                             <div class="badge badge-light-success fs-4">Paid</div>
                                             @break
 
-                                        @case(InvoiceStatus::CANCELLED)
+                                        @case(App\Enums\InvoiceStatus::CANCELLED)
                                             <div class="badge badge-light-danger fs-4">Cancelled</div>
                                             @break
 
                                         @default
-                                            <div class="badge badge-light-secondary fs-4">{{ ucfirst($selectedInvoice->status->value) }}</div>
+                                            <div class="badge badge-light-secondary fs-4">
+                                                {{ ucfirst($selectedInvoice->status->value) }}
+                                            </div>
                                     @endswitch
-                                </div>
+                                @endif
+                            </div>
+
 
                             </div>
 
