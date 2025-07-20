@@ -70,14 +70,27 @@
                                             <li class="menu-item pt-0 pb-1">
                                                 <div class="d-flex align-items-start px-5 py-4 nav-link {{ $selectedInvoiceId === $inv->id ? 'bg-light-primary' : '' }}">
                                                     {{-- ✅ Payment checkbox --}}
-                                                    <div class="form-check form-check-sm">
+                                                    @if ($inv->status === \App\Enums\InvoiceStatus::PAID) 
+                                                    <div class="form-check form-check-custom form-check-success form-check-solid">
                                                         <input
                                                             type="checkbox"
-                                                            class="form-check-input"
-                                                            wire:model.live="selectedInvoices"
-                                                            value="{{ $inv->id }}"
+                                                            class="form-check-input me-3"
+                                                            id="kt_check_indeterminate_1" checked
+                                                            @if ($inv->status === \App\Enums\InvoiceStatus::PAID) disabled @endif
                                                              />
                                                     </div>
+                                                    @else
+                                                    <div class="form-check form-check-custom form-check-solid mb-5">
+                                                        <input
+                                                            type="checkbox"
+                                                            class="form-check-input me-3"
+                                                            wire:model.live="selectedInvoices"
+                                                            value="{{ $inv->id }}"
+                                                            @if ($inv->status === \App\Enums\InvoiceStatus::PAID) disabled @endif
+                                                             />
+                                                    </div>
+                                                    @endif
+
 
                                                     {{-- ✅ Clickable invoice info --}}
                                                     <a href="#"
@@ -86,6 +99,28 @@
                                                         <span class="fw-bold">{{ $inv->directory->name }}</span>
                                                         <span class="fs-8 text-gray-500">{{ $inv->property->name }}</span>
                                                         <span class="fs-8 text-gray-500">Invoice #: {{ $inv->number }}</span>
+                                                        <span class="fs-8 text-gray-500">
+                                                        @if($inv)
+                                                                @switch($inv->status)
+                                                                    @case(App\Enums\InvoiceStatus::PENDING)
+                                                                        <div class="badge badge-light-warning">Pending</div>
+                                                                        @break
+
+                                                                    @case(App\Enums\InvoiceStatus::PAID)
+                                                                        <div class="badge badge-light-success">Paid</div>
+                                                                        @break
+
+                                                                    @case(App\Enums\InvoiceStatus::CANCELLED)
+                                                                        <div class="badge badge-light-danger">Cancelled</div>
+                                                                        @break
+
+                                                                    @default
+                                                                        <div class="badge badge-secondary">
+                                                                            {{ ucfirst($inv->status->value) }}
+                                                                        </div>
+                                                                @endswitch
+                                                        @endif
+                                                        </span>
                                                     </a>
                                                 </div>
                                             </li>
@@ -143,7 +178,7 @@
                                             @break
 
                                         @default
-                                            <div class="badge badge-light-secondary fs-4">
+                                            <div class="badge badge-secondary fs-4">
                                                 {{ ucfirst($selectedInvoice->status->value) }}
                                             </div>
                                     @endswitch

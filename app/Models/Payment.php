@@ -18,6 +18,9 @@ class Payment extends Model
         'directories_id',
         'date', 'amount', 'method','status',
         'bank', 'ref','payment_slip','note',
+        'credit_used',
+        'overpaid_amount',
+        'total_applied_to_invoices',
     ];
 
     protected $casts = [
@@ -38,7 +41,7 @@ class Payment extends Model
      */
     public function invoices()
     {
-        return $this->belongsToMany(Invoice::class)
+        return $this->belongsToMany(Invoice::class, 'invoice_payments')
                     ->withPivot('applied_amount')
                     ->withTimestamps();
     }

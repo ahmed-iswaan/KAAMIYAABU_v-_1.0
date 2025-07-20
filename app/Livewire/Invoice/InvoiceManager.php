@@ -8,8 +8,10 @@ use App\Models\Invoice;
 use App\Models\Property;
 use App\Models\Directory;
 use App\Models\InvoiceCategory;
+use App\Models\Payment;
 use App\Enums\InvoiceType;
 use App\Enums\InvoiceStatus;
+use App\Models\InvoicePayment;
 use App\Enums\FineInterval;
 use Illuminate\Validation\Rules\Enum as EnumRule;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,22 @@ class InvoiceManager extends Component
     public array $paymentPreview = [];
     public array $unpayableInvoices = [];
 
+    public string $paymentMethod = 'cash';
+    public string $paymentBank = '';
+    public string $paymentRef = '';
+    public string $paymentNote = '';
+    public $paymentDate;
+    public $paymentSlip;
+
+    public float $creditUsed = 0;
+    public float $overpaidAmount = 0;
+    public float $availableCredit = 0;
+
+    public float $totalApplied = 0;
+    public bool $hasZeroApplied = false;
+
+    public ?string $selectedCustomerId = null;
+
 
     public array $invoice;
     public array $lines;
@@ -51,12 +69,24 @@ class InvoiceManager extends Component
 
     public function mount()
     {
+        $this->invoicesToPay = collect();
+        $this->paymentAmount = 0;
+        $this->paymentMethod = 'cash';
+        $this->paymentBank = '';
+        $this->paymentRef = '';
+        $this->paymentNote = '';
+        $this->paymentDate = now()->toDateString();
+        $this->creditUsed = 0;
+        $this->overpaidAmount = 0;
+        $this->availableCredit = 0;
+
         $this->properties  = Property::pluck('name', 'id');
         $this->directories = Directory::pluck('name', 'id');
         $this->categories  = InvoiceCategory::pluck('name', 'id');
         $this->types       = InvoiceType::cases();
         $this->statuses    = InvoiceStatus::cases();
         $this->intervals   = FineInterval::cases();
+
 
         $this->resetForm();
 
@@ -138,7 +168,7 @@ class InvoiceManager extends Component
         $this->unpayableInvoices = [];
 
         foreach ($this->invoicesToPay as $invoice) {
-            $due = $invoice->total_amount;
+           $due = $invoice->total_amount - $invoice->paid_amount;
 
             if ($remaining <= 0) {
                 $this->unpayableInvoices[] = $invoice->number;
@@ -157,51 +187,108 @@ class InvoiceManager extends Component
                 'applied' => $applied,
             ];
         }
+
+        // ✅ These should all be $this->property
+        $this->totalApplied   = collect($this->paymentPreview)->sum('applied');
+        $this->hasZeroApplied = collect($this->paymentPreview)->contains(fn($p) => $p['applied'] == 0);
+
+        $this->creditUsed     = max(0, $this->totalApplied - $this->paymentAmount);
+        $this->overpaidAmount = max(0, $this->paymentAmount - $this->totalApplied);
     }
+
+    public function updatedSelectedCustomerId($value)
+    {
+
+         logger('Customer selected: ' . $value);
+        $this->availableCredit = Directory::find($value)?->credit_balance ?? 0;
+
+        // Update preview if there's a payment amount entered already
+        if ($this->paymentAmount > 0) {
+            $this->preparePaymentPreview();
+        }
+    }
+
 
     public function submitPayment()
     {
-        if ($this->paymentAmount <= 0) {
-            $this->addError('paymentAmount', 'Please enter a valid amount.');
-            return;
-        }
+    if ($this->paymentAmount <= 0) {
+        $this->addError('paymentAmount', 'Please enter a valid amount.');
+        return;
+    }
 
-        $this->preparePaymentPreview();
+    $this->preparePaymentPreview();
 
-        $payables = collect($this->paymentPreview)->filter(fn($p) => $p['applied'] > 0);
+    $payables = collect($this->paymentPreview)->filter(fn($p) => $p['applied'] > 0);
 
-        if ($payables->isEmpty()) {
-            $this->addError('paymentAmount', 'Amount too small to apply to selected invoices.');
-            return;
-        }
+    if ($payables->isEmpty()) {
+        $this->addError('paymentAmount', 'Amount too small to apply to selected invoices.');
+        return;
+    }
 
-        // Create Payment
-        $payment = \App\Models\Payment::create([
-            'directories_id' => $this->selectedInvoice?->directories_id ?? $payables->first()['invoice']->directories_id,
-            'property_id' => $this->selectedInvoice?->property_id ?? $payables->first()['invoice']->property_id,
-            'amount' => $this->paymentAmount,
-            'method' => 'manual', // or from form
-            'date' => now(),
+    // Get the directory
+    $payerDirectory = Directory::find($this->selectedCustomerId); // or however you're selecting the paying customer
+    if (! $payerDirectory) {
+        $this->addError('paymentAmount', 'Payer not found.');
+        return;
+    }
+
+    $totalApplied = $payables->sum('applied');
+    $creditUsed   = $this->creditUsed ?? 0;
+    $overpaid     = max(0, $this->paymentAmount - $totalApplied);
+
+    // 💳 Update only the selected payer's credit balance
+    $payerDirectory->credit_balance = max(0, $payerDirectory->credit_balance - $creditUsed + $overpaid);
+    $payerDirectory->save();
+
+
+    // Create Payment record
+    $payment = Payment::create([
+        'directories_id'             => $payerDirectory->id,
+        'amount'                     => $this->paymentAmount,
+        'method'                     => $this->paymentMethod,
+        'bank'                       => $this->paymentBank,
+        'ref'                        => $this->paymentRef,
+        'payment_slip'              => $this->paymentSlip ? $this->paymentSlip->store('payment_slips', 'public') : null,
+        'note'                       => $this->paymentNote,
+        'date'                       => $this->paymentDate,
+        'credit_used'               => $creditUsed,
+        'overpaid_amount'           => $overpaid,
+        'total_applied_to_invoices' => $totalApplied,
+    ]);
+
+    // Apply payment to invoices
+    foreach ($payables as $p) {
+        $invoice = $p['invoice'];
+        $applied = $p['applied'];
+
+        InvoicePayment::create([
+            'invoice_id'     => $invoice->id,
+            'payment_id'     => $payment->id,
+            'applied_amount' => $applied,
         ]);
 
-        foreach ($payables as $p) {
-            $invoice = $p['invoice'];
-            $applied = $p['applied'];
+        $invoice->paid_amount += $applied;
 
-            $payment->invoices()->attach($invoice->id, ['applied_amount' => $applied]);
-
-            if ($applied < $invoice->total_amount) {
-                $invoice->status = InvoiceStatus::PARTIAL;
-            } else {
-                $invoice->status = InvoiceStatus::PAID;
-            }
-            $invoice->save();
+        if ($invoice->paid_amount < $invoice->total_amount) {
+            $invoice->status = InvoiceStatus::PARTIAL;
+        } else {
+            $invoice->status = InvoiceStatus::PAID;
         }
 
-        $this->dispatch('closePayModal');
-        $this->reset(['selectedInvoices', 'paymentAmount', 'paymentPreview', 'unpayableInvoices']);
-        session()->flash('success', 'Payment recorded successfully.');
+        $invoice->save();
     }
+
+    $this->dispatch('swal', ['title' => 'Payment recorded successfully', 'text' => 'Payment recorded successfully.', 'icon' => 'success','confirmButtonText' => 'Ok!','confirmButton'=> 'btn btn-primary']);
+    $this->dispatch('closePayModal');
+    $this->reset([
+        'selectedInvoices', 'paymentAmount', 'paymentPreview',
+        'unpayableInvoices', 'paymentDate', 'paymentMethod', 'paymentBank',
+        'paymentRef', 'paymentNote', 'paymentSlip'
+    ]);
+
+    session()->flash('success', 'Payment recorded successfully.');
+}
+
 
 
 
@@ -211,10 +298,23 @@ class InvoiceManager extends Component
         $this->resetForm();
 
         $this->invoicesToPay = Invoice::with('property', 'directory')
+        ->when($this->selectedCustomerId, fn($q) => $q->where('directories_id', $this->selectedCustomerId))
+        ->whereIn('id', $this->selectedInvoices)
+        ->get();
+
+        $this->availableCredit = Directory::find($this->selectedCustomerId)?->credit_balance ?? 0;
+
+
+        $this->paymentDate = now()->toDateString();
+
+        $firstInvoice = $this->invoicesToPay->first();
+
+        $this->invoicesToPay = Invoice::with('property', 'directory')
             ->whereIn('id', $this->selectedInvoices)
             ->get();
 
-        $this->totalInvoiceAmount = $this->invoicesToPay->sum('total_amount');
+       $this->totalInvoiceAmount = $this->invoicesToPay->sum(fn($inv) => $inv->total_amount - $inv->paid_amount);
+
 
         $this->paymentAmount = $this->totalInvoiceAmount;
 

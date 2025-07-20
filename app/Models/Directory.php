@@ -21,7 +21,7 @@ class Directory extends Model
         'gender', 'date_of_birth',
         'phone', 'email', 'website',
         'country_id', 'island_id', 'address', 'location_type',
-        'properties_id','status', // Make sure to add this to fillable if you want to mass assign it
+        'properties_id','status','credit_balance', // Make sure to add this to fillable if you want to mass assign it
     ];
 
     public function type(): BelongsTo
@@ -72,5 +72,11 @@ class Directory extends Model
     {
         return $this->contactPersonRelationship->linkedDirectory ?? null;
     }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'directories_id');
+    }
+
 
 }

@@ -44,6 +44,8 @@ return new class extends Migration
 
             $table->string('status')->default('Active');
 
+            $table->decimal('credit_balance', 10, 2)->default(0);
+
             // Residence type: inland vs outer islander
             $table->enum('location_type', ['inland', 'outer_islander'])->default('inland');
 

@@ -44,6 +44,7 @@ class Invoice extends Model
         'invoice_tag',
         'ref_id',
         'discount',
+        'paid_amount',
     ];
 
     protected $casts = [
@@ -59,6 +60,8 @@ class Invoice extends Model
         'status'            => InvoiceStatus::class,
         'fine_interval'     => FineInterval::class,
         'fine_grace_period' => 'integer',
+        'discount'          => 'decimal:2',
+        'paid_amount'       => 'decimal:2',
     ];
 
     protected $appends = [
@@ -66,6 +69,7 @@ class Invoice extends Model
         'accrued_fine',
         'total_with_fine',
         'fine_detail',
+        'balance_due',
     ];
 
     // Relationships
@@ -111,7 +115,7 @@ class Invoice extends Model
 
     public function getTotalWithFineAttribute(): float
     {
-        return $this->subtotal + $this->accrued_fine;
+         return max(0, ($this->subtotal - $this->discount)) + $this->accrued_fine;
     }
 
     public function getFineDetailAttribute(): string
@@ -132,6 +136,11 @@ class Invoice extends Model
             $details['label_singular'],
             $details['fine']
         );
+    }
+
+    public function getBalanceDueAttribute(): float
+    {
+        return max(0, $this->total_amount - $this->paid_amount);
     }
 
     protected function fineStartDate(): ?Carbon
@@ -211,7 +220,7 @@ class Invoice extends Model
 
             $newSubtotal = $invoice->subtotal;
             $newFine = $invoice->accrued_fine;
-            $newTotal = $newSubtotal + $newFine;
+            $newTotal = max(0, $newSubtotal - $invoice->discount) + $newFine;
 
             if (
                 (float)$invoice->total_amount !== (float)$newTotal ||

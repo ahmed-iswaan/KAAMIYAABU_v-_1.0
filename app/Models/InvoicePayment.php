@@ -11,7 +11,7 @@ class InvoicePayment extends Model
     use HasFactory;
     use HasUuids;
 
-    protected $table       = 'invoice_payment';
+    protected $table       = 'invoice_payments';
     public $incrementing  = false;
     protected $keyType     = 'string';
 
