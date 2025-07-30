@@ -237,83 +237,142 @@
                                     </div>
 
                                     {{-- Invoice Details --}}
-                                    <div class="fs-4 mb-8">
-                                        <h3 class="fw-bold mb-2">Order Invoice</h3>
-                                        <div class="fw-semibold text-gray-600">
-                                            Due Date: {{ $selectedInvoice->due_date?->format('M d, Y') ?: '—' }}<br>
-                                            Transaction #: {{ $selectedInvoice->payments->first()?->id ?? '—' }}
-                                        </div>
-                                    </div>
 
-                                    {{-- Line-items --}}
-                                    <h2 class="fw-bold fs-3 mb-3">Billing Statement</h2>
-                                    <div class="table-responsive mb-10">
-                                        <table class="table g-2 gs-0 align-middle fw-semibold">
-                                            <tbody>
-                                                @foreach($selectedInvoice->lines as $line)
-                                                    <tr>
-                                                        <th class="min-w-250px fw-semibold text-gray-700 text-start">
-                                                            {{ $line->description }}
-                                                        </th>
-                                                        <th class="min-w-150px fw-semibold text-muted text-start">
-                                                            {{ $line->category->name ?? '—' }}
-                                                        </th>
-                                                        <th class="min-w-90px fw-bold text-end fs-4">
-                                                            MVR {{ number_format($line->quantity * $line->unit_price,2) }}
-                                                        </th>
-                                                    </tr>
-                                                @endforeach
+                   
 
-                                                {{-- Subtotal --}}
-                                                <tr>
-                                                    <th></th>
-                                                    <th class="text-gray-600 text-end">Subtotal</th>
-                                                    <th class="text-end fw-bold">
-                                                        MVR {{ number_format(
-                                                                $selectedInvoice->lines->sum(fn($l)=>$l->quantity*$l->unit_price),
-                                                                2) }}
-                                                    </th>
-                                                </tr>
+                            {{-- Line-items --}}
+                            <h2 class="fw-bold fs-3 mb-3">Billing Statement</h2>
+                            <div class="table-responsive mb-10">
+                                <table class="table g-2 gs-0 align-middle fw-semibold">
+                                    <tbody>
+                                        @foreach($selectedInvoice->lines as $line)
+                                            <tr>
+                                                <th class="min-w-250px fw-semibold text-gray-700 text-start">
+                                                    {{ $line->description }}
+                                                </th>
+                                                <th class="min-w-150px fw-semibold text-muted text-start">
+                                                    {{ $line->category->name ?? '—' }}
+                                                </th>
+                                                <th class="min-w-90px fw-bold text-end fs-4">
+                                                    MVR {{ number_format($line->quantity * $line->unit_price,2) }}
+                                                </th>
+                                            </tr>
+                                        @endforeach
 
-                                                {{-- VAT, if you have it --}}
-                                                @if(isset($selectedInvoice->vat_amount))
-                                                    <tr>
-                                                        <th></th>
-                                                        <th class="text-gray-600 text-end">VAT</th>
-                                                        <th class="fw-bold text-end">
-                                                            MVR {{ number_format($selectedInvoice->vat_amount,2) }}
-                                                        </th>
-                                                    </tr>
-                                                @endif
-                                                @if($selectedInvoice->accrued_fine > 0)
-                                                    <tr>
-                                                        <th></th>
-                                                        <th class="text-danger text-end">Fine</th>
-                                                        <th class="fw-bold text-danger text-end">
-                                                            MVR {{ number_format($selectedInvoice->accrued_fine,2) }}
-                                                        </th>
-                                                    </tr>
-                                                @endif
+                                        {{-- Subtotal --}}
+                                        <tr>
+                                            <th></th>
+                                            <th class="text-gray-600 text-end">Subtotal</th>
+                                            <th class="text-end fw-bold">
+                                                MVR {{ number_format($selectedInvoice->subtotal, 2) }}
+                                            </th>
+                                        </tr>
 
-                                                {{-- Total --}}
-                                                <tr>
-                                                    <th></th>
-                                                    <th class="text-gray-600 text-end">Total</th>
-                                                    <th class="fw-bold text-end">
-                                                        MVR {{ number_format($selectedInvoice->total_amount,2) }}
-                                                    </th>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                        {{-- Discount --}}
+                                        @if($selectedInvoice->discount > 0)
+                                            <tr>
+                                                <th></th>
+                                                <th class="text-gray-600 text-end">Discount</th>
+                                                <th class="fw-bold text-end text-success">
+                                                    − MVR {{ number_format($selectedInvoice->discount, 2) }}
+                                                </th>
+                                            </tr>
+                                        @endif
 
-                                    {{-- Actions --}}
-                                    <div class="d-flex justify-content-end">
-                                        <a href="#" class="btn btn-light btn-active-light-primary fw-bold me-3">
-                                            Print
-                                        </a>
-                                        <a href="#" class="btn btn-primary">Write a Review</a>
-                                    </div>
+                                        {{-- VAT --}}
+                                        @if(isset($selectedInvoice->vat_amount))
+                                            <tr>
+                                                <th></th>
+                                                <th class="text-gray-600 text-end">VAT</th>
+                                                <th class="fw-bold text-end">
+                                                    MVR {{ number_format($selectedInvoice->vat_amount,2) }}
+                                                </th>
+                                            </tr>
+                                        @endif
+
+                                        {{-- Fine --}}
+                                        @if($selectedInvoice->accrued_fine > 0)
+                                            <tr>
+                                                <th></th>
+                                                <th class="text-danger text-end">Fine</th>
+                                                <th class="fw-bold text-danger text-end">
+                                                    MVR {{ number_format($selectedInvoice->accrued_fine,2) }}
+                                                </th>
+                                            </tr>
+                                        @endif
+
+                                        {{-- Total --}}
+                                        <tr>
+                                            <th></th>
+                                            <th class="text-gray-600 text-end">Total</th>
+                                            <th class="fw-bold text-end">
+                                                MVR {{ number_format($selectedInvoice->total_amount,2) }}
+                                            </th>
+                                        </tr>
+
+                                        {{-- Paid --}}
+                                        <tr>
+                                            <th></th>
+                                            <th class="text-gray-600 text-end">Paid Amount</th>
+                                            <th class="fw-bold text-end text-success">
+                                                MVR {{ number_format($selectedInvoice->paid_amount,2) }}
+                                            </th>
+                                        </tr>
+
+                                        {{-- Balance Due --}}
+                                        <tr>
+                                            <th></th>
+                                            <th class="text-gray-600 text-end">Balance Due</th>
+                                            <th class="fw-bold text-end text-warning">
+                                                MVR {{ number_format($selectedInvoice->balance_due,2) }}
+                                            </th>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+
+                            <hr>
+                                <h3 class="fw-bold mb-2">Payments</h3>
+
+                                <div class="d-flex flex-wrap">
+                                    @forelse($selectedInvoice->payments as $payment)
+										<!--begin::Col-->
+										<div class="border border-dashed border-gray-300 rounded my-3 p-4 me-6">
+											<span class="fs-2 fw-bold text-gray-800 lh-1">
+											<span data-kt-countup="true" data-kt-countup-value="MVR {{ number_format($payment->pivot->applied_amount, 2) }}" data-kt-countup-prefix="MVR" class="counted" data-kt-initialized="1">MVR {{ number_format($payment->pivot->applied_amount, 2) }}</span>
+											</span>
+											<span class="fs-6 fw-semibold text-gray-400 d-block lh-1 pt-2">{{ $payment->number }} | {{ $payment->created_at->format('M d, Y') }}</span>
+										</div>
+										<!--end::Col-->
+                                        @empty
+                                        Payment #: —
+                                        @endforelse
+									</div>
+                            <hr>
+                            {{-- Message to Customer --}}
+                            @if($selectedInvoice->message_to_customer)
+                                <div class="alert bg-light-info p-5 mb-10">
+                                    <h5 class="fw-bold mb-2">Message to Customer</h5>
+                                    <p class="mb-0 text-gray-700">{{ $selectedInvoice->message_to_customer }}</p>
+                                </div>
+                            @endif
+
+                            {{-- Message on Statement --}}
+                            @if($selectedInvoice->message_on_statement)
+                                <div class="alert bg-light-warning p-5 mb-10">
+                                    <h5 class="fw-bold mb-2">Statement Note</h5>
+                                    <p class="mb-0 text-gray-700">{{ $selectedInvoice->message_on_statement }}</p>
+                                </div>
+                            @endif
+
+                            {{-- Actions --}}
+                            <div class="d-flex justify-content-end">
+                                <a href="#" class="btn btn-light btn-active-light-primary fw-bold me-3">
+                                    Print
+                                </a>
+                            </div>
+
                                 @endif
                             </div>
                         </div>

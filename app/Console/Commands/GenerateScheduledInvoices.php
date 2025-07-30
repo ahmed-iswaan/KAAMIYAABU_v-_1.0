@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use Carbon\Carbon;
 use App\Models\EventLog;
 use App\Models\PendingTelegramNotification;
+use App\Services\DhiraaguSmsService;
 
 class GenerateScheduledInvoices extends Command
 {
@@ -46,6 +47,32 @@ class GenerateScheduledInvoices extends Command
                 ]);
             }
             $invoice->refresh(); 
+
+            $mainDirectory = $invoice->directory;
+            $brand = config('app.short_label');
+            // Format the SMS content
+            $smsText = "Dear valued customer,\n" .
+                    "Your invoice for {$invoice->invoice_tag} is ready.\n\n" .
+                    "Invoice No: {$invoice->number}\n" .
+                    "Amount: MVR " . number_format($invoice->total_amount, 2) . "\n" .
+                    "Due on: " . optional($invoice->due_date)->format('d M Y') . "\n\n" .
+                    "- {$brand}";
+
+            // Send SMS to main directory if phone is available
+            if (!empty($mainDirectory->phone)) {
+                app(DhiraaguSmsService::class)->queue($mainDirectory->phone, $smsText);
+            }
+
+            // Send SMS to active linked directories with phone numbers
+            $linkedDirectories = $mainDirectory->linkedDirectories()
+                ->where('status', 'active')
+                ->get()
+                ->pluck('linkedDirectory')
+                ->filter(fn($dir) => !empty($dir->phone));
+
+            foreach ($linkedDirectories as $linkedDir) {
+                app(DhiraaguSmsService::class)->queue($linkedDir->phone, $smsText);
+            }
             // Update schedule
             $schedule->generated_count += 1;
 

@@ -17,7 +17,7 @@ class Payment extends Model
     protected $fillable = [
         'directories_id',
         'date', 'amount', 'method','status',
-        'bank', 'ref','payment_slip','note',
+        'bank', 'ref','payment_slip','note','cancel_note',
         'credit_used',
         'overpaid_amount',
         'total_applied_to_invoices',

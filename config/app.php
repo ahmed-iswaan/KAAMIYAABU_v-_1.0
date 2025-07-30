@@ -13,7 +13,9 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'CouncilDesks'),
+
+    'short_label' => env('SHORT_LABEL', 'CouncilDesks'),
 
     /*
     |--------------------------------------------------------------------------

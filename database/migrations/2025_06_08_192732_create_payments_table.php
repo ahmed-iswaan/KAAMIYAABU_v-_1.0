@@ -30,6 +30,7 @@ return new class extends Migration
             $table->string('status')->default('Pending');
             $table->string('payment_slip')->nullable();
             $table->text('note')->nullable();
+            $table->text('cancel_note')->nullable();
             $table->timestamps();
 
             // FKs

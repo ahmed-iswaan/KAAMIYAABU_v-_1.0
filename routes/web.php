@@ -11,6 +11,7 @@ use App\Livewire\Property\ViewProperty;
 use App\Livewire\Waste\WasteManagement;
 use App\Livewire\Waste\TaskList;
 use App\Livewire\Invoice\InvoiceManager;
+use App\Livewire\Payment\Paymentmanager;
 
 
 Route::get('/', function () {
@@ -36,4 +37,7 @@ Route::get('/waste-collection', TaskList::class)->name('waste-collection');
 
 Route::get('/invoices', InvoiceManager::class)
          ->name('invoices.index');
+
+Route::get('/payments', Paymentmanager::class)->name('payments');
+
 });

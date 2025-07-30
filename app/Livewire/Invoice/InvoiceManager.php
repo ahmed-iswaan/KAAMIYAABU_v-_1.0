@@ -19,10 +19,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
 use App\Models\EventLog;
 use App\Models\PendingTelegramNotification;
+use App\Services\DhiraaguSmsService;
+use Livewire\WithFileUploads;
 
 class InvoiceManager extends Component
 {
-    use WithPagination;
+    use WithPagination, WithFileUploads;
 
     public string $pageTitle = 'Invoices';
 
@@ -144,6 +146,21 @@ class InvoiceManager extends Component
             'ref_id'               => '',
         ];
 
+            $this->reset([
+            'selectedCustomerId',
+            'paymentAmount',
+            'creditUsed',
+            'overpaidAmount',
+            'paymentBank',
+            'paymentRef',
+            'paymentNote',
+            'paymentSlip',
+            'paymentDate',
+            'paymentMethod',
+            'paymentPreview',
+            'unpayableInvoices',
+        ]);
+
         $this->lines = [
             ['category_id' => null, 'description' => '', 'quantity' => 1, 'unit_price' => 0]
         ];
@@ -161,40 +178,60 @@ class InvoiceManager extends Component
         $this->preparePaymentPreview();
     }
 
-    public function preparePaymentPreview()
+    public function updatedCreditUsed($value)
     {
-        $remaining = $this->paymentAmount;
-        $this->paymentPreview = [];
-        $this->unpayableInvoices = [];
+        $value = floatval($value ?? 0); // Treat null as 0
 
-        foreach ($this->invoicesToPay as $invoice) {
-           $due = $invoice->total_amount - $invoice->paid_amount;
+        if ($value < 0) {
+            $this->creditUsed = 0;
+            $this->addError('creditUsed', 'Credit used cannot be less than 0.');
+        } elseif ($value > $this->availableCredit) {
+            $this->creditUsed = $this->availableCredit;
+            $this->addError('creditUsed', 'Credit used cannot exceed available credit.');
+        } else {
+            $this->resetErrorBag('creditUsed');
+            $this->creditUsed = $value;
+        }
+        
+        $this->preparePaymentPreview();
+    }
 
-            if ($remaining <= 0) {
-                $this->unpayableInvoices[] = $invoice->number;
-                $this->paymentPreview[] = [
-                    'invoice' => $invoice,
-                    'applied' => 0,
-                ];
-                continue;
-            }
 
-            $applied = min($remaining, $due);
-            $remaining -= $applied;
+public function preparePaymentPreview()
+{
+    $this->creditUsed = max(0, min($this->creditUsed, $this->availableCredit));
 
+    $totalAvailable = $this->paymentAmount + $this->creditUsed;
+
+    $this->paymentPreview = [];
+    $this->unpayableInvoices = [];
+
+    foreach ($this->invoicesToPay as $invoice) {
+        $due = $invoice->total_amount - $invoice->paid_amount;
+
+        if ($totalAvailable <= 0) {
+            $this->unpayableInvoices[] = $invoice->number;
             $this->paymentPreview[] = [
                 'invoice' => $invoice,
-                'applied' => $applied,
+                'applied' => 0,
             ];
+            continue;
         }
 
-        // ✅ These should all be $this->property
-        $this->totalApplied   = collect($this->paymentPreview)->sum('applied');
-        $this->hasZeroApplied = collect($this->paymentPreview)->contains(fn($p) => $p['applied'] == 0);
+        $applied = min($totalAvailable, $due);
+        $totalAvailable -= $applied;
 
-        $this->creditUsed     = max(0, $this->totalApplied - $this->paymentAmount);
-        $this->overpaidAmount = max(0, $this->paymentAmount - $this->totalApplied);
+        $this->paymentPreview[] = [
+            'invoice' => $invoice,
+            'applied' => $applied,
+        ];
     }
+
+    $this->totalApplied   = collect($this->paymentPreview)->sum('applied');
+    $this->hasZeroApplied = collect($this->paymentPreview)->contains(fn($p) => $p['applied'] == 0);
+    $this->overpaidAmount = max(0, ($this->paymentAmount + $this->creditUsed) - $this->totalApplied);
+}
+
 
     public function updatedSelectedCustomerId($value)
     {
@@ -211,7 +248,7 @@ class InvoiceManager extends Component
 
     public function submitPayment()
     {
-    if ($this->paymentAmount <= 0) {
+    if ($this->paymentAmount < 0) {
         $this->addError('paymentAmount', 'Please enter a valid amount.');
         return;
     }
@@ -234,12 +271,22 @@ class InvoiceManager extends Component
 
     $totalApplied = $payables->sum('applied');
     $creditUsed   = $this->creditUsed ?? 0;
-    $overpaid     = max(0, $this->paymentAmount - $totalApplied);
+    $overpaid     = max(0, ($this->paymentAmount + $this->creditUsed) - $totalApplied);
 
-    // 💳 Update only the selected payer's credit balance
-    $payerDirectory->credit_balance = max(0, $payerDirectory->credit_balance - $creditUsed + $overpaid);
+    $originalBalance = floatval($payerDirectory->credit_balance ?? 0);
+
+    $newBalance = ($originalBalance + $overpaid) - $creditUsed;
+
+    $payerDirectory->credit_balance = max(0, $newBalance);
+
+    // dd(
+    //     'originalBalance = '.$originalBalance,
+    //     'creditUsed = '.$creditUsed,
+    //     'overpaid = '.$overpaid,
+    //     'payerDirectory = '.$payerDirectory->credit_balance,
+    //     'totalApplied = '.$totalApplied);
+
     $payerDirectory->save();
-
 
     // Create Payment record
     $payment = Payment::create([
@@ -251,10 +298,26 @@ class InvoiceManager extends Component
         'payment_slip'              => $this->paymentSlip ? $this->paymentSlip->store('payment_slips', 'public') : null,
         'note'                       => $this->paymentNote,
         'date'                       => $this->paymentDate,
-        'credit_used'               => $creditUsed,
+        'credit_used'               => $this->creditUsed,
         'overpaid_amount'           => $overpaid,
+        'status'                    => 'Approved',
         'total_applied_to_invoices' => $totalApplied,
     ]);
+
+    EventLog::create([
+    'user_id'        => auth()->id(),
+    'event_tab'      => 'Payments',
+    'event_entry_id' => $payment->id,
+    'event_type'     => 'Payment Recorded',
+    'description'    => "New payment recorded for {$totalApplied} MVR",
+    'event_data'     => [
+        'payment_id' => $payment->id,
+        'amount'     => $payment->amount,
+        'payer_id'   => $payerDirectory->id,
+    ],
+    'ip_address'     => request()->ip(),
+    ]);
+
 
     // Apply payment to invoices
     foreach ($payables as $p) {
@@ -276,6 +339,67 @@ class InvoiceManager extends Component
         }
 
         $invoice->save();
+
+        $mainDirectory = $invoice->directory;
+
+        $brand = config('app.short_label');
+            // Format the SMS content
+        $smsText = "Dear customer, we have received your payment of MVR " . number_format($applied, 2) .
+            " for Invoice No: {$invoice->number} on " . now()->format('d M Y') . ".\n" .
+            "Total paid: MVR " . number_format($invoice->paid_amount, 2) . "\n\n" .
+            "- " . config('app.name');
+
+        // ✅ Send to main directory if phone exists
+        if (!empty($mainDirectory->phone)) {
+            app(DhiraaguSmsService::class)->queue($mainDirectory->phone, $smsText);
+        }
+
+        // ✅ Send to all active linked directories (if phone exists)
+        $linkedDirectories = $mainDirectory->linkedDirectories()
+            ->where('status', 'active')
+            ->get()
+            ->pluck('linkedDirectory')
+            ->filter(fn($d) => !empty($d->phone));
+
+        foreach ($linkedDirectories as $linked) {
+            app(DhiraaguSmsService::class)->queue($linked->phone, $smsText);
+        }
+
+        // Log Event
+        EventLog::create([
+            'user_id'        => auth()->id(),
+            'event_tab'      => 'Invoices',
+            'event_entry_id' => $invoice->id,
+            'event_type'     => 'Invoice Paid',
+            'description'    => "Payment of {$applied} MVR applied to invoice.",
+            'event_data'     => [
+                'invoice_number' => $invoice->number,
+                'applied_amount' => $applied,
+                'total_paid'     => $invoice->paid_amount,
+                'status'         => $invoice->status->value,
+                'payer_id'       => $payerDirectory->id,
+            ],
+            'ip_address'     => request()->ip(),
+        ]);
+
+        // Send Telegram Notification
+        $invoice->load(['property', 'directory']);
+
+        $msg = "<b>💰 Invoice Payment Received</b>\n\n" .
+            "<b>Invoice Number:</b> {$invoice->number}\n" .
+            "<b>Amount Applied:</b> " . number_format($applied, 2) . " MVR\n" .
+            "<b>Paid By:</b> " . ($payerDirectory->name ?? 'N/A') . "\n" .
+            "<b>Property:</b> " . ($invoice->property->name ?? 'N/A') . "\n" .
+            "<b>Status:</b> {$invoice->status->value}\n" .
+            "<b>Total Paid:</b> " . number_format($invoice->paid_amount, 2) . " MVR\n" .
+            "<b>Date:</b> " . now()->format('d M Y H:i');
+
+        PendingTelegramNotification::create([
+            'chat_id' => env('TELEGRAM_GROUP_INVOICE_PAYMENT'),
+            'message_thread_id' => env('TELEGRAM_TOPIC_INVOICE_PAYMENT'),
+            'message' => $msg,
+        ]);
+
     }
 
     $this->dispatch('swal', ['title' => 'Payment recorded successfully', 'text' => 'Payment recorded successfully.', 'icon' => 'success','confirmButtonText' => 'Ok!','confirmButton'=> 'btn btn-primary']);
@@ -405,7 +529,8 @@ class InvoiceManager extends Component
                         "<b>Created At:</b> " . now()->format('d M Y H:i');
 
                     PendingTelegramNotification::create([
-                        'chat_id' => env('TELEGRAM_INVOICES_CHAT_ID'),
+                        'chat_id' => env('TELEGRAM_GROUP_INVOICE'),
+                        'message_thread_id' => env('TELEGRAM_TOPIC_INVOICE'),
                         'message' => $msg,
                     ]);
 
