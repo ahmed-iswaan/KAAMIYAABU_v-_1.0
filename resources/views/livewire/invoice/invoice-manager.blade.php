@@ -337,10 +337,21 @@
 
                                 <div class="d-flex flex-wrap">
                                     @forelse($selectedInvoice->payments as $payment)
+
+                                                                                       @php
+                                        $badgeClass = match(strtolower($payment->status)) {
+                                            'approved' => 'success',
+                                            'pending'  => 'warning',
+                                            'cancelled' => 'danger',
+                                            default    => 'secondary',
+                                        };
+                                    @endphp
 										<!--begin::Col-->
 										<div class="border border-dashed border-gray-300 rounded my-3 p-4 me-6">
 											<span class="fs-2 fw-bold text-gray-800 lh-1">
-											<span data-kt-countup="true" data-kt-countup-value="MVR {{ number_format($payment->pivot->applied_amount, 2) }}" data-kt-countup-prefix="MVR" class="counted" data-kt-initialized="1">MVR {{ number_format($payment->pivot->applied_amount, 2) }}</span>
+											<span data-kt-countup="true" data-kt-countup-value="MVR {{ number_format($payment->pivot->applied_amount, 2) }}" data-kt-countup-prefix="MVR" class="counted" data-kt-initialized="1">MVR {{ number_format($payment->pivot->applied_amount, 2) }}                  <span class="badge badge-{{ $badgeClass }}">
+                                        {{ ucfirst($payment->status) }}
+                                    </span></span>
 											</span>
 											<span class="fs-6 fw-semibold text-gray-400 d-block lh-1 pt-2">{{ $payment->number }} | {{ $payment->created_at->format('M d, Y') }}</span>
 										</div>

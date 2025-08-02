@@ -141,7 +141,11 @@
                                             default    => 'secondary',
                                         };
                                     @endphp
-                                <td class="text-{{ $badgeClass }}">MVR {{ number_format($payment->amount, 2) }}</td>
+                                <td class="text-{{ $badgeClass }}">MVR {{ number_format($payment->amount, 2) }}
+                                      @if($payment->credit_used > 0)
+                                          <small class="text-muted"><br>(Credit Used: MVR {{ number_format($payment->credit_used, 2) }})</small>
+                                      @endif
+                                </td>
                                 <td>
 
                                     <span class="badge badge-{{ $badgeClass }}">
@@ -180,8 +184,48 @@
                                     <small class="text-muted">{{ $payment->ref }}</small>
 
                                 </td>
-                                <td class="text-end">
-                                    <a href="#" wire:click="viewPayment('{{ $payment->id }}')" class="btn btn-sm btn-light btn-active-light-primary">View</a>
+                                <td class="text-end position-relative" >
+                                            <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
+                                            <i class="ki-duotone ki-down fs-5 ms-1"></i></a>
+                                            <!--begin::Menu-->
+                                            <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-125px py-4" data-kt-menu="true">
+                                                <!--begin::Menu item-->
+                                                <div class="menu-item px-3">
+                                                    <a href="#"
+                                                    class="menu-link px-3"
+                                                    wire:click="viewPayment('{{ $payment->id }}')">
+                                                    View
+                                                 </a>
+                                                </div>
+                                                <!--end::Menu item-->
+
+                                              <!--begin::Menu item-->
+                                                @if($payment->status !== 'Cancelled')
+                                                <div class="menu-item px-3">
+                                                    <a href="#"
+                                                    class="menu-link px-3"
+                                                    wire:click.prevent="$dispatch('confirmCancelPayment', '{{ $payment->id }}')">
+                                                    Cancel
+                                                 </a>
+                                                </div>
+                                                <!--end::Menu item-->
+                                                  @else
+                                                
+                                                  @endif
+
+                                            <!--end::Menu-->
+                                            <!--begin::Menu item-->
+                                                <div class="menu-item px-3">
+                                                    <a href="#"
+                                                    class="menu-link px-3"
+                                                    wire:click.prevent="approvePayment('{{ $payment->id }}')">
+                                                    Approve
+                                                 </a>
+                                                </div>
+                                                <!--end::Menu item-->
+
+                                            <!--end::Menu-->
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -212,6 +256,39 @@
                 <!--end::Container-->
             </div>
     @include('livewire.payment.payment-view')
+    @include('livewire.payment.payment-approve')
    </div>
+
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        Livewire.on('confirmCancelPayment', paymentId => {
+            Swal.fire({
+                title: 'Cancel Payment',
+                text: "Please provide a reason for cancellation:",
+                input: 'text',
+                inputPlaceholder: 'Enter reason...',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You must provide a reason!';
+                    }
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Yes, cancel it!',
+                cancelButtonText: 'No, keep it',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                        .call('cancelPaymentConfirmed', { id: paymentId, reason: result.value });
+                }
+            });
+        });
+    });
+</script>
+@endpush
+
+
 
 

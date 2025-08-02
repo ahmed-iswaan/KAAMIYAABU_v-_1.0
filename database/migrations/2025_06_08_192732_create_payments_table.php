@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('bank')->nullable();
             $table->string('ref')->nullable();
             $table->string('status')->default('Pending');
+            $table->string('collection_point');
             $table->string('payment_slip')->nullable();
             $table->text('note')->nullable();
             $table->text('cancel_note')->nullable();

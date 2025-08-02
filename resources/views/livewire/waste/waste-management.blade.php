@@ -142,7 +142,7 @@
                                                 </div>
                                             </td>
                                             <td>{{ \Carbon\Carbon::parse($registration->created_at)->format('d M Y, h:i a') }}</td>
-                <td class="text-end position-relative" wire:ignore>
+                <td class="text-end position-relative" >
     <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm"
        data-kt-menu-trigger="click"
        data-kt-menu-placement="bottom-end"

@@ -96,16 +96,18 @@
                 @if($invoicesToPay)
                     {{-- Header Info --}}
                     <div class="row g-4 mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-6" wire:ignore>
                             <label class="form-label fw-semibold">Payer</label>
-                            <!-- Select2 visible dropdown -->
-                            <select class="form-select" wire:model.live="selectedCustomerId">
+                            <select id="select_customer" class="form-select">
                                 <option value="">Select Payer</option>
-                                @foreach($directories as $id => $name)
-                                    <option value="{{ $id }}">{{ $name }}</option>
-                                @endforeach
+                                    @foreach($directories as $directory)
+                                        <option value="{{ $directory->id }}" {{ $directory->id == $selectedCustomerId ? 'selected' : '' }}>
+                                            {{ $directory->name }} ( {{ $directory->registration_number ?? 'N/A' }} )
+                                        </option>
+                                    @endforeach
                             </select>
                         </div>
+
 
                         <div class="col-md-6">
                                 <label class="form-label fw-semibold">Payment Method</label>
@@ -273,35 +275,55 @@
 </div>
 
 @push('scripts')
-    <script>
-        function waitForLivewire(cb) {
-            if (window.Livewire) return cb();
-            setTimeout(() => waitForLivewire(cb), 200);
+<script>
+    function initSelect2(modalEl) {
+        const $select = $('#select_customer');
+        
+        // Destroy existing Select2 if already initialized to prevent duplicates
+        if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2('destroy');
         }
 
-        waitForLivewire(() => {
-            const modalEl = document.getElementById('kt_modal_pay');
-            if (!modalEl) return;
-            const bsModal = new bootstrap.Modal(modalEl);
-
-            Livewire.on('showPayModal', () => {
-                bsModal.show();
-
-                // ✅ Reinitialize Select2
-                setTimeout(() => {
-                    $('#select_customer').select2({
-                        dropdownParent: $('#kt_modal_pay'),
-                        placeholder: 'Select Customer',
-                        allowClear: true
-                    }).on('change', function (e) {
-                        Livewire.find(modalEl.getAttribute('wire:id'))
-                            .set('selectedCustomerId', $(this).val());
-                    });
-                }, 100);
-            });
-
-            Livewire.on('closePayModal', () => bsModal.hide());
+        $select.select2({
+            dropdownParent: $(modalEl),
+            placeholder: 'Select Payer',
+            allowClear: true
         });
 
-    </script>
+        // Sync value with Livewire
+        $select.on('change', function (e) {
+            @this.set('selectedCustomerId', $(this).val());
+        });
+    }
+
+    function waitForLivewire(cb) {
+        if (window.Livewire) return cb();
+        setTimeout(() => waitForLivewire(cb), 200);
+    }
+
+    waitForLivewire(() => {
+        const modalEl = document.getElementById('kt_modal_pay');
+        if (!modalEl) return;
+        const bsModal = new bootstrap.Modal(modalEl);
+
+        Livewire.on('showPayModal', () => {
+            bsModal.show();
+            setTimeout(() => initSelect2(modalEl), 200);
+        });
+
+        Livewire.on('closePayModal', () => bsModal.hide());
+
+        // Reinit Select2 after Livewire DOM updates
+        Livewire.hook('morph.updated', ({ el, component }) => {
+            if (el.contains(modalEl)) {
+                initSelect2(modalEl);
+            }
+        });
+
+        Livewire.on('resetSelect2', () => {
+            $('#select_customer').val(null).trigger('change');
+        });
+
+    });
+</script>
 @endpush

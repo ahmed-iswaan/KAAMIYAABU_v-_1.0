@@ -24,9 +24,11 @@
                             <label class="form-label">Directory</label>
                             <select wire:model.defer="invoice.directories_id" class="form-select">
                                 <option value="">— Choose —</option>
-                                @foreach($directories as $id=>$name)
-                                    <option value="{{ $id }}">{{ $name }}</option>
-                                @endforeach
+                                    @foreach($directories as $directory)
+                                        <option value="{{ $directory->id }}" {{ $directory->id == $selectedCustomerId ? 'selected' : '' }}>
+                                            {{ $directory->name }} ( {{ $directory->registration_number ?? 'N/A' }} )
+                                        </option>
+                                    @endforeach
                             </select>
                             @error('invoice.directories_id') <div class="text-danger">{{ $message }}</div> @enderror
                         </div>

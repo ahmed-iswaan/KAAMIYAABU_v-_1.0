@@ -10,5 +10,6 @@ enum InvoiceStatus: string
     case PAID       = 'paid';
     case CANCELLED  = 'cancelled';
     case PENDING    = 'pending';
+    case PAYMENTONREVIEW    = 'payment on review';
 }
 

@@ -83,7 +83,7 @@ class InvoiceManager extends Component
         $this->availableCredit = 0;
 
         $this->properties  = Property::pluck('name', 'id');
-        $this->directories = Directory::pluck('name', 'id');
+        $this->directories = Directory::select('id', 'name', 'registration_number')->get();
         $this->categories  = InvoiceCategory::pluck('name', 'id');
         $this->types       = InvoiceType::cases();
         $this->statuses    = InvoiceStatus::cases();
@@ -160,6 +160,8 @@ class InvoiceManager extends Component
             'paymentPreview',
             'unpayableInvoices',
         ]);
+
+         $this->dispatch('resetSelect2');
 
         $this->lines = [
             ['category_id' => null, 'description' => '', 'quantity' => 1, 'unit_price' => 0]
@@ -302,6 +304,7 @@ public function preparePaymentPreview()
         'overpaid_amount'           => $overpaid,
         'status'                    => 'Approved',
         'total_applied_to_invoices' => $totalApplied,
+        'collection_point'          => 'Main Counter',
     ]);
 
     EventLog::create([
@@ -404,6 +407,7 @@ public function preparePaymentPreview()
 
     $this->dispatch('swal', ['title' => 'Payment recorded successfully', 'text' => 'Payment recorded successfully.', 'icon' => 'success','confirmButtonText' => 'Ok!','confirmButton'=> 'btn btn-primary']);
     $this->dispatch('closePayModal');
+     $this->dispatch('resetSelect2');
     $this->reset([
         'selectedInvoices', 'paymentAmount', 'paymentPreview',
         'unpayableInvoices', 'paymentDate', 'paymentMethod', 'paymentBank',
