@@ -4,8 +4,8 @@
 					<div class="aside-logo flex-column-auto px-10 pt-9 pb-5" id="kt_aside_logo">
 						<!--begin::Logo-->
 						<a href="#">
-							<img alt="Logo" src="{{ asset('assets/media/logos/logo-default.svg') }}" class="max-h-50px logo-default theme-light-show" />
-							<img alt="Logo" src="{{ asset('assets/media/logos/logo-default-dark.svg') }}" class="max-h-50px logo-default theme-dark-show" />
+							<img alt="Logo" src="{{ asset('assets/media/logos/logo-default.svg') }}" class="max-h-50px logo-default theme-light-show" style="width: 200px;" />
+							<img alt="Logo" src="{{ asset('assets/media/logos/logo-default-dark.svg') }}" class="max-h-50px logo-default theme-dark-show" style="width: 200px;" />
 							<img alt="Logo" src="{{ asset('assets/media/logos/logo-minimize.svg') }}" class="max-h-50px logo-minimize" />
 						</a>
 						<!--end::Logo-->
@@ -41,64 +41,20 @@
 								<!--begin:Menu item-->
 								</div>
 								<!--end:Menu item-->
-                                <!--begin:Menu item-->
 
-                                <div class="menu-item pt-5">
-									<!--begin:Menu content-->
-									<div class="menu-content">
-										<span class="fw-bold text-muted text-uppercase fs-7">Services</span>
-									</div>
-									<!--end:Menu content-->
-								</div>
-                                <!--begin:Menu item-->
-                                    <div class="menu-item">
-                                        <!--begin:Menu link-->
-                                        <a class="menu-link {{ request()->is('waste') ? 'active' : '' }}" href="/waste">
-                                            <span class="menu-icon">
-                                                <i class="ki-duotone ki-truck fs-2">
-                                                <span class="path1"></span>
-                                                <span class="path2"></span>
-                                                <span class="path3"></span>
-                                                <span class="path4"></span>
-                                                <span class="path5"></span>
-                                                </i>
-                                            </span>
-                                            <span class="menu-title">Waste Management</span>
-                                        </a>
-                                        <!--end:Menu link-->
-                                    </div>
-                                 <!--end:Menu item-->
 
-                                 <!--begin:Menu item-->
-                                    <div class="menu-item">
-                                        <!--begin:Menu link-->
-                                        <a class="menu-link {{ request()->is('waste-collection') ? 'active' : '' }}" href="/waste-collection">
-                                            <span class="menu-icon">
-                                                <i class="ki-duotone ki-delivery-door fs-2">
-                                                <span class="path1"></span>
-                                                <span class="path2"></span>
-                                                <span class="path3"></span>
-                                                <span class="path4"></span>
-                                                </i>
-                                            </span>
-                                            <span class="menu-title">Waste Collection</span>
-                                        </a>
-                                        <!--end:Menu link-->
-                                    </div>
-                                 <!--end:Menu item-->
-                          
-
-								<!--end:Menu item-->
+							
 								<!--begin:Menu item-->
-
-                                <div class="menu-item pt-5">
+								<div class="menu-item pt-5">
 									<!--begin:Menu content-->
 									<div class="menu-content">
-										<span class="fw-bold text-muted text-uppercase fs-7">Island</span>
+										<span class="fw-bold text-muted text-uppercase fs-7">System</span>
 									</div>
 									<!--end:Menu content-->
 								</div>
-                                <!--begin:Menu item-->
+								<!--end:Menu item-->
+
+                                                                <!--begin:Menu item-->
                                     <div class="menu-item">
                                         <!--begin:Menu link-->
                                         <a class="menu-link {{ request()->is('directory') ? 'active' : '' }}" href="/directory">
@@ -124,68 +80,11 @@
                                             <span class="path2"></span>
                                              </i>
                                         </span>
-                                        <span class="menu-title">Propertys & Lands</span>
+                                        <span class="menu-title">Address</span>
                                     </a>
                                     <!--end:Menu link-->
                                  </div>
                                  <!--end:Menu item-->
-
-								<!--end:Menu item-->
-
-								<div class="menu-item pt-5">
-									<!--begin:Menu content-->
-									<div class="menu-content">
-										<span class="fw-bold text-muted text-uppercase fs-7">Finance</span>
-									</div>
-									<!--end:Menu content-->
-								</div>
-                                                                 <!--begin:Menu item-->
-                                    <div class="menu-item">
-                                        <!--begin:Menu link-->
-                                    <a class="menu-link {{ request()->is('invoices') ? 'active' : '' }}" href="/invoices">
-                                        <span class="menu-icon">
-                                            <i class="ki-duotone ki-note-2 fs-2">
-                                            <span class="path1"></span>
-                                            <span class="path2"></span>
-                                            <span class="path3"></span>
-                                            <span class="path4"></span>
-                                             </i>
-                                        </span>
-                                        <span class="menu-title">Invoice</span>
-                                    </a>
-                                    <!--end:Menu link-->
-                                 </div>
-                                 <!--end:Menu item-->
-
-                                <!--begin:Menu item-->
-                                    <div class="menu-item">
-                                        <!--begin:Menu link-->
-                                    <a class="menu-link {{ request()->is('payments') ? 'active' : '' }}" href="/payments">
-                                        <span class="menu-icon">
-                                            <i class="ki-duotone ki-bill fs-2">
-                                            <span class="path1"></span>
-                                            <span class="path2"></span>
-                                            <span class="path3"></span>
-                                            <span class="path4"></span>
-                                            <span class="path5"></span>
-                                            <span class="path6"></span>
-                                             </i>
-                                        </span>
-                                        <span class="menu-title">Payments</span>
-                                    </a>
-                                    <!--end:Menu link-->
-                                 </div>
-                                 <!--end:Menu item-->
-							
-								<!--begin:Menu item-->
-								<div class="menu-item pt-5">
-									<!--begin:Menu content-->
-									<div class="menu-content">
-										<span class="fw-bold text-muted text-uppercase fs-7">System</span>
-									</div>
-									<!--end:Menu content-->
-								</div>
-								<!--end:Menu item-->
 
 
                                <!--begin:Menu item-->

@@ -105,7 +105,7 @@
                                           <td>
                                             <div class="d-flex align-items-center">
                                                 <!--begin::Thumbnail-->
-                                                <a href="{{ route('properties.view', $property->id) }}" class="symbol symbol-50px">
+                                                <a href="#" class="symbol symbol-50px">
                                                     <span class="symbol-label">
                                                     <span class="badge badge-light">
                                                       @if($property->propertyType->name === 'Residential')
@@ -126,7 +126,7 @@
 
                                                 <div class="ms-5">
                                                     <!--begin::Title-->
-                                                    <a href="{{ route('properties.view', $property->id) }}" class="text-gray-800 text-hover-primary fs-5 fw-bold" data-kt-ecommerce-product-filter="product_name">{{ $property->name }}</a>
+                                                    <a href="#" class="text-gray-800 text-hover-primary fs-5 fw-bold" data-kt-ecommerce-product-filter="product_name">{{ $property->name }}</a>
                                                      <div class="fw-semibold fs-7 text-muted">{{ $property->register_number }}</div>
                                                     <!--end::Title-->
                                                 </div>

@@ -5,7 +5,7 @@
 							<!--begin::Copyright-->
 							<div class="text-dark order-2 order-md-1">
 								<span class="text-muted fw-semibold me-2">2025&copy;</span>
-								<a href="#" class="text-gray-800 text-hover-primary">CouncilDesk v 1.0</a>
+								<a href="#" class="text-gray-800 text-hover-primary">KAAMIYAABU v 1.0</a>
 							</div>
 							<!--end::Copyright-->
 							<!--begin::Menu-->

@@ -4,10 +4,10 @@
 
 <head>
     <base href="" />
-    <title>CouncilDesk | @yield('title', 'Council Property System')</title>
+    <title>KAAMIYAABU | @yield('title', 'Council Property System')</title>
     <meta charset="utf-8" />
     <meta name="description"
-        content="CouncilDesk is a municipal property management portal built for local governments in the Maldives—track assets, manage leases, automate land‐rent and more." />
+        content="KAAMIYAABU is a municipal property management portal built for local governments in the Maldives—track assets, manage leases, automate land‐rent and more." />
     <meta name="keywords"
         content="council property, land management, Maldives, municipal software, rent portal, property dashboard, local government" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
@@ -15,11 +15,11 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:locale" content="en_MV" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="@yield('title', 'Council Property System') — CouncilDesk" />
+    <meta property="og:title" content="@yield('title', 'Council Property System') — KAAMIYAABU" />
     <meta property="og:description"
-        content="Streamline your municipality’s property and land‐rent processes with CouncilDesk." />
+        content="Streamline your municipality’s property and land‐rent processes with KAAMIYAABU." />
     <meta property="og:url" content="{{ config('app.url') }}" />
-    <meta property="og:site_name" content="CouncilDesk" />
+    <meta property="og:site_name" content="KAAMIYAABU" />
 
     <!-- Canonical -->
     <link rel="canonical" href="{{ url()->current() }}" />
