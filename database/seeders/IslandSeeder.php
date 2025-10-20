@@ -29,34 +29,57 @@ class IslandSeeder extends Seeder
         }
 
         $seeded = 0;
-        foreach ($data as $atollCode => $islands) {
-            $atoll = Atoll::where('code', $atollCode)->first();
-            if (! $atoll) {
-                $this->command->warn("Atoll with code {$atollCode} not found");
-                continue;
-            }
-            foreach ($islands as $item) {
-                $name = $item['name'] ?? null;
-                $lat  = $item['latitude'] ?? null;
-                $lon  = $item['longitude'] ?? null;
-                if (! $name) {
-                    continue;
-                }
-                // Generate island code: first 3 letters uppercase
-                $islandCode = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
 
-                Island::updateOrCreate(
-                    ['atoll_id' => $atoll->id, 'name' => $name],
-                    [
-                        'island_code' => $islandCode,
-                        'latitude'    => $lat,
-                        'longitude'   => $lon,
-                    ]
-                );
-                $seeded++;
+        // Support two structures:
+        // 1) { "HA": [ {..island..}, ... ], "K": [ ... ] }
+        // 2) [ { "atoll": "K", "name": "..." }, ... ]
+        $isAssoc = count(array_filter(array_keys($data), 'is_string')) > 0;
+
+        if ($isAssoc) {
+            foreach ($data as $outerAtollCode => $islands) {
+                if (!is_array($islands)) { continue; }
+                foreach ($islands as $item) {
+                    $this->seedIslandRecord($item, $outerAtollCode, $seeded);
+                }
+            }
+        } else {
+            // Flat list
+            foreach ($data as $item) {
+                $outerAtollCode = $item['atoll'] ?? null;
+                $this->seedIslandRecord($item, $outerAtollCode, $seeded);
             }
         }
 
         $this->command->info("IslandSeeder: {$seeded} islands seeded with codes and coordinates.");
+    }
+
+    private function seedIslandRecord(array $item, ?string $outerAtollCode, int &$seeded): void
+    {
+        $explicitCode = $item['atoll'] ?? null; // If present inside item it overrides outer key
+        $atollCode = strtoupper(trim($explicitCode ?: ($outerAtollCode ?? '')));
+        if ($atollCode === '') { return; }
+
+        $atoll = Atoll::where('code', $atollCode)->first();
+        if (! $atoll) {
+            $this->command?->warn("Atoll with code {$atollCode} not found (island: ".($item['name'] ?? 'unknown').")");
+            return;
+        }
+
+        $name = $item['name'] ?? null;
+        if (! $name) { return; }
+        $lat  = $item['latitude'] ?? null;
+        $lon  = $item['longitude'] ?? null;
+
+        $islandCode = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
+
+        Island::updateOrCreate(
+            ['atoll_id' => $atoll->id, 'name' => $name],
+            [
+                'island_code' => $islandCode,
+                'latitude'    => $lat,
+                'longitude'   => $lon,
+            ]
+        );
+        $seeded++;
     }
 }

@@ -102,12 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     modalEl.addEventListener('shown.bs.modal', () => {
         if (map) map.remove();
-        map = L.map('property-map').setView([2.9472, 73.5846], 15);
+        map = L.map('property-map').setView([4.1740018873981, 73.513126373291], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        marker = L.marker([2.9472, 73.5846], { draggable: true })
+        marker = L.marker([4.1740018873981, 73.513126373291], { draggable: true })
             .addTo(map)
             .on('dragend', onMapPick);
 

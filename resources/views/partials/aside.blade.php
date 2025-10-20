@@ -1,4 +1,4 @@
-				<!--begin::Aside-->
+<!--begin::Aside-->
 				<div id="kt_aside" class="aside aside-default aside-hoverable" data-kt-drawer="true" data-kt-drawer-name="aside" data-kt-drawer-activate="{default: true, lg: false}" data-kt-drawer-overlay="true" data-kt-drawer-width="{default:'200px', '300px': '250px'}" data-kt-drawer-direction="start" data-kt-drawer-toggle="#kt_aside_toggle">
 					<!--begin::Brand-->
 					<div class="aside-logo flex-column-auto px-10 pt-9 pb-5" id="kt_aside_logo">
@@ -34,6 +34,53 @@
                                                 </i>
                                             </span>
                                             <span class="menu-title">Dashboard</span>
+                                        </a>
+                                        <!--end:Menu link-->
+                                    </div>
+                                    <!--end:Menu item-->
+                                                                     <!--begin:Menu item (Agents) -->
+                                 <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('agents') ? 'active' : '' }}" href="/agents">
+                                        <span class="menu-icon">
+                                            <i class="ki-duotone ki-people fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                                <span class="path3"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Agents</span>
+                                    </a>
+                                </div>
+                                <!--end:Menu item (Agents) -->
+                                    <!--begin:Menu item-->
+                                    <div class="menu-item">
+                                        <!--begin:Menu link-->
+                                        <a class="menu-link {{ request()->is('elections/voters') ? 'active' : '' }}" href="{{ route('elections.voters') }}">
+                                                <span class="menu-icon">
+                                               <i class="ki-duotone ki-people">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                                <span class="path3"></span>
+                                                <span class="path4"></span>
+                                                <span class="path5"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Voters</span>
+                                        </a>
+                                        <!--end:Menu link-->
+                                    </div>
+                                    <!--end:Menu item-->
+                                    <!--begin:Menu item-->
+                                    <div class="menu-item">
+                                        <!--begin:Menu link-->
+                                        <a class="menu-link {{ request()->is('elections/requests') ? 'active' : '' }}" href="{{ route('elections.requests') }}">
+                                                <span class="menu-icon">
+                                                <i class="ki-duotone ki-message-text-2 fs-2">
+                                                    <span class="path1"></span>
+                                                    <span class="path2"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Requests</span>
                                         </a>
                                         <!--end:Menu link-->
                                     </div>
@@ -104,6 +151,41 @@
                                     <!--end:Menu link-->
                                  </div>
                                  <!--end:Menu item-->
+                                 
+
+
+                                <!--begin:Menu item (Task Assignment) -->
+                                <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('tasks/assign') ? 'active' : '' }}" href="{{ route('tasks.assign') }}">
+                                        <span class="menu-icon">
+                                           <i class="ki-duotone ki-text-circle">
+                                            <span class="path1"></span>
+                                            <span class="path2"></span>
+                                            <span class="path3"></span>
+                                            <span class="path4"></span>
+                                            <span class="path5"></span>
+                                            <span class="path6"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Task Assignment</span>
+                                    </a>
+                                </div>
+                                <!--end:Menu item (Task Assignment) -->
+
+                                <!--begin:Menu item (Form Builder) -->
+                                <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('forms') || request()->is('forms/*') ? 'active' : '' }}" href="{{ route('forms.index') }}">
+                                        <span class="menu-icon">
+                                            <i class="ki-duotone ki-notepad-edit fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                                <span class="path3"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Form Builder</span>
+                                    </a>
+                                </div>
+                                <!--end:Menu item (Form Builder) -->
 
                                 <!--begin:Menu item-->
                                  <div class="menu-item">

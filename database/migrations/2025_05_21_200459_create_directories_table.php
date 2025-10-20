@@ -19,46 +19,45 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('profile_picture')->nullable();
 
-            // Entity Type and Registration
-            $table->uuid('directory_type_id');
-            $table->uuid('registration_type_id')->nullable();
-            $table->string('registration_number')->unique()->nullable();
-            $table->string('gst_number')->nullable();
+            // Identification (replaced registration_number with id_card_number)
+            $table->string('id_card_number')->unique()->nullable();
+            // Removed: directory_type_id, registration_type_id, gst_number
 
             // Individual-specific fields
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->date('date_of_birth')->nullable();
             $table->date('death_date')->nullable();
 
-            // Contact Info
-            $table->string('phone')->unique()->nullable();
+            // Contact Info (phone changed to json array 'phones')
+            $table->json('phones')->nullable(); // Store multiple phone numbers as JSON array
             $table->string('email')->unique()->nullable();
             $table->string('website')->nullable();
 
-            // Location references
+            // Original (permanent / base) location references
             $table->uuid('country_id')->nullable();
             $table->uuid('island_id')->nullable();
             $table->string('address')->nullable();
             $table->string('street_address')->nullable();
             $table->uuid('properties_id')->nullable();
 
+            // Current (dynamic) location references (new)
+            $table->uuid('current_country_id')->nullable();
+            $table->uuid('current_island_id')->nullable();
+            $table->string('current_address')->nullable();
+            $table->string('current_street_address')->nullable();
+            $table->uuid('current_properties_id')->nullable();
+
+            // Party affiliations (replaced JSON party_ids with single party_id FK)
+            $table->uuid('party_id')->nullable();
+
             $table->string('status')->default('Active');
 
-            $table->decimal('credit_balance', 10, 2)->default(0);
-
-            // Residence type: inland vs outer islander
-            $table->enum('location_type', ['inland', 'outer_islander'])->default('inland');
+            // Removed: credit_balance, location_type
 
             // Timestamps
             $table->timestamps();
 
-            // Foreign Keys
-            $table->foreign('directory_type_id')
-                  ->references('id')->on('directory_types')
-                  ->cascadeOnDelete();
-            $table->foreign('registration_type_id')
-                  ->references('id')->on('registration_types')
-                  ->nullOnDelete();
+            // Foreign Keys (only for the kept / new location references)
             $table->foreign('country_id')
                   ->references('id')->on('countries')
                   ->cascadeOnDelete();
@@ -69,12 +68,34 @@ return new class extends Migration
                   ->references('id')->on('properties')
                   ->cascadeOnDelete();
 
+            $table->foreign('current_country_id')
+                  ->references('id')->on('countries')
+                  ->cascadeOnDelete();
+            $table->foreign('current_island_id')
+                  ->references('id')->on('islands')
+                  ->cascadeOnDelete();
+            $table->foreign('current_properties_id')
+                  ->references('id')->on('properties')
+                  ->cascadeOnDelete();
+
+            $table->foreign('party_id')
+                  ->references('id')->on('parties')
+                  ->nullOnDelete();
+
+            // New foreign key for sub_consite
+            $table->uuid('sub_consite_id')->nullable();
+            $table->foreign('sub_consite_id')
+                  ->references('id')->on('sub_consites')
+                  ->nullOnDelete();
+
             // Indexes
-            $table->index('directory_type_id');
-            $table->index('registration_type_id');
             $table->index('country_id');
             $table->index('island_id');
-            $table->index('location_type');
+            $table->index('current_country_id');
+            $table->index('current_island_id');
+            $table->index('status');
+            $table->index('party_id');
+            $table->index('sub_consite_id');
         });
     }
 

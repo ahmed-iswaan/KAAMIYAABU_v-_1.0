@@ -95,8 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalEl = document.getElementById('kt_modal_edit_property');
 
     modalEl.addEventListener('shown.bs.modal', () => {
-        const lat = @this.get('editLatitude') || 2.947212;
-        const lng = @this.get('editLongitude') || 73.584671;
+        const lat = @this.get('editLatitude') || 4.1743563373714;
+        const lng = @this.get('editLongitude') || 73.513383865356;
 
         if (map) map.remove();
 

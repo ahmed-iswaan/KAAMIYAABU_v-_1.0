@@ -1,5 +1,8 @@
-@section('title', $pageTitle)
-
+<div>
+    @section('title', $pageTitle)
+    @include('livewire.directory.add-directory-modal')
+    @include('livewire.directory.directory-edit')
+    
 <!--begin::Content-->
 	<div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
 		<!--begin::Toolbar-->
@@ -24,9 +27,6 @@
 				</div>
 			<!--end::Toolbar-->
 
-            @include('livewire.directory.add-directory-modal')
-            @include('livewire.directory.directory-edit')
-
             <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
                 <!--begin::Container-->
                 <div class="container-xxl">
@@ -42,7 +42,7 @@
                                         <span class="path1"></span>
                                         <span class="path2"></span>
                                     </i>
-                                    <input type="text" wire:model.live.debounce.500ms="search" class="form-control form-control-solid w-250px ps-13" placeholder="Search Users by Name, Email, or Employee ID">
+                                    <input type="text" wire:model.live.debounce.500ms="search" class="form-control form-control-solid w-250px ps-13" placeholder="Search by Name, Email or ID Card">
                                 </div>
                                 <!--end::Search-->
                             </div>
@@ -86,12 +86,13 @@
                               <table class="table align-middle table-row-dashed fs-6 gy-5 dataTable no-footer" id="kt_table_directories">
                                 <thead>
                                   <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
-                                    <th class="min-w-125px">Name</th>
-                                    <th class="min-w-100px">Type</th>
-                                    <th class="min-w-100px">Reg. No. / DOB</th>
-                                    <th class="min-w-100px">Contact</th>
-                                    <th class="min-w-100px">Address</th>
-                                      <th class="min-w-100px">Status</th>
+                                    <th class="min-w-200px">Name</th>
+                                    <th class="min-w-120px">ID Card</th>
+                                    <th class="min-w-150px">Phones</th>
+                                    <th class="min-w-100px">Party / SubConsite</th>
+                                    <th class="min-w-200px">Permanent Location</th>
+                                    <th class="min-w-200px">Current Location</th>
+                                    <th class="min-w-80px">Status</th>
                                     <th class="text-end min-w-100px">Actions</th>
                                   </tr>
                                 </thead>
@@ -110,72 +111,58 @@
                                           </div>
                                         @else
                                           <div class="symbol symbol-circle symbol-50px overflow-hidden me-3">
-                                            <div class="symbol-label fs-3 bg-light-warning text-warning">
+                                            <div class="symbol-label fs-3 bg-light-primary text-primary">
                                               {{ Str::substr($entry->name, 0, 1) }}
                                             </div>
                                           </div>
                                         @endif
                                         <div class="d-flex flex-column">
-                                          <span class="text-gray-800 text-hover-primary mb-1">
-                                           @if($entry->type->name === 'Individual')
-                                                @if(strtolower($entry->gender) === 'male')
-                                                    <i class="bi bi-gender-male fs-5 text-primary"></i>
-                                                @elseif(strtolower($entry->gender) === 'female')
-                                                    <i class="bi bi-gender-female fs-5" style="color: #FF69B4;"></i>
-                                                @else
-                                                    <i class="bi bi-question-circle fs-5 text-muted"></i>
-                                                @endif
-
-                                            @elseif($entry->type->name === 'Company')
-                                                <i class="bi bi-building fs-5 text-secondary"></i>
-
-                                            @else
-                                                <i class="bi bi-person-fill fs-5 text-gray-600"></i>
-                                            @endif
-
-
-                                             {{ ucwords(strtolower($entry->name)) }}</span>
-                                          <small class="text-muted">{{ optional($entry->registrationType)->name }} : {{ $entry->registration_number }}</small>
+                                          <span class="text-gray-800 text-hover-primary mb-1">{{ ucwords(strtolower($entry->name)) }}</span>
+                                          <small class="text-muted">Gender: {{ $entry->gender ?? 'N/A' }} | DOB: {{ $entry->date_of_birth ?? 'N/A' }}</small>
                                         </div>
                                       </td>
-
-                                      <td>{{ $entry->type->name }}</td>
-                                      @php 
-                                          $dob = $entry->date_of_birth
-                                              ? \Carbon\Carbon::parse($entry->date_of_birth)
-                                              : null;
-
-                                          if ($dob) {
-                                              $diff = $dob->diff(\Carbon\Carbon::now());
-                                              $ageString = "{$diff->y}y {$diff->m}m {$diff->d}d";
-                                          } else {
-                                              $ageString = '';
-                                          }
-                                      @endphp
+                                      <td>{{ $entry->id_card_number ?? '—' }}</td>
                                       <td>
-                                        <span class="text-gray-800 text-hover-primary mb-1">{{ $entry->date_of_birth ?? '' }} </span> <br>
-                                        <small class="text-muted">  
-                                          @if($ageString)
-                                            ({{ $ageString }})
-                                          @endif
-                                        </small>
+                                        @if(is_array($entry->phones))
+                                            @foreach($entry->phones as $p)
+                                                <div><i class="ki-duotone ki-call fs-6 me-1"></i>{{ $p }}</div>
+                                            @endforeach
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                        <div class="mt-1 small text-muted">Email: {{ $entry->email ?? '—' }}</div>
                                       </td>
                                       <td>
-                                        <div>{{ $entry->contact_person->name ?? '' }}</div>
-                                        <div>{{ $entry->phone ?? '' }}</div>
+                                        @php $party = $entry->party; @endphp
+                                        <div class="d-flex align-items-center">
+                                            @if($party && $party->logo)
+                                                <div class="symbol symbol-circle symbol-30px overflow-hidden me-2">
+                                                    <img src="{{ asset('storage/' . $party->logo) }}" alt="{{ $party->short_name ?? $party->name }}" class="w-30px" />
+                                                </div>
+                                            @elseif($party)
+                                                <div class="symbol symbol-circle symbol-30px bg-light fw-bold text-uppercase me-2">{{ Str::substr($party->short_name ?? $party->name,0,2) }}</div>
+                                            @endif
+                                            <div>
+                                                <div>{{ $party->short_name ?? $party->name ?? '' }}</div>
+                                                <small class="text-muted">{{ optional($entry->subConsite)->code ?? '' }}  </small>
+                                            </div>
+                                        </div>
                                       </td>
                                       <td>
-                                        {{ optional($entry->property)->name }} {{ $entry->address }} {{ $entry->street_address ? ' / '.$entry->street_address : '' }}
-                                        <div class="fw-semibold fs-7 text-muted">    {{ $entry->island?->atoll?->code }}. {{ $entry->island?->name }},
-                                          {{ $entry->country?->name }}</div>
+                                        <div>{{ optional($entry->property)->name }}</div>
+                                        <div>{{ $entry->street_address ?? '' }} {{ $entry->address ? ' / '.$entry->address : '' }}</div>
+                                        <div class="fw-semibold fs-7 text-muted">{{ $entry->island?->atoll?->code }}. {{ $entry->island?->name }}, {{ $entry->country?->name }}</div>
+                                      </td>
+                                      <td>
+                                        <div>{{ optional($entry->currentProperty)->name }}</div>
+                                        <div>{{ $entry->current_street_address ?? '' }} {{ $entry->current_address ? ' / '.$entry->current_address : '' }}</div>
+                                        <div class="fw-semibold fs-7 text-muted">{{ $entry->currentIsland?->atoll?->code }}. {{ $entry->currentIsland?->name }}, {{ $entry->currentCountry?->name }}</div>
                                       </td>
                                       <td><div class="badge badge-light-success fw-bold">{{ $entry->status }}</div></td>
-                                   <td class="text-end position-relative" >
+                                      <td class="text-end position-relative" >
                                             <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                             <i class="ki-duotone ki-down fs-5 ms-1"></i></a>
-                                            <!--begin::Menu-->
                                             <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-125px py-4" data-kt-menu="true">
-                                                <!--begin::Menu item-->
                                                 <div class="menu-item px-3">
                                                     <a href="#"
                                                     class="menu-link px-3"
@@ -183,9 +170,6 @@
                                                     Edit
                                                  </a>
                                                 </div>
-                                                <!--end::Menu item-->
-
-                                            <!--end::Menu-->
                                             </div>
                                         </td>
                                     </tr>
@@ -196,7 +180,7 @@
 
                           <div class="row">
                             <div class="col-sm-12 col-md-5 d-flex align-items-center justify-content-center justify-content-md-start">
-                              <!-- You can add per-page selector here -->
+                              <!-- per-page selector placeholder -->
                             </div>
                             <div class="col-sm-12 col-md-7 d-flex align-items-center justify-content-center justify-content-md-end">
                               {{ $directory->links('vendor.pagination.new') }}
@@ -213,6 +197,9 @@
                 <!--end::Container-->
             </div>
 
-   </div>
+   </div><!-- close content wrapper -->
+
+   @stack('scripts')
+</div><!-- close livewire root -->
 
 

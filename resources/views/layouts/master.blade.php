@@ -39,13 +39,37 @@
     <link href="{{ asset('assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <!--end::Global Stylesheets Bundle-->
+
+    {{-- Load Vite assets early so Echo (resources/js/app.js -> bootstrap.js -> echo.js) is available before Livewire boots --}}
+    @vite(['resources/sass/app.scss','resources/js/app.js'])
+    <script>
+        window.Laravel = window.Laravel || {};
+        window.Laravel.userId = @json(auth()->id());
+        window.Laravel.csrfToken = @json(csrf_token());
+    </script>
     <script>
         // Frame-busting to prevent site from being loaded within a frame without permission (click-jacking) if (window.top != window.self) { window.top.location.replace(window.self.location.href); }
 
     </script>
     @livewireStyles
         @stack('styles')
-
+    {{-- Global small task title & overflow fixes --}}
+    <style>
+        /* Constrain generic card titles overflowing */
+        .card .card-title, .card h3.card-title, .card h4.card-title {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+        /* Task list specific */
+        .task-item .task-title{font-size:12px!important;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25;}
+        .task-item .task-number{max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        /* Ensure container allows truncation */
+        .task-item .flex-grow-1{min-width:0;}
+        /* Adjust badge sizing for tighter layout */
+        .task-item .badge{font-size:10px!important;line-height:1.1;padding:3px 6px;}
+        /* Overdue due date force red */
+        .task-item .task-due.text-danger, .task-item.active .task-due.text-danger {color:#dc2626 !important;}
+        @media (max-width:520px){
+            .task-item .task-title{-webkit-line-clamp:3;}
+        }
+    </style>
 </head>
 <!--end::Head-->
 <!--begin::Body-->
@@ -127,11 +151,8 @@
                 <div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
 
                     <!--begin::Page loading(append to body)-->
-                    <div
-                        class="page-loader flex-column bg-dark bg-opacity-20 justify-content-center align-items-center">
-                        <img src="{{ asset('assets/media/logos/logo.gif') }}" alt="Loading..."
-                            style="width: 300px; height: 300px;">
-                        <span class="text-white fs-6 fw-semibold mt-5">Please wait...</span>
+                    <div class="page-loader flex-column bg-dark bg-opacity-20 justify-content-center align-items-center">
+                        <div id="lottie-loader" style="width: 300px; height: 300px;"></div>
                     </div>
                     <!--end::Page loading-->
 
@@ -208,32 +229,147 @@
     <!--end::Custom Javascript-->
     <!--end::Javascript-->
 
-@livewireScripts          <!-- Load Livewire JavaScript first -->
-@stack('scripts')  
-    <script>
-        document.addEventListener('livewire:init', () => {
-            Livewire.on('swal', (eventData) => {
-
-                const data = eventData[0];
-                Swal.fire({
-                    text: data.text,
-                    icon: data.icon,
-                    buttonsStyling: false,
-                    confirmButtonText: data.confirmButtonText,
-                    customClass: {
-                        confirmButton: data.confirmButton
-                    }
-                });
-            });
+@livewireScripts
+<!-- SweetAlert2 global include & Livewire event bridge -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+/* Ensure SweetAlert always appears above loaders/overlays and centered */
+.swal2-container{z-index:99999 !important;}
+</style>
+<script>
+// Craft / Keenthemes styled SweetAlert2 mixin (centered by default)
+if(window.Swal && !window.SwalTheme){
+    window.SwalTheme = Swal.mixin({
+        customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-light', denyButton: 'btn btn-danger' },
+        buttonsStyling: false,
+        focusConfirm: false,
+        position: 'center'
+    });
+}
+if(!window.__swalBridge){
+    document.addEventListener('livewire:init', () => {
+        if(!window.Livewire || window.__swalBridgeAttached) return;
+        window.Livewire.on('swal', (payload) => {
+            let detail = Array.isArray(payload) ? (payload[0]||{}) : (payload||{});
+            const api = window.SwalTheme || window.Swal; if(!api) return;
+            const opts = {
+                icon: detail.icon || detail.type || 'success',
+                title: detail.title || 'Done',
+                text: detail.text || '',
+                html: detail.html || undefined,
+                timer: detail.timer || (detail.showConfirmButton ? undefined : 1500),
+                showConfirmButton: detail.showConfirmButton ?? false,
+                showCancelButton: !!detail.showCancelButton,
+                showDenyButton: !!detail.showDenyButton,
+                cancelButtonText: detail.cancelButtonText || 'Cancel',
+                confirmButtonText: detail.confirmButtonText || 'OK',
+                denyButtonText: detail.denyButtonText || 'No',
+                reverseButtons: detail.reverseButtons || false,
+                toast: !!detail.toast,
+                timerProgressBar: detail.timer && detail.timer > 0 ? true : false,
+                allowOutsideClick: detail.allowOutsideClick ?? (!detail.showCancelButton && !detail.showDenyButton)
+            };
+            // Only override position if explicitly passed
+            if(detail.position){ opts.position = detail.position; }
+            if(opts.toast){ // toast uses top-end by default unless overridden
+                if(!detail.position) opts.position = 'top-end';
+            }
+            api.fire(opts).then(res => { if(detail.callbackEvent){ try { Livewire.dispatch(detail.callbackEvent, {isConfirmed:res.isConfirmed,isDenied:res.isDenied,isDismissed:res.isDismissed}); } catch(_){} } });
+            try { window.dispatchEvent(new CustomEvent('swal', { detail })); } catch(_){ }
         });
+        window.Livewire.on('swal:confirm', (payload) => {
+            const d = Array.isArray(payload) ? (payload[0]||{}) : (payload||{}); const api = window.SwalTheme || window.Swal; if(!api) return;
+            api.fire({ icon: d.icon || 'question', title: d.title || 'Are you sure?', text: d.text || '', showCancelButton: true, confirmButtonText: d.confirmButtonText || 'Yes', cancelButtonText: d.cancelButtonText || 'No' })
+                .then(r => { if(r.isConfirmed && d.callbackEvent){ try { Livewire.dispatch(d.callbackEvent, d.callbackPayload||{}); } catch(_){} } });
+        });
+        window.__swalBridgeAttached = true;
+    });
+    window.__swalBridge = true;
+}
+</script>
+<!-- Minimal Echo setup (no UI CSS impact). Must load BEFORE components needing echo: listeners finish booting. -->
+<script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/laravel-echo@2.2.0/dist/echo.iife.js"></script>
+<script>
+// Initialize Echo (if not already) WITHOUT subscribing yet
+if(typeof window.Echo === 'undefined') {
+    try {
+        window.Echo = new Echo({
+            broadcaster: 'reverb',
+            key: @json(env('REVERB_APP_KEY')),
+            wsHost: @json(env('REVERB_HOST')),
+            wsPort: @json(env('REVERB_PORT',8080)),
+            wssPort: @json(env('REVERB_PORT',8080)),
+            forceTLS: @json(env('REVERB_SCHEME','https')) === 'https',
+            enabledTransports: ['ws','wss'],
+            auth: { headers: { 'X-CSRF-TOKEN': window.Laravel?.csrfToken || '' } }
+        });
+        console.log('[Realtime] Echo initialized');
+    } catch(e){ console.warn('[Realtime] Echo init failed', e); }
+}
+</script>
+<script>
+// SAFE subscription logic (replaces previous direct calls that caused TypeError)
+(function realtimeSubscribe(){
+    const CHANNEL_PREFIX = 'agent.tasks.';
+    let attempts = 0; const maxAttempts = 40; // ~10s (250ms interval)
 
-    </script>
+    function isEchoReady(e){
+        return e && typeof e === 'object' && typeof e.private === 'function' && typeof e.channel === 'function';
+    }
 
-    <script>
+    function trySubscribe(){
+        const uid = window.Laravel?.userId;
+        if(!uid){ return schedule(); }
+        const echo = window.Echo;
+        if(!isEchoReady(echo)){ return schedule(); }
+        const channelName = CHANNEL_PREFIX + uid;
+        if(window.__agentTasksSubscribed){ return; }
+        try {
+            echo.private(channelName).listen('.TaskDataChanged', e => {
+                const taskId = e.task_id;
+                if(!window.Livewire) return;
+                try {
+                    // Target only agent management components
+                    if(typeof Livewire.all === 'function'){
+                        Livewire.all().forEach(c => {
+                            const name = c.name || c.__instance?.name;
+                            if(name === 'agent.agent-management'){
+                                try { c.call('handleExternalTaskUpdate', taskId); } catch(_){ }
+                            }
+                        });
+                    } else {
+                        // Fallback scan
+                        document.querySelectorAll('[wire\\:id]').forEach(el => {
+                            const id = el.getAttribute('wire:id');
+                            try { const comp = Livewire.find(id); if(comp && comp.name === 'agent.agent-management'){ comp.call('handleExternalTaskUpdate', taskId); } } catch(_){ }
+                        });
+                    }
+                } catch(err){ console.warn('[Realtime] Livewire update failed', err); }
+            });
+            window.__agentTasksSubscribed = true;
+            console.info('[Realtime] Subscribed to', channelName);
+        } catch(err){
+            console.warn('[Realtime] Subscribe attempt failed (will retry)', err);
+            schedule();
+        }
+    }
+
+    function schedule(){
+        if(++attempts >= maxAttempts){ console.warn('[Realtime] Gave up subscribing (Echo not ready).'); return; }
+        setTimeout(trySubscribe, 250);
+    }
+
+    trySubscribe();
+})();
+</script>
+<script>
     console.log('🔥 Script loaded');
+    console.log('Echo present?', typeof window.Echo !== 'undefined');
 
     document.addEventListener('livewire:init', () => {
         console.log('✅ Livewire is initialized');
+        console.log('Echo after Livewire init?', typeof window.Echo !== 'undefined');
 
         // Initial KTMenu setup
         requestAnimationFrame(() => {
@@ -266,6 +402,224 @@
             }
         });
     });
+</script>
+<script>
+// Ensure Echo is a proper instance (handles case where global Echo is constructor from CDN)
+(function fixEchoInstance(){
+    function build(){
+        const isCtor = typeof window.Echo === 'function' && (typeof window.Echo.prototype?.channel === 'function');
+        const isInstance = typeof window.Echo === 'object' && typeof window.Echo?.channel === 'function';
+        if(isInstance) return true;
+        if(isCtor){
+            try {
+                const EchoClass = window.Echo; // preserve constructor
+                window.Echo = new EchoClass({
+                    broadcaster:'reverb',
+                    key:@json(env('REVERB_APP_KEY')),
+                    wsHost:@json(env('REVERB_HOST')),
+                    wsPort:@json(env('REVERB_PORT',8080)),
+                    wssPort:@json(env('REVERB_PORT',8080)),
+                    forceTLS:@json(env('REVERB_SCHEME','https'))==='https',
+                    enabledTransports:['ws','wss'],
+                });
+                console.log('Echo instantiated from constructor');
+                return true;
+            } catch(e){ console.warn('Echo instantiation failed', e); }
+        }
+        return false;
+    }
+    let tries=0; const max=40;
+    (function loop(){
+        if(build()) { attachBridge(); return; }
+        tries++; if(tries<max) return setTimeout(loop,100);
+        console.warn('Echo instance not ready');
+    })();
+
+    function invokeLivewireHandler(payload){
+        if(!window.Livewire) return;
+        try {
+            window.Livewire.dispatch('reverb-voter-update', payload);
+            window.dispatchEvent(new CustomEvent('voter-data-updated', { detail: payload }));
+            if(typeof window.Livewire.all === 'function'){
+                window.Livewire.all().forEach(c => {
+                    if(c.name === 'election.voter-management'){
+                        try { c.call('handleRealtimeUpdate', payload); } catch(err){ console.warn('Direct call failed', err); }
+                    }
+                });
+            }
+        } catch(err){ console.warn('invokeLivewireHandler error', err); }
+    }
+
+    function attachBridge(){
+        if(window.__echoBridgeAttached || !window.Echo) return;
+        try {
+            window.Echo.channel('elections.voters').listen('.VoterDataChanged', e => {
+                console.log('🔔 VoterDataChanged (bridge)', e);
+                invokeLivewireHandler(e);
+            });
+            window.__echoBridgeAttached = true;
+            console.log('✅ Subscribed to elections.voters (bridge active)');
+        } catch(err){ console.warn('Bridge subscribe failed', err); }
+    }
+})();
+</script>
+@include('layouts.partials.lottie-scripts')
+<script>
+(function initEchoAndSubscribe(){
+    const cfg = {
+        broadcaster: 'reverb',
+        key: @json(env('REVERB_APP_KEY')),
+        wsHost: @json(env('REVERB_HOST')),
+        wsPort: @json(env('REVERB_PORT',8080)),
+        wssPort: @json(env('REVERB_PORT',8080)),
+        forceTLS: @json(env('REVERB_SCHEME','https')) === 'https',
+        enabledTransports: ['ws','wss'],
+        auth: { headers: { 'X-CSRF-TOKEN': window.Laravel?.csrfToken || '' } }
+    };
+
+    function isInstance(o){ return o && typeof o === 'object' && typeof o.private === 'function' && typeof o.channel === 'function'; }
+    function isConstructor(o){ return typeof o === 'function' && o.prototype && typeof o.prototype.channel === 'function'; }
+
+    function ensureInstance(){
+        if(isInstance(window.Echo)) return true;
+        if(isConstructor(window.Echo)) { try { window.Echo = new window.Echo(cfg); return true; } catch(e){ console.warn('Echo ctor failed', e); return false; } }
+        if(typeof window.Echo === 'undefined' && typeof window.Echo === 'undefined' && typeof Echo !== 'undefined' && isConstructor(Echo)){
+            try { window.Echo = new Echo(cfg); return true; } catch(e){ console.warn('Echo global ctor failed', e); }
+        }
+        // If CDN iife exposed class as window.Echo and block above failed, try requiring from window.laravelEcho (unlikely)
+        return false;
+    }
+
+    let tries = 0; const max = 30;
+    function attemptSubscribe(){
+        if(!ensureInstance()){ tries++; if(tries<max) return setTimeout(attemptSubscribe, 300); console.warn('Echo instance not ready after retries'); return; }
+        if(!window.Laravel?.userId){ return; }
+        try {
+            window.Echo.private('agent.tasks.'+window.Laravel.userId)
+                .listen('.TaskDataChanged', e => {
+                    const taskId = e.task_id;
+                    function updateComponents(){
+                        if(!window.Livewire) return false;
+                        let updated=false;
+                        // Prefer Livewire.all() -> component ids
+                        try {
+                            const list = (Livewire.all ? Livewire.all() : []) || [];
+                            list.forEach(c => {
+                                const id = c.id || c.__instance?.id;
+                                const name = c.name || c.__instance?.name;
+                                if(id && name === 'agent.agent-management'){
+                                    try { Livewire.find(id).call('handleExternalTaskUpdate', taskId); updated=true; } catch(err){ console.warn('find().call failed', err); }
+                                }
+                            });
+                        } catch(err){ console.warn('Livewire.all iteration failed', err); }
+                        // Fallback: DOM scan
+                        if(!updated){
+                            document.querySelectorAll('[wire\\:id]').forEach(el => {
+                                const id = el.getAttribute('wire:id');
+                                try {
+                                    const comp = Livewire.find(id);
+                                    if(comp && comp.name === 'agent.agent-management'){
+                                        comp.call('handleExternalTaskUpdate', taskId);
+                                        updated=true;
+                                    }
+                                } catch(_){}
+                            });
+                        }
+                        return updated;
+                    }
+                    if(!updateComponents()){
+                        // Retry shortly if components not yet booted
+                        setTimeout(updateComponents, 400);
+                    }
+                });
+            console.log('✅ Subscribed agent.tasks.'+window.Laravel.userId);
+        } catch(err){ console.warn('Private channel subscribe failed (retrying)', err); tries++; if(tries<max) setTimeout(attemptSubscribe, 500); }
+    }
+
+    attemptSubscribe();
+})();
+</script>
+<script>
+// Harden Echo init & subscription (prevents 'window.Echo.private is not a function')
+(function ensureEchoSubscription(){
+    const cfg = {
+        broadcaster: 'reverb',
+        key: @json(env('REVERB_APP_KEY')),
+        wsHost: @json(env('REVERB_HOST')),
+        wsPort: @json(env('REVERB_PORT',8080)),
+        wssPort: @json(env('REVERB_PORT',8080)),
+        forceTLS: @json(env('REVERB_SCHEME','https')) === 'https',
+        enabledTransports: ['ws','wss'],
+        auth: { headers: { 'X-CSRF-TOKEN': window.Laravel?.csrfToken || '' } }
+    };
+
+    function buildInstance(){
+        // If already an instance with .private use it
+        if(window.Echo && typeof window.Echo === 'object' && typeof window.Echo.private === 'function') {
+            window.EchoInstance = window.Echo; return true;
+        }
+        // If Echo is a function (constructor OR factory) try both invocation styles
+        if(typeof window.Echo === 'function'){
+            try { const inst = new window.Echo(cfg); if(inst && inst.private){ window.EchoInstance = inst; return true; } } catch(_){}
+            try { const inst2 = window.Echo(cfg); if(inst2 && inst2.private){ window.EchoInstance = inst2; return true; } } catch(_){}
+        }
+        // If global Echo class not set but Echo exported differently (laravel-echo iife sets window.Echo) do nothing and retry
+        return false;
+    }
+
+    function subscribe(){
+        if(!window.Laravel?.userId) return;
+        const echo = window.EchoInstance;
+        if(!echo || typeof echo.private !== 'function'){ return false; }
+        try {
+            echo.private('agent.tasks.'+window.Laravel.userId)
+                .listen('.TaskDataChanged', e => {
+                    const taskId = e.task_id;
+                    function updateComponents(){
+                        if(!window.Livewire) return false;
+                        let updated=false;
+                        // Prefer Livewire.all() -> component ids
+                        try {
+                            const list = (Livewire.all ? Livewire.all() : []) || [];
+                            list.forEach(c => {
+                                const id = c.id || c.__instance?.id;
+                                const name = c.name || c.__instance?.name;
+                                if(id && name === 'agent.agent-management'){
+                                    try { Livewire.find(id).call('handleExternalTaskUpdate', taskId); updated=true; } catch(err){ console.warn('find().call failed', err); }
+                                }
+                            });
+                        } catch(err){ console.warn('Livewire.all iteration failed', err); }
+                        // Fallback: DOM scan
+                        if(!updated){
+                            document.querySelectorAll('[wire\\:id]').forEach(el => {
+                                const id = el.getAttribute('wire:id');
+                                try {
+                                    const comp = Livewire.find(id);
+                                    if(comp && comp.name === 'agent.agent-management'){
+                                        comp.call('handleExternalTaskUpdate', taskId);
+                                        updated=true;
+                                    }
+                                } catch(_){}
+                            });
+                        }
+                        return updated;
+                    }
+                    if(!updateComponents()){
+                        // Retry shortly if components not yet booted
+                        setTimeout(updateComponents, 400);
+                    }
+                });
+            console.log('✅ Realtime subscribed (agent.tasks.'+window.Laravel.userId+')');
+            return true;
+        } catch(err){ console.warn('Subscribe error', err); return false; }
+    }
+
+    let tries=0; const max=40;
+    (function loop(){
+        if(!window.EchoInstance && !buildInstance()){ tries++; if(tries<max) return setTimeout(loop,250); console.warn('Echo instance not ready.'); return; }
+        if(!subscribe()){ tries++; if(tries<max) return setTimeout(loop,500); }
+    })();
+})();
 </script>
 </body>
 <!--end::Body-->

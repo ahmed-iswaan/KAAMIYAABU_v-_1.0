@@ -15,8 +15,9 @@ class AtollSeeder extends Seeder
     {
      // List of Maldives administrative atolls with their assigned codes
         $atolls = [
+            ['name' => 'Male\' City',     'code' => 'MLE'],
             ['name' => 'Haa Alif',        'code' => 'HA'],
-            ['name' => 'Haa Dhaalu',      'code' => 'HD'],
+            ['name' => 'Haa Dhaalu',      'code' => 'HDH'],
             ['name' => 'Shaviyani',       'code' => 'SH'],
             ['name' => 'Noonu',           'code' => 'N'],
             ['name' => 'Raa',             'code' => 'R'],
@@ -24,19 +25,19 @@ class AtollSeeder extends Seeder
             ['name' => 'Lhaviyani',       'code' => 'Lh'],
             ['name' => 'Kaafu',           'code' => 'K'],
             ['name' => 'Alifu Alifu',     'code' => 'AA'],
-            ['name' => 'Alifu Dhaalu',    'code' => 'ADh'],
+            ['name' => 'Alifu Dhaalu',    'code' => 'ADH'],
             ['name' => 'Vaavu',           'code' => 'V'],
             ['name' => 'Meemu',           'code' => 'M'],
             ['name' => 'Faafu',           'code' => 'F'],
-            ['name' => 'Dhaalu',          'code' => 'Dh'],
-            ['name' => 'Thaa',            'code' => 'Th'],
+            ['name' => 'Dhaalu',          'code' => 'DH'],
+            ['name' => 'Thaa',            'code' => 'TH'],
             ['name' => 'Laamu',           'code' => 'L'],
             ['name' => 'Gaafu Alifu',     'code' => 'GA'],
-            ['name' => 'Gaafu Dhaalu',    'code' => 'GDh'],
-            ['name' => 'Gnaviyani',       'code' => 'Gn'],
+            ['name' => 'Gaafu Dhaalu',    'code' => 'GDH'],
+            ['name' => 'Gnaviyani',       'code' => 'GN'],
             ['name' => 'Seenu',           'code' => 'S'],
-            ['name' => 'Ihavandhippolhu', 'code' => 'Ih'],
-            ['name' => 'Thiladhunmathi',  'code' => 'Thm'],
+            ['name' => 'Ihavandhippolhu', 'code' => 'IH'],
+            ['name' => 'Thiladhunmathi',  'code' => 'THM'],
         ];
 
         foreach ($atolls as $data) {

@@ -7,202 +7,384 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Str;
 use App\Models\Directory;
-use App\Models\DirectoryType;
-use App\Models\RegistrationType;
 use App\Models\Country;
 use App\Models\Island;
 use App\Models\Property;
 use App\Models\DirectoryRelationship;
 use App\Models\PendingTelegramNotification;
-use League\Csv\Writer;
-use SplTempFileObject;
 use App\Models\EventLog;
-use Illuminate\Validation\Rule; // Import for unique validation in update
+use App\Models\Party;
+use App\Models\Consite;
+use App\Models\SubConsite;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Cache; // added
 
 class DirectoryManagement extends Component
 {
     use WithPagination, WithFileUploads;
 
+    // Added property to fix missing wire:model warning
+    public bool $profile_picture_remove = false;
+
     public $search = '';
     public $perPage = 10;
     public $pageTitle = 'Directory';
 
-    // Current Directory ID for editing
     public $editingDirectoryId;
 
-    // Form fields for ADD (original)
+    // New schema fields (Add Form)
     public $name, $description, $profile_picture;
-    public $registration_number, $gst_number;
-    public $date_of_birth;
-    public $phone, $email, $website;
-    public $country_id, $island_id, $property_id;
-    public $address, $street_address, $location_type = 'inland';
+    public $id_card_number;
+    public $gender = 'other';
+    public $date_of_birth, $death_date;
+    public $phones = []; // array of phone strings
+    public $email, $website;
 
-    public string $registration_label = 'ID Card';
-    public ?string $registration_type_id = null;
-    public ?string $directory_type_id = null;
-    public bool $is_gst_visible = false;
-    public bool $is_gender_visible = false;
-    public $is_island_visible = false;
-    public $is_property_visible = false;
-    public string $gender = 'other';
-    public string $date_label = 'Date of Birth';
+    // Permanent location
+    public $country_id, $island_id, $properties_id, $address, $street_address;
 
+    // Current location
+    public $current_country_id, $current_island_id, $current_properties_id, $current_address, $current_street_address;
+
+    // Party / Election related
+    public $party_id, $consite_id, $sub_consite_id;
+    public $consite_or_sub_id; // unified select (will hold either a consite id or sub consite id)
+
+    public $status = 'Active';
+
+    // Contact person (kept for compatibility)
     public bool $has_contact_person = false;
     public ?string $contact_directory_id = null;
     public ?string $contact_designation = null;
 
-    // Form fields for EDIT (prepended with edit_)
-    public $edit_name, $edit_description, $edit_profile_picture;
-    public $edit_registration_number, $edit_gst_number;
-    public $edit_date_of_birth;
-    public $edit_phone, $edit_email, $edit_website;
-    public $edit_country_id, $edit_island_id, $edit_property_id;
-    public $edit_address, $edit_street_address, $edit_location_type = 'inland';
+    // Visibility helpers
+    public $is_island_visible = false;            // permanent
+    public $is_property_visible = false;          // permanent
+    public $is_current_island_visible = false;    // current
+    public $is_current_property_visible = false;  // current
 
-    public string $edit_registration_label = 'ID Card';
-    public ?string $edit_registration_type_id = null;
-    public ?string $edit_directory_type_id = null;
-    public bool $edit_is_gst_visible = false;
-    public bool $edit_is_gender_visible = false;
-    public $edit_is_island_visible = false;
-    public $edit_is_property_visible = false;
-    public string $edit_gender = 'other';
-    public string $edit_date_label = 'Date of Birth';
+    // Add cached Maldives country id
+    public $maldivesCountryId; 
+
+    // Edit form fields (prefixed)
+    public $edit_name, $edit_description, $edit_profile_picture, $edit_profile_picture_path;
+    public $edit_id_card_number;
+    public $edit_gender = 'other';
+    public $edit_date_of_birth, $edit_death_date;
+    public $edit_phones = [];
+    public $edit_email, $edit_website;
+    public $edit_country_id, $edit_island_id, $edit_properties_id, $edit_address, $edit_street_address;
+    public $edit_current_country_id, $edit_current_island_id, $edit_current_properties_id, $edit_current_address, $edit_current_street_address;
+    public $edit_party_id, $edit_consite_id, $edit_sub_consite_id;
+    public $edit_consite_or_sub_id; // unified select for edit
+    public $edit_status = 'Active';
 
     public bool $edit_has_contact_person = false;
     public ?string $edit_contact_directory_id = null;
     public ?string $edit_contact_designation = null;
 
-    public $profile_picture_remove = false;
-    public $edit_profile_picture_remove = false;
+    public $edit_is_island_visible = false;
+    public $edit_is_property_visible = false;
+    public $edit_is_current_island_visible = false;
+    public $edit_is_current_property_visible = false;
 
-    public $edit_profile_picture_path;
-
+    // Reference datasets (lightweight always-resident)
+    public $countries = [];
+    public $parties = [];
+    public $consites = [];
+    public $contacts = [];
+    // Lazily loaded larger sets
+    public $islands;
+    public $properties;
+    protected $referenceLoaded = false;
 
     public function mount()
     {
-        // Default Registration Type: "ID Card" for Add Form
-        $defaultRegType = RegistrationType::where('name', 'ID Card')->first();
-        $this->registration_type_id = $defaultRegType?->id;
-        $this->registration_label = $defaultRegType?->name ?? 'ID Card';
-
-        // Default Directory Type: "Individual" for Add Form
-        $defaultDirType = DirectoryType::where('name', 'Individual')->first();
-        $this->directory_type_id = $defaultDirType?->id;
-
-        // Apply visibility rule for Add Form
-        $this->is_gst_visible = false;
-
-        // Initialize for Edit Form (defaults can be set here or in openEditModal)
-        $this->edit_gender = 'male'; // Default for edit if individual
-        $this->edit_date_label = 'Date of Birth';
-        $this->edit_registration_label = $defaultRegType?->name ?? 'ID Card';
+        $this->islands = collect([]);
+        $this->properties = collect([]);
+        $this->maldivesCountryId = Country::where('name', 'Maldives')->value('id');
+        if (empty($this->phones)) { $this->phones = ['']; }
+        if (empty($this->edit_phones)) { $this->edit_phones = ['']; }
+        // Preload lightweight reference data so options exist on first render
+        $this->loadReferenceData();
     }
 
-    public function updatingSearch()
+    protected function loadReferenceData(): void
     {
-        $this->resetPage();
-        $this->dispatch('TableUpdated'); 
+        if ($this->referenceLoaded) { return; }
+        $this->countries = Cache::remember('dir_ref_countries', 1800, fn()=> Country::select('id','name')->orderBy('name')->get());
+        $this->parties   = Cache::remember('dir_ref_parties', 1800, fn()=> Party::select('id','name','short_name','logo')->orderBy('name')->get());
+        $this->consites  = Cache::remember('dir_ref_consites_small', 1800, fn()=> Consite::select('id','name')->with(['subConsites:id,consite_id,code,name'])->orderBy('name')->get());
+        $this->contacts  = Cache::remember('dir_ref_contacts_small', 600, fn()=> Directory::select('id','name','id_card_number')->where('status','Active')->orderBy('name')->limit(150)->get());
+        $this->referenceLoaded = true;
+        $this->dispatch('reference-data-loaded');
     }
 
-
-    public function updatedHasContactPerson($value)
+    public function testFetchIslands()
     {
-        if (!$value) {
-            $this->reset([
-                'contact_directory_id',
-                'contact_designation',
-            ]);
+        try {
+            // Direct database query without cache
+            $islands = Island::select('id','name','atoll_id')->with('atoll:id,code')->orderBy('name')->get();
+            $this->dispatch('debug-log', ['message' => 'Direct DB query found ' . $islands->count() . ' islands']);
+            
+            if ($islands->count() > 0) {
+                $firstIsland = $islands->first();
+                $this->dispatch('debug-log', ['message' => 'First island: ' . $firstIsland->name . ' (ID: ' . $firstIsland->id . ')']);
+            }
+            
+            return $islands;
+        } catch (\Exception $e) {
+            $this->dispatch('debug-log', ['message' => 'Direct DB query error: ' . $e->getMessage()]);
+            return collect([]);
         }
     }
 
-    public function updatedEditHasContactPerson($value)
+    protected function fetchIslands(): void
     {
-        if (!$value) {
-            $this->reset([
-                'edit_contact_directory_id',
-                'edit_contact_designation',
-            ]);
+        try {
+            $totalInDb = Island::count();
+            $this->dispatch('debug-log', ['message' => 'fetchIslands start. Total islands in DB: '.$totalInDb]);
+
+            // Direct (uncached) query for debugging reliability
+            $islands = Island::select('id','name','atoll_id')->with('atoll:id,code')->orderBy('name')->get();
+            $this->islands = $islands instanceof \Illuminate\Support\Collection ? $islands : collect($islands);
+
+            $this->dispatch('debug-log', ['message' => 'Direct query returned '.$this->islands->count().' islands']);
+
+            // Fallback: if still zero but DB reports >0, run a raw minimal query
+            if ($this->islands->isEmpty() && $totalInDb > 0) {
+                $this->dispatch('debug-log', ['message' => 'Primary fetch empty, attempting fallback raw query']);
+                $fallback = Island::query()->select('id','name')->limit(2000)->get();
+                $this->dispatch('debug-log', ['message' => 'Fallback query returned '.$fallback->count().' islands']);
+                if($fallback->isNotEmpty()) { $this->islands = $fallback; }
+            }
+
+            $this->dispatch('reference-data-loaded');
+            $this->syncProperties();
+        } catch (\Exception $e) {
+            $this->dispatch('debug-log', ['message' => 'Error fetching islands: '.$e->getMessage()]);
+            $this->islands = collect([]);
         }
     }
 
-
-    public function updatedRegistrationTypeId($value)
+    // Make syncProperties public so it can be explicitly called from JS if needed
+    public function syncProperties(): void
     {
-        $type = RegistrationType::find($value);
-        $this->registration_label = $type?->name ?? 'ID Card';
-    }
+        $islandIds = collect([
+            $this->island_id,
+            $this->current_island_id,
+            $this->edit_island_id,
+            $this->edit_current_island_id
+        ])->filter()->unique()->values()->all();
 
-    public function updatedEditRegistrationTypeId($value)
-    {
-        $type = RegistrationType::find($value);
-        $this->edit_registration_label = $type?->name ?? 'ID Card';
-    }
-
-    public function updatedDirectoryTypeId($value)
-    {
-        $type = DirectoryType::find($value);
-        $this->is_gst_visible = strtolower($type?->name) !== 'individual';
-
-        if ($type && strtolower($type->name) !== 'individual') {
-            $this->gender = 'other'; // force gender to 'other'
-            $this->date_label = 'Registered Date';
-            $this->is_gender_visible = false;
+        if (empty($islandIds)) {
+            $this->properties = collect([]);
         } else {
-            $this->date_label = 'Date of Birth';
-            $this->gender = 'male';
-            $this->is_gender_visible = true;
+            $LIMIT = 600;
+            $baseQuery = Property::select('id','name','island_id')->whereIn('island_id', $islandIds)->orderBy('name');
+            $properties = $baseQuery->limit($LIMIT)->get();
+            $selectedIds = collect([
+                $this->properties_id,
+                $this->current_properties_id,
+                $this->edit_properties_id,
+                $this->edit_current_properties_id
+            ])->filter()->unique()->diff($properties->pluck('id'))->values();
+            if ($selectedIds->isNotEmpty()) {
+                $extra = Property::select('id','name','island_id')->whereIn('id', $selectedIds)->get();
+                $properties = $properties->concat($extra)->unique('id')->values();
+            }
+            $this->properties = $properties;
         }
     }
 
-    public function updatedEditDirectoryTypeId($value)
+    // --- Updated handlers (add) ---
+    public function updatedCountryId($value)
     {
-        $type = DirectoryType::find($value);
-        $this->edit_is_gst_visible = strtolower($type?->name) !== 'individual';
+        $this->dispatch('debug-log', ['message' => 'Country changed to: ' . $value]);
+        $this->is_island_visible = $this->countryHasIslands($value);
+        $this->dispatch('debug-log', ['message' => 'is_island_visible => '.($this->is_island_visible?'true':'false')]);
+        $this->island_id = null;
+        $this->properties_id = null;
+        $this->is_property_visible = false;
+        if ($this->is_island_visible) {
+            $this->fetchIslands();
+            $this->dispatch('debug-log', ['message' => 'After fetchIslands islands count: '.$this->islands->count()]);
+        }
+        $this->syncProperties();
+    }
+    public function updatedIslandId($value)
+    {
+        $this->properties_id = null;
+        $this->is_property_visible = $value ? Property::where('island_id', $value)->exists() : false;
+        $this->dispatch('debug-log', ['message' => 'Island changed to: '.$value.' | is_property_visible => '.($this->is_property_visible?'true':'false')]);
+        if (!$this->is_property_visible) {
+            $this->properties_id = null;
+        }
+        $this->syncProperties();
+    }
+    public function updatedCurrentCountryId($value)
+    {
+        $this->is_current_island_visible = $this->countryHasIslands($value);
+        $this->current_island_id = null;
+        $this->current_properties_id = null;
+        $this->is_current_property_visible = false;
 
-        if ($type && strtolower($type->name) !== 'individual') {
-            $this->edit_gender = 'other'; // force gender to 'other'
-            $this->edit_date_label = 'Registered Date';
-            $this->edit_is_gender_visible = false;
-        } else {
-            $this->edit_date_label = 'Date of Birth';
-            $this->edit_gender = 'male';
-            $this->edit_is_gender_visible = true;
+        if ($this->is_current_island_visible) {
+            $this->fetchIslands();
+        }
+        $this->syncProperties();
+    }
+    public function updatedCurrentIslandId($value)
+    {
+        $this->current_properties_id = null;
+        $this->is_current_property_visible = !empty($value);
+        $this->syncProperties();
+    }
+
+    // --- Updated handlers (edit) ---
+    public function updatedEditCountryId($value)
+    {
+        $this->edit_is_island_visible = $this->countryHasIslands($value);
+        $this->edit_island_id = null;
+        $this->edit_properties_id = null;
+        $this->edit_is_property_visible = false;
+
+        if ($this->edit_is_island_visible) {
+            $this->fetchIslands();
+        }
+        $this->syncProperties();
+        $this->dispatch('reinit-edit-select2');
+    }
+    public function updatedEditIslandId($value)
+    {
+        $this->edit_properties_id = null;
+        $this->edit_is_property_visible = $value ? Property::where('island_id', $value)->exists() : false;
+        $this->syncProperties();
+        $this->dispatch('reinit-edit-select2');
+    }
+    public function updatedEditCurrentCountryId($value)
+    {
+        $this->edit_is_current_island_visible = $this->countryHasIslands($value);
+        $this->edit_current_island_id = null;
+        $this->edit_current_properties_id = null;
+        $this->edit_is_current_property_visible = false;
+
+        if ($this->edit_is_current_island_visible) {
+            $this->fetchIslands();
+        }
+        $this->syncProperties();
+        $this->dispatch('reinit-edit-select2');
+    }
+    public function updatedEditCurrentIslandId($value)
+    {
+        $this->edit_current_properties_id = null;
+        $this->edit_is_current_property_visible = $value ? Property::where('island_id', $value)->exists() : false;
+        $this->syncProperties();
+        $this->dispatch('reinit-edit-select2');
+    }
+
+    /* -------------------- Dynamic Phone Helpers -------------------- */
+    public function addPhoneField()
+    {
+        $this->phones[] = '';
+    }
+    public function removePhoneField($index)
+    {
+        if (isset($this->phones[$index])) {
+            unset($this->phones[$index]);
+            $this->phones = array_values($this->phones);
+        }
+    }
+    public function editAddPhoneField()
+    {
+        $this->edit_phones[] = '';
+    }
+    public function editRemovePhoneField($index)
+    {
+        if (isset($this->edit_phones[$index])) {
+            unset($this->edit_phones[$index]);
+            $this->edit_phones = array_values($this->edit_phones);
         }
     }
 
+    /* -------------------- Location Visibility Logic -------------------- */
+    protected function countryHasIslands($countryId): bool
+    {
+        // Refresh cached Maldives id if missing
+        if (!$this->maldivesCountryId) {
+            $this->maldivesCountryId = Country::where('name', 'Maldives')->value('id');
+        }
+        
+        $this->dispatch('debug-log', ['message' => "Checking country: $countryId, Maldives ID: {$this->maldivesCountryId}"]);
+        
+        if (empty($countryId) || empty($this->maldivesCountryId)) {
+            $this->dispatch('debug-log', ['message' => 'Country or Maldives ID is empty']);
+            return false;
+        }
+        // Use loose comparison cast to string to avoid strict UUID object vs string mismatch
+        $result = (string)$countryId === (string)$this->maldivesCountryId;
+        $this->dispatch('debug-log', ['message' => "Country check: $countryId vs {$this->maldivesCountryId} = " . ($result ? 'true' : 'false')]);
+        return $result;
+    }
 
+    /* -------------------- Consite/SubConsite Logic -------------------- */
+    public function updatedConsiteId($value)
+    {
+        $this->sub_consite_id = null;
+    }
+
+    /* -------------------- Render -------------------- */
     public function render()
     {
-        $directory = Directory::where('name', 'like', '%' . $this->search . '%')
-            ->orWhere('email', 'like', '%' . $this->search . '%')
-            ->orWhere('registration_number', 'like', '%' . $this->search . '%')
+        $directory = Directory::with([
+                'party:id,short_name,name,logo',
+                'subConsite:id,code,name',
+                'property:id,name',
+                'island:id,name,atoll_id',
+                'island.atoll:id,code',
+                'country:id,name',
+                'currentProperty:id,name',
+                'currentIsland:id,name,atoll_id',
+                'currentIsland.atoll:id,code',
+                'currentCountry:id,name'
+            ])
+            ->select([
+                'id','name','profile_picture','id_card_number','gender','date_of_birth','phones','email',
+                'party_id','sub_consite_id','properties_id','street_address','address','country_id','island_id',
+                'current_properties_id','current_street_address','current_address','current_country_id','current_island_id',
+                'status','created_at'
+            ])
+            ->when($this->search, function ($q) {
+                $term = '%'.$this->search.'%';
+                $q->where(function($qq) use ($term){
+                    $qq->where('name','like',$term)
+                       ->orWhere('email','like',$term)
+                       ->orWhere('id_card_number','like',$term);
+                });
+            })
             ->latest()
             ->paginate($this->perPage);
-
-        $individualTypeId = DirectoryType::where('name', 'Individual')->value('id');
-
-        $contacts = Directory::where('status', 'active')
-            ->where('directory_type_id', $individualTypeId)
-            ->get();
 
         return view('livewire.directory.directory-management', [
             'directory' => $directory,
             'pageTitle' => $this->pageTitle,
-            'contacts' => $contacts,
-            'directoryTypes' => DirectoryType::all(),
-            'registrationTypes' => RegistrationType::all(),
-            'countries' => Country::all(),
-            'islands' => Island::all(),
-            'properties' => Property::all(),
+            'countries' => $this->countries,
+            'islands' => $this->islands,
+            'properties' => $this->properties,
+            'parties' => $this->parties,
+            'consites' => $this->consites,
+            'contacts' => $this->contacts,
         ])->layout('layouts.master');
     }
 
     public function openAddModal()
     {
-        $this->resetForm(); // Reset Add form fields
+        $this->dispatch('debug-log', ['message' => 'openAddModal called']);
+        $this->loadReferenceData();
+        $this->resetForm();
+        $this->dispatch('debug-log', ['message' => 'About to dispatch showAddDirectoryModal']);
         $this->dispatch('showAddDirectoryModal');
+        $this->dispatch('debug-log', ['message' => 'showAddDirectoryModal dispatched']);
     }
 
     public function openEdit()
@@ -212,55 +394,56 @@ class DirectoryManagement extends Component
 
     public function openEditModal($id)
     {
+        $this->loadReferenceData();
         $this->editingDirectoryId = $id;
-        $directory = Directory::with(['type', 'registrationType', 'country', 'island', 'property', 'contactPersonRelationship.linkedDirectory'])->find($id);
-
+        $directory = Directory::with(['country','island','property','currentCountry','currentIsland','currentProperty','party','subConsite','contactPersonRelationship.linkedDirectory'])->find($id);
         if (!$directory) {
-            $this->dispatch('swal', [
-                'title' => 'Error',
-                'text' => 'Directory not found.',
-                'icon' => 'error',
-                'confirmButtonText' => 'Ok!',
-                'confirmButton' => 'btn btn-primary'
-            ]);
+            $this->dispatch('swal', [ 'title' => 'Error', 'text' => 'Directory not found.', 'icon' => 'error', 'confirmButtonText' => 'Ok!', 'confirmButton' => 'btn btn-primary' ]);
             return;
         }
 
-        // Populate edit form fields
+        // Populate edit form
         $this->edit_name = $directory->name;
         $this->edit_description = $directory->description;
         $this->edit_profile_picture_path = $directory->profile_picture;
-        // Profile picture is handled differently in the Blade, no direct assignment needed here for initial load
-        // The Blade uses @elseif(isset($edit_user) && $edit_user->profile_picture)
-        // You might need a $edit_user property if you want to pass the full model,
-        // or just ensure the blade correctly references the current profile picture path.
-        // For simplicity, we'll assume the blade uses the model directly.
-        // If you need to show a temporary preview of a *new* upload, that's handled by $edit_profile_picture.
-
-        $this->edit_directory_type_id = $directory->directory_type_id;
-        $this->edit_registration_type_id = $directory->registration_type_id;
-        $this->edit_registration_number = $directory->registration_number;
-        $this->edit_gst_number = $directory->gst_number;
+        $this->edit_id_card_number = $directory->id_card_number;
         $this->edit_gender = $directory->gender;
-        $this->edit_date_of_birth = $directory->date_of_birth;
-        $this->edit_phone = $directory->phone;
+        $this->edit_date_of_birth = $directory->date_of_birth;        
+        $this->edit_death_date = $directory->death_date;        
+        $this->edit_phones = $directory->phones ?: [''];
         $this->edit_email = $directory->email;
         $this->edit_website = $directory->website;
         $this->edit_country_id = $directory->country_id;
         $this->edit_island_id = $directory->island_id;
-        $this->edit_property_id = $directory->properties_id; // Corrected column name
+        $this->edit_properties_id = $directory->properties_id;
         $this->edit_address = $directory->address;
         $this->edit_street_address = $directory->street_address;
-        $this->edit_location_type = $directory->location_type;
+        $this->edit_current_country_id = $directory->current_country_id;
+        $this->edit_current_island_id = $directory->current_island_id;
+        $this->edit_current_properties_id = $directory->current_properties_id;
+        $this->edit_current_address = $directory->current_address;
+        $this->edit_current_street_address = $directory->current_street_address;
+        $this->edit_party_id = $directory->party_id;
+        $this->edit_sub_consite_id = $directory->sub_consite_id;
+        $this->edit_consite_id = optional($directory->subConsite)->consite_id; // for filtering
+        $this->edit_consite_or_sub_id = $this->edit_sub_consite_id ?: $this->edit_consite_id;
+        $this->edit_status = $directory->status;
 
-        // Set conditional visibilities based on fetched data
-        $this->updatedEditDirectoryTypeId($this->edit_directory_type_id); // Re-run logic for gender/gst visibility
-        $this->updatedEditRegistrationTypeId($this->edit_registration_type_id); // Re-run logic for registration label
-        $this->updatedEditCountryId($this->edit_country_id); // Re-run logic for island/property visibility
-        $this->updatedEditIslandId($this->edit_island_id); // Re-run logic for property visibility and location_type
+        // Pre-fetch islands if needed
+        if ($this->countryHasIslands($this->edit_country_id) || $this->countryHasIslands($this->edit_current_country_id)) {
+            $this->fetchIslands();
+        }
+        
+        // Sync properties for selected islands
+        $this->syncProperties();
 
+        // Visibility recalculation (direct, no event handlers)
+        $this->edit_is_island_visible = $this->countryHasIslands($this->edit_country_id);
+        $this->edit_is_property_visible = $this->edit_island_id && $this->properties->where('island_id', $this->edit_island_id)->count() > 0;
+        $this->edit_is_current_island_visible = $this->countryHasIslands($this->edit_current_country_id);
+        $this->edit_is_current_property_visible = $this->edit_current_island_id && $this->properties->where('island_id', $this->edit_current_island_id)->count() > 0;
 
-        // Handle contact person
+        // Contact person
         $relationship = DirectoryRelationship::where('directory_id', $this->editingDirectoryId)->first();
         if ($relationship) {
             $this->edit_has_contact_person = true;
@@ -268,124 +451,46 @@ class DirectoryManagement extends Component
             $this->edit_contact_designation = $relationship->designation;
         } else {
             $this->edit_has_contact_person = false;
+            $this->edit_contact_directory_id = null;
+            $this->edit_contact_designation = null;
         }
 
         $this->dispatch('reinit-edit-select2');
-         
         $this->openEdit();
- 
     }
 
-
-    public function updatedCountryId($value)
-    {
-        $countryName = Country::find($value)?->name;
-
-        if ($countryName && strtolower($countryName) === 'maldives') {
-            $this->is_island_visible = true;
-        } else {
-            $this->is_island_visible = false;
-            $this->island_id = null;
-            $this->property_id = null;
-        }
-    }
-
-    public function updatedEditCountryId($value)
-    {
-        $countryName = Country::find($value)?->name;
-
-        if ($countryName && strtolower($countryName) === 'maldives') {
-            $this->edit_is_island_visible = true;
-        } else {
-            $this->edit_is_island_visible = false;
-            $this->edit_island_id = null;
-            $this->edit_property_id = null;
-        }
-    }
-
-
-    public function updatedIslandId($value)
-    {
-        $island = Island::find($value);
-
-        // Update location type
-        if ($island && strtolower($island->name) === 'mulah') {
-            $this->location_type = 'inland';
-        } else {
-            $this->location_type = 'outer_islander';
-        }
-
-        // Determine if the island has any properties
-        $this->is_property_visible = Property::where('island_id', $value)->exists();
-
-        if (!$this->is_property_visible) {
-            $this->property_id = null;
-        }
-    }
-
-    public function updatedEditIslandId($value)
-    {
-        $island = Island::find($value);
-
-        // Update location type
-        if ($island && strtolower($island->name) === 'mulah') {
-            $this->edit_location_type = 'inland';
-        } else {
-            $this->edit_location_type = 'outer_islander';
-        }
-
-        // Determine if the island has any properties
-        $this->edit_is_property_visible = Property::where('island_id', $value)->exists();
-
-        if (!$this->edit_is_property_visible) {
-            $this->edit_property_id = null;
-        }
-    }
-
-
+    /* -------------------- Save -------------------- */
     public function save()
     {
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'directory_type_id' => 'required|uuid|exists:directory_types,id',
-            'registration_type_id' => 'nullable|uuid|exists:registration_types,id',
-            'registration_number' => 'nullable|string|unique:directories,registration_number',
-            'gst_number' => 'nullable|string|max:255',
-            'gender' => 'nullable|in:male,female,other',
-            'date_of_birth' => 'nullable|date',
-            'phone' => 'nullable|string|unique:directories,phone|max:30',
-            'email' => 'nullable|email|unique:directories,email|max:255',
-            'website' => 'nullable|url|max:255',
-            'country_id' => 'nullable|uuid|exists:countries,id',
-            'island_id' => 'nullable|uuid|exists:islands,id',
-            'property_id' => 'nullable|uuid|exists:properties,id',
-            'address' => 'nullable|string|max:255',
-            'street_address' => 'nullable|string|max:255',
-            'profile_picture' => 'nullable|image|max:1024',
-            'has_contact_person' => 'boolean',
-            'contact_directory_id' => Rule::requiredIf($this->has_contact_person) . '|nullable|uuid|exists:directories,id',
-            'contact_designation' => 'nullable|string|max:255',
-        ]);
+        $this->validate($this->rules());
+        if($this->consite_or_sub_id){
+            $this->sub_consite_id = $this->consite_or_sub_id;
+        }
 
         $directory = new Directory();
         $directory->id = Str::uuid();
         $directory->name = $this->name;
         $directory->description = $this->description;
-        $directory->directory_type_id = $this->directory_type_id;
-        $directory->registration_type_id = $this->registration_type_id;
-        $directory->registration_number = $this->registration_number;
-        $directory->gst_number = $this->gst_number;
+        $directory->id_card_number = $this->id_card_number;
         $directory->gender = $this->gender;
         $directory->date_of_birth = $this->date_of_birth;
-        $directory->phone = $this->phone;
+        $directory->death_date = $this->death_date;
+        $directory->phones = $this->cleanPhones($this->phones);
         $directory->email = $this->email;
         $directory->website = $this->website;
         $directory->country_id = $this->country_id;
         $directory->island_id = $this->island_id;
-        $directory->properties_id = $this->property_id;
+        $directory->properties_id = $this->properties_id;
         $directory->address = $this->address;
         $directory->street_address = $this->street_address;
-        $directory->location_type = $this->location_type;
+        $directory->current_country_id = $this->current_country_id;
+        $directory->current_island_id = $this->current_island_id;
+        $directory->current_properties_id = $this->current_properties_id;
+        $directory->current_address = $this->current_address;
+        $directory->current_street_address = $this->current_street_address;
+        $directory->party_id = $this->party_id;
+        $directory->sub_consite_id = $this->sub_consite_id;
+        $directory->status = $this->status ?: 'Active';
 
         if ($this->profile_picture) {
             $directory->profile_picture = $this->profile_picture->store('directory/profiles', 'public');
@@ -394,44 +499,11 @@ class DirectoryManagement extends Component
         $directory->save();
 
         if ($this->has_contact_person) {
-            $directoryrelationship = new DirectoryRelationship();
-            $directoryrelationship->directory_id = $directory->id;
-            $directoryrelationship->linked_directory_id = $this->contact_directory_id;
-            $directoryrelationship->link_type = 'linked';
-            $directoryrelationship->designation = $this->contact_designation;
-            $directoryrelationship->save();
-
-            // ✅ Log Event
-            EventLog::create([
-                'user_id'         => auth()->id(),
-                'event_tab'       => 'DirectoryRelationship',
-                'event_entry_id'  => $directoryrelationship->id,
-                'event_type'      => 'DirectoryRelationship Created',
-                'description'     => 'New Directory Relationship entry created.',
-                'event_data'      => $directoryrelationship->toArray(),
-                'ip_address'      => request()->ip(),
-            ]);
+            $this->createOrUpdateRelationship($directory->id, $this->contact_directory_id, $this->contact_designation);
         }
 
-        // ✅ Telegram Notification
-        PendingTelegramNotification::create([
-            'chat_id' => env('TELEGRAM_GROUP_DIRECTORY'),
-            'message_thread_id' => env('TELEGRAM_TOPIC_DIRECTORY'),
-            'message' => $this->buildTelegramMessage('Directory Created', $directory),
-        ]);
+        $this->logAndNotify('Directory Created', $directory);
 
-        // ✅ Event Log
-        EventLog::create([
-            'user_id' => auth()->id(),
-            'event_tab' => 'Directory',
-            'event_entry_id' => $directory->id,
-            'event_type' => 'Directory Created',
-            'description' => 'New directory entry created.',
-            'event_data' => $directory->toArray(),
-            'ip_address' => request()->ip(),
-        ]);
-
-        // ✅ SweetAlert Feedback
         $this->dispatch('swal', [
             'title' => 'Created',
             'text' => 'Directory added successfully.',
@@ -445,10 +517,10 @@ class DirectoryManagement extends Component
         $this->dispatch('closeAddDirectoryModal');
     }
 
+    /* -------------------- Edit -------------------- */
     public function edit()
     {
         $directory = Directory::find($this->editingDirectoryId);
-
         if (!$directory) {
             $this->dispatch('swal', [
                 'title' => 'Error',
@@ -460,152 +532,50 @@ class DirectoryManagement extends Component
             return;
         }
 
-        $this->validate([
-            'edit_name' => 'required|string|max:255',
-            'edit_directory_type_id' => 'required|uuid|exists:directory_types,id',
-            'edit_registration_type_id' => 'nullable|uuid|exists:registration_types,id',
-            'edit_country_id' => 'required|uuid|exists:countries,id',
-            'edit_registration_number' => [
-                'nullable',
-                'string',
-                Rule::unique('directories', 'registration_number')->ignore($directory->id),
-            ],
-            'edit_gst_number' => 'nullable|string|max:255',
-            'edit_gender' => 'nullable|in:male,female,other',
-            'edit_date_of_birth' => 'nullable|date',
-            'edit_phone' => [
-                'nullable',
-                'string',
-                'max:30',
-                Rule::unique('directories', 'phone')->ignore($directory->id),
-            ],
-            'edit_email' => [
-                'nullable',
-                'email',
-                'max:255',
-                Rule::unique('directories', 'email')->ignore($directory->id),
-            ],
-            'edit_website' => 'nullable|url|max:255',
-            'edit_island_id' => 'nullable|uuid|exists:islands,id',
-            'edit_property_id' => 'nullable|uuid|exists:properties,id',
-            'edit_address' => 'nullable|string|max:255',
-            'edit_street_address' => 'nullable|string|max:255',
-            'edit_profile_picture' => 'nullable|image|max:1024',
-            'edit_has_contact_person' => 'boolean',
-            'edit_contact_directory_id' => Rule::requiredIf($this->edit_has_contact_person) . '|nullable|uuid|exists:directories,id',
-            'edit_contact_designation' => 'nullable|string|max:255',
-        ]);
+        $this->validate($this->editRules($directory->id));
+        if($this->edit_consite_or_sub_id){
+            $this->edit_sub_consite_id = $this->edit_consite_or_sub_id;
+        }
 
         $directory->name = $this->edit_name;
         $directory->description = $this->edit_description;
-        $directory->directory_type_id = $this->edit_directory_type_id;
-        $directory->registration_type_id = $this->edit_registration_type_id;
-        $directory->registration_number = $this->edit_registration_number;
-        $directory->gst_number = $this->edit_gst_number;
+        $directory->id_card_number = $this->edit_id_card_number;
         $directory->gender = $this->edit_gender;
         $directory->date_of_birth = $this->edit_date_of_birth;
-        $directory->phone = $this->edit_phone;
+        $directory->death_date = $this->edit_death_date;
+        $directory->phones = $this->cleanPhones($this->edit_phones);
         $directory->email = $this->edit_email;
         $directory->website = $this->edit_website;
         $directory->country_id = $this->edit_country_id;
         $directory->island_id = $this->edit_island_id;
-        $directory->properties_id = $this->edit_property_id; // Corrected column name
+        $directory->properties_id = $this->edit_properties_id;
         $directory->address = $this->edit_address;
         $directory->street_address = $this->edit_street_address;
-        $directory->location_type = $this->edit_location_type;
+        $directory->current_country_id = $this->edit_current_country_id;
+        $directory->current_island_id = $this->edit_current_island_id;
+        $directory->current_properties_id = $this->edit_current_properties_id;
+        $directory->current_address = $this->edit_current_address;
+        $directory->current_street_address = $this->edit_current_street_address;
+        $directory->party_id = $this->edit_party_id;
+        $directory->sub_consite_id = $this->edit_sub_consite_id;
+        $directory->status = $this->edit_status ?: 'Active';
 
-        // Handle profile picture update
         if ($this->edit_profile_picture) {
-            // Delete old picture if exists
-            if ($directory->profile_picture) {
-                \Storage::disk('public')->delete($directory->profile_picture);
-            }
+            if ($directory->profile_picture) { \Storage::disk('public')->delete($directory->profile_picture); }
             $directory->profile_picture = $this->edit_profile_picture->store('directory/profiles', 'public');
-        } elseif (isset($this->edit_profile_picture_remove) && $this->edit_profile_picture_remove === '1') {
-            // Handle explicit removal (if you implemented a 'remove' action in the blade)
-            if ($directory->profile_picture) {
-                \Storage::disk('public')->delete($directory->profile_picture);
-                $directory->profile_picture = null;
-            }
         }
-
         $directory->save();
 
-        // Handle DirectoryRelationship (contact person)
+        // Relationship
         $relationship = DirectoryRelationship::where('directory_id', $directory->id)->first();
-
         if ($this->edit_has_contact_person) {
-            if ($relationship) {
-                // Update existing relationship
-                $relationship->linked_directory_id = $this->edit_contact_directory_id;
-                $relationship->designation = $this->edit_contact_designation;
-                $relationship->save();
-
-                // Log Update Event
-                EventLog::create([
-                    'user_id'         => auth()->id(),
-                    'event_tab'       => 'DirectoryRelationship',
-                    'event_entry_id'  => $relationship->id,
-                    'event_type'      => 'DirectoryRelationship Updated',
-                    'description'     => 'Directory Relationship updated.',
-                    'event_data'      => $relationship->toArray(),
-                    'ip_address'      => request()->ip(),
-                ]);
-            } else {
-                // Create new relationship
-                $directoryrelationship = new DirectoryRelationship();
-                $directoryrelationship->directory_id = $directory->id;
-                $directoryrelationship->linked_directory_id = $this->edit_contact_directory_id;
-                $directoryrelationship->link_type = 'linked';
-                $directoryrelationship->designation = $this->edit_contact_designation;
-                $directoryrelationship->save();
-
-                // Log Creation Event
-                EventLog::create([
-                    'user_id'         => auth()->id(),
-                    'event_tab'       => 'DirectoryRelationship',
-                    'event_entry_id'  => $directoryrelationship->id,
-                    'event_type'      => 'DirectoryRelationship Created',
-                    'description'     => 'New Directory Relationship entry created.',
-                    'event_data'      => $directoryrelationship->toArray(),
-                    'ip_address'      => request()->ip(),
-                ]);
-            }
+            $this->createOrUpdateRelationship($directory->id, $this->edit_contact_directory_id, $this->edit_contact_designation, $relationship);
         } elseif ($relationship) {
-            // If has_contact_person is false but a relationship exists, delete it
             $relationship->delete();
-
-            // Log Deletion Event
-            EventLog::create([
-                'user_id'         => auth()->id(),
-                'event_tab'       => 'DirectoryRelationship',
-                'event_entry_id'  => $relationship->id,
-                'event_type'      => 'DirectoryRelationship Deleted',
-                'description'     => 'Directory Relationship deleted.',
-                'event_data'      => $relationship->toArray(),
-                'ip_address'      => request()->ip(),
-            ]);
         }
 
-        // ✅ Telegram Notification for update
-        PendingTelegramNotification::create([
-            'chat_id' => env('TELEGRAM_GROUP_DIRECTORY'),
-            'message_thread_id' => env('TELEGRAM_TOPIC_DIRECTORY'),
-            'message' => $this->buildTelegramMessage('Directory Updated', $directory),
-        ]);
+        $this->logAndNotify('Directory Updated', $directory);
 
-        // ✅ Event Log for update
-        EventLog::create([
-            'user_id' => auth()->id(),
-            'event_tab' => 'Directory',
-            'event_entry_id' => $directory->id,
-            'event_type' => 'Directory Updated',
-            'description' => 'Directory entry updated.',
-            'event_data' => $directory->toArray(),
-            'ip_address' => request()->ip(),
-        ]);
-
-        // ✅ SweetAlert Feedback
         $this->dispatch('swal', [
             'title' => 'Updated',
             'text' => 'Directory updated successfully.',
@@ -615,75 +585,208 @@ class DirectoryManagement extends Component
         ]);
 
         session()->flash('success', 'Directory updated successfully.');
-        $this->resetEditForm(); // Reset Edit form fields
+        $this->resetEditForm();
         $this->dispatch('closeEditDirectoryModal');
+    }
+
+    /* -------------------- Validation Rules -------------------- */
+    protected function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'id_card_number' => 'nullable|string|max:255|unique:directories,id_card_number',
+            'gender' => 'nullable|in:male,female,other',
+            'date_of_birth' => 'nullable|date',
+            'death_date' => 'nullable|date|after_or_equal:date_of_birth',
+            'phones' => 'nullable|array|min:1',
+            'phones.*' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255|unique:directories,email',
+            'website' => 'nullable|url|max:255',
+            'country_id' => 'nullable|uuid|exists:countries,id',
+            'island_id' => 'nullable|uuid|exists:islands,id',
+            'properties_id' => 'nullable|uuid|exists:properties,id',
+            'address' => 'nullable|string|max:255',
+            'street_address' => 'nullable|string|max:255',
+            'current_country_id' => 'nullable|uuid|exists:countries,id',
+            'current_island_id' => 'nullable|uuid|exists:islands,id',
+            'current_properties_id' => 'nullable|uuid|exists:properties,id',
+            'current_address' => 'nullable|string|max:255',
+            'current_street_address' => 'nullable|string|max:255',
+            'party_id' => 'nullable|uuid|exists:parties,id',
+            'consite_or_sub_id' => 'nullable|uuid|exists:sub_consites,id',
+            'sub_consite_id' => 'nullable|uuid|exists:sub_consites,id',
+            'status' => 'nullable|string|max:50',
+            'profile_picture' => 'nullable|image|max:1024',
+            'has_contact_person' => 'boolean',
+            'contact_directory_id' => Rule::requiredIf($this->has_contact_person).'|nullable|uuid|exists:directories,id',
+            'contact_designation' => 'nullable|string|max:255',
+        ];
+    }
+
+    protected function editRules($id): array
+    {
+        return [
+            'edit_name' => 'required|string|max:255',
+            'edit_description' => 'nullable|string',
+            'edit_id_card_number' => 'nullable|string|max:255|unique:directories,id_card_number,'.$id.',id',
+            'edit_gender' => 'nullable|in:male,female,other',
+            'edit_date_of_birth' => 'nullable|date',
+            'edit_death_date' => 'nullable|date|after_or_equal:edit_date_of_birth',
+            'edit_phones' => 'nullable|array|min:1',
+            'edit_phones.*' => 'nullable|string|max:30',
+            'edit_email' => 'nullable|email|max:255|unique:directories,email,'.$id.',id',
+            'edit_website' => 'nullable|url|max:255',
+            'edit_country_id' => 'nullable|uuid|exists:countries,id',
+            'edit_island_id' => 'nullable|uuid|exists:islands,id',
+            'edit_properties_id' => 'nullable|uuid|exists:properties,id',
+            'edit_address' => 'nullable|string|max:255',
+            'edit_street_address' => 'nullable|string|max:255',
+            'edit_current_country_id' => 'nullable|uuid|exists:countries,id',
+            'edit_current_island_id' => 'nullable|uuid|exists:islands,id',
+            'edit_current_properties_id' => 'nullable|uuid|exists:properties,id',
+            'edit_current_address' => 'nullable|string|max:255',
+            'edit_current_street_address' => 'nullable|string|max:255',
+            'edit_party_id' => 'nullable|uuid|exists:parties,id',
+            'edit_consite_or_sub_id' => 'nullable|uuid|exists:sub_consites,id',
+            'edit_sub_consite_id' => 'nullable|uuid|exists:sub_consites,id',
+            'edit_status' => 'nullable|string|max:50',
+            'edit_profile_picture' => 'nullable|image|max:1024',
+            'edit_has_contact_person' => 'boolean',
+            'edit_contact_directory_id' => Rule::requiredIf($this->edit_has_contact_person).'|nullable|uuid|exists:directories,id',
+            'edit_contact_designation' => 'nullable|string|max:255',
+        ];
+    }
+
+    protected function cleanPhones(array $phones): array
+    {
+        return array_values(array_filter(array_map(function($p){
+            return $p !== null ? trim($p) : null;
+        }, $phones), function($p){ return $p !== '' && $p !== null; }));
+    }
+
+    protected function createOrUpdateRelationship($directoryId, $linkedId, $designation, $relationship = null)
+    {
+        if ($relationship) {
+            $relationship->linked_directory_id = $linkedId;
+            $relationship->designation = $designation;
+            $relationship->save();
+        } else {
+            $relationship = new DirectoryRelationship();
+            $relationship->directory_id = $directoryId;
+            $relationship->linked_directory_id = $linkedId;
+            $relationship->link_type = 'linked';
+            $relationship->designation = $designation;
+            $relationship->save();
+        }
+    }
+
+    protected function logAndNotify($event, Directory $directory)
+    {
+        PendingTelegramNotification::create([
+            'chat_id' => env('TELEGRAM_GROUP_DIRECTORY'),
+            'message_thread_id' => env('TELEGRAM_TOPIC_DIRECTORY'),
+            'message' => $this->buildTelegramMessage($event, $directory),
+        ]);
+
+        EventLog::create([
+            'user_id' => auth()->id(),
+            'event_tab' => 'Directory',
+            'event_entry_id' => $directory->id,
+            'event_type' => $event,
+            'description' => $event.' entry.',
+            'event_data' => $directory->toArray(),
+            'ip_address' => request()->ip(),
+        ]);
     }
 
     protected function buildTelegramMessage($event, $directory)
     {
         $envLabel = app()->environment('production') ? '🟢 Production' : '🧪 Development';
-
+        $phonesList = $directory->phones ? implode(', ', $directory->phones) : 'N/A';
         return "<b>📁 Directory {$event}</b>\n" .
             "<i>{$envLabel} Environment</i>\n" .
             "──────────────────────────────\n" .
             "<b>🏷️ Name:</b> {$directory->name}\n" .
-            "<b>🧾 Reg No:</b> " . ($directory->registration_number ?? 'N/A') . "\n" .
-            "<b>💼 Type:</b> " . optional($directory->type)->name . "\n" .
-            "<b>🌐 Website:</b> " . ($directory->website ?? 'N/A') . "\n" .
-            "<b>📧 Email:</b> " . ($directory->email ?? 'N/A') . "\n" .
-            "<b>📞 Phone:</b> " . ($directory->phone ?? 'N/A') . "\n" .
-            "<b>🏝️ Island:</b> " . optional($directory->island)->name . "\n" .
-            "<b>📍 Address:</b> " . ($directory->street_address ?? 'N/A') . "\n" .
-            "<b>🧾 GST:</b> " . ($directory->gst_number ?? 'N/A') . "\n" .
+            "<b>🆔 ID Card:</b> ".($directory->id_card_number ?? 'N/A')."\n" .
+            "<b>📞 Phones:</b> {$phonesList}\n" .
+            "<b>📧 Email:</b> ".($directory->email ?? 'N/A')."\n" .
+            "<b>🎉 Party:</b> ".optional($directory->party)->short_name."\n" .
+            "<b>🏝️ Island:</b> ".optional($directory->island)->name."\n" .
+            "<b>📍 Address:</b> ".($directory->street_address ?? 'N/A')."\n" .
             "──────────────────────────────\n" .
-            "<b>👤 By:</b> " . auth()->user()->name . "\n" .
-            "<b>🕒 At:</b> " . now()->format('d M Y H:i');
+            "<b>👤 By:</b> ".auth()->user()->name."\n" .
+            "<b>🕒 At:</b> ".now()->format('d M Y H:i');
     }
 
-
-    public function resetForm() // For Add Modal
+    /* -------------------- Reset Forms -------------------- */
+    public function resetForm()
     {
         $this->reset([
-            'name', 'description', 'profile_picture',
-            'directory_type_id', 'registration_type_id', 'registration_number', 'gst_number',
-            'gender', 'date_of_birth',
-            'phone', 'email', 'website',
-            'country_id', 'island_id', 'address', 'street_address',
-            'property_id', 'location_type',
-            'has_contact_person', 'contact_directory_id', 'contact_designation',
+            'name','description','profile_picture','id_card_number','gender','date_of_birth','death_date',
+            'phones','email','website','country_id','island_id','properties_id','address','street_address',
+            'current_country_id','current_island_id','current_properties_id','current_address','current_street_address',
+            'party_id','consite_id','sub_consite_id','status','has_contact_person','contact_directory_id','contact_designation','consite_or_sub_id'
         ]);
-        $this->profile_picture = null; // Ensure file input is cleared
-        // Reapply defaults for Add form after reset
-        $defaultRegType = RegistrationType::where('name', 'ID Card')->first();
-        $this->registration_type_id = $defaultRegType?->id;
-        $this->registration_label = $defaultRegType?->name ?? 'ID Card';
-        $defaultDirType = DirectoryType::where('name', 'Individual')->first();
-        $this->directory_type_id = $defaultDirType?->id;
-        $this->is_gst_visible = false;
-        $this->gender = 'male';
-        $this->date_label = 'Date of Birth';
-        $this->is_gender_visible = true;
-        $this->is_island_visible = false;
-        $this->is_property_visible = false;
-        $this->location_type = 'inland';
-        $this->has_contact_person = false;
-
-        $this->dispatch('formSubmittedOrReset'); // Event for Add modal
+        $this->phones = [''];
+        $this->status = 'Active';
+        $this->profile_picture_remove = false; // ensure reset
+        $this->dispatch('formSubmittedOrReset');
     }
 
-    public function resetEditForm() // For Edit Modal
+    public function resetEditForm()
     {
         $this->reset([
-            'editingDirectoryId',
-            'edit_name', 'edit_description', 'edit_profile_picture',
-            'edit_directory_type_id', 'edit_registration_type_id', 'edit_registration_number', 'edit_gst_number',
-            'edit_gender', 'edit_date_of_birth',
-            'edit_phone', 'edit_email', 'edit_website',
-            'edit_country_id', 'edit_island_id', 'edit_address', 'edit_street_address',
-            'edit_property_id', 'edit_location_type',
-            'edit_has_contact_person', 'edit_contact_directory_id', 'edit_contact_designation',
+            'editingDirectoryId','edit_name','edit_description','edit_profile_picture','edit_id_card_number','edit_gender','edit_date_of_birth','edit_death_date',
+            'edit_phones','edit_email','edit_website','edit_country_id','edit_island_id','edit_properties_id','edit_address','edit_street_address',
+            'edit_current_country_id','edit_current_island_id','edit_current_properties_id','edit_current_address','edit_current_street_address',
+            'edit_party_id','edit_consite_id','edit_sub_consite_id','edit_status','edit_has_contact_person','edit_contact_directory_id','edit_contact_designation','edit_consite_or_sub_id'
         ]);
-        $this->edit_profile_picture = null; // Ensure file input is cleared
-        $this->dispatch('editFormSubmittedOrReset'); // Event for Edit modal
+        $this->edit_phones = [''];
+        $this->profile_picture_remove = false;
+        $this->dispatch('editFormSubmittedOrReset');
+    }
+
+    public function testSimple()
+    {
+        $this->dispatch('debug-log', ['message' => 'Simple test button clicked!']);
+    }
+
+    public function loadTestIslands()
+    {
+        try {
+            $this->dispatch('debug-log', ['message' => 'Test islands method called']);
+            
+            // Force load islands directly
+            $islands = Island::select('id','name','atoll_id')->with('atoll:id,code')->orderBy('name')->limit(10)->get();
+            $this->islands = $islands;
+            
+            $this->dispatch('debug-log', ['message' => 'Test: Loaded ' . $islands->count() . ' islands directly']);
+            
+            // Force dispatch islands to frontend
+            $islandOptions = $islands->map(fn($i) => [
+                'id' => $i->id, 
+                'text' => ($i->atoll?->code ?? 'N/A') . '. ' . $i->name
+            ])->all();
+            
+            $this->dispatch('update-options', [
+                'id' => 'kt_select2_add_island_id',
+                'options' => $islandOptions,
+                'placeholder' => 'Select Island'
+            ]);
+            
+            $this->dispatch('debug-log', ['message' => 'Test: Dispatched ' . count($islandOptions) . ' island options']);
+            
+        } catch (\Exception $e) {
+            $this->dispatch('debug-log', ['message' => 'Test error: ' . $e->getMessage()]);
+        }
+    }
+
+    public function refreshIslands()
+    {
+        // Force re-fetch (bypass cache) and re-dispatch options
+        $this->fetchIslands();
+        $this->syncProperties();
+        $this->dispatch('debug-log', ['message' => 'refreshIslands called -> islands: '.$this->islands->count()]);
     }
 }

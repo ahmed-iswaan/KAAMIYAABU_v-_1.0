@@ -1,0 +1,92 @@
+/* Login & Auth Page Styles */
+
+/* Hide global auth layout brand (we show a branded aside already) */
+.auth-brand {
+    display: none;
+}
+
+/* Aside + gradients */
+.login-aside {
+    background: #0095ff;
+    background: linear-gradient(145deg, #0095ff 0%, #0086eb 40%, #0074cc 100%);
+}
+
+.login-right-bg {
+    background: linear-gradient(165deg, #ffffff 0%, #f6f9ff 55%, #eef4ff 100%);
+}
+
+/* Card tweaks */
+.card-login {
+    border: 1px solid #eef2f6;
+    border-radius: 1.25rem;
+}
+
+.card-login .card-body {
+    padding: 2.75rem 2.75rem;
+}
+
+/* Typography */
+.heading-xl {
+    font-size: 2.6rem;
+    line-height: 1.15;
+}
+
+.tagline {
+    font-size: 1.05rem;
+    font-weight: 400;
+    opacity: .9;
+}
+
+/* Inputs */
+.form-control-lg {
+    border-radius: .85rem;
+}
+
+.form-control-lg.form-control-solid {
+    background: #f3f6f9;
+    border: 1px solid #e6ecf2;
+}
+
+.form-control-lg.form-control-solid:focus {
+    background: #fff;
+    border-color: #0095ff;
+    box-shadow: 0 0 0 .25rem rgba(0, 149, 255, .15);
+}
+
+/* Button */
+.btn-brand {
+    background: #0095ff;
+    border-color: #0095ff;
+    border-radius: .9rem;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+
+.btn-brand:hover {
+    background: #007ed6;
+    border-color: #007ed6;
+}
+
+/* Password toggle icon */
+#togglePassword {
+    transition: color .2s;
+}
+
+#togglePassword:hover {
+    color: #0095ff;
+}
+
+/* Footer */
+.login-footer {
+    opacity: .7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .login-aside {
+        min-height: 220px;
+    }
+    .heading-xl {
+        font-size: 2rem;
+    }
+}

@@ -19,15 +19,16 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             AtollSeeder::class,
             IslandSeeder::class,
-            DirectoryTypeSeeder::class,
+            WardSeeder::class,
+            PartySeeder::class,
+            ConsiteSeeder::class,
             RegistrationTypeSeeder::class,
             PropertyTypesSeeder::class,
-            InvoiceCategorySeeder::class,
             PropertySeeder::class,
+            ElectionSeeder::class,
+            ParticipantSeeder::class,
+            OpinionAndRequestTypeSeeder::class,
             DirectoriesTableSeeder::class,
-            WasteCollectionPriceListTranslatedSeeder::class,
-            VehicleSeeder::class,
-            WasteTypeSeeder::class,
         ]);
     }
 }

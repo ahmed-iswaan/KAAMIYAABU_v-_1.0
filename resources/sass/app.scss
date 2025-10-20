@@ -1,8 +1,146 @@
 // Fonts
 @import url('https://fonts.bunny.net/css?family=Nunito');
 
-// Variables
-@import 'variables';
+// NOTE: Removed variables & bootstrap imports to avoid overriding Craft template styles.
+// Craft already loads its compiled theme CSS (plugins.bundle.css & style.bundle.css).
+// We only keep Dhivehi specific additions here to prevent global resets.
 
-// Bootstrap
-@import 'bootstrap/scss/bootstrap';
+// Faruma Font for Dhivehi
+@font-face {
+    font-family: 'Faruma';
+    src: url('/fonts/Faruma.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Primary Dhivehi classes - highest priority */
+.dv-heading, .dv-text, .dv-input, .dv-input::placeholder {
+    font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important;
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+/* Container-based application for Dhivehi forms */
+.dv-container {
+    direction: rtl !important;
+}
+
+.dv-container *,
+.dv-form *,
+.dv-container .form-control,
+.dv-container .form-check-label,
+.dv-container .form-select,
+.dv-container .badge,
+.dv-container .card-title,
+.dv-container h1, .dv-container h2, .dv-container h3, .dv-container h4, .dv-container h5, .dv-container h6,
+.dv-container label,
+.dv-container .form-label {
+    font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important;
+}
+
+.dv-container input,
+.dv-container textarea,
+.dv-container select {
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+/* Dedicated helper when wrapping an entire form */
+.dv-form {
+    direction: rtl !important;
+}
+
+.dv-form label,
+.dv-form .form-check-label,
+.dv-form .form-label {
+    font-weight: 500 !important;
+    font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Specific targeting for agent view form elements */
+.dv-form .form-group label,
+.dv-form .form-group .form-label,
+.dv-container .form-group label,
+.dv-container .form-group .form-label {
+    font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important;
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+/* Override any global letter-spacing */
+.dv-container *,
+.dv-form * {
+    letter-spacing: 0 !important;
+}
+
+/* Fix select dropdown issues */
+.dv-container select option,
+.dv-form select option {
+    font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important;
+    direction: ltr !important;
+    text-align: left !important;
+}
+
+/* Ensure select fields work properly */
+.form-select.dv-input {
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+.form-select.dv-input option {
+    direction: ltr !important;
+    text-align: left !important;
+}
+
+/* Prevent select field issues */
+.dv-container select,
+.dv-form select {
+    -webkit-appearance: menulist;
+    -moz-appearance: menulist;
+    appearance: menulist;
+}
+
+/* Fix any potential CSS conflicts with select dropdowns */
+.dv-container select:focus,
+.dv-form select:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Fix checkbox and radio button behavior */
+.dv-container .form-check-input,
+.dv-form .form-check-input {
+    margin-top: 0.25rem;
+    margin-right: 0.5rem;
+}
+
+.dv-container .form-check-input[type="checkbox"],
+.dv-form .form-check-input[type="checkbox"] {
+    border-radius: 0.375rem;
+}
+
+.dv-container .form-check-input[type="radio"],
+.dv-form .form-check-input[type="radio"] {
+    border-radius: 50%;
+}
+
+/* Ensure proper label alignment for RTL */
+.dv-container .form-check,
+.dv-form .form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    direction: rtl;
+}
+
+.dv-container .form-check .form-check-input,
+.dv-form .form-check .form-check-input {
+    order: 2;
+}
+
+.dv-container .form-check .form-check-label,
+.dv-form .form-check .form-check-label {
+    order: 1;
+    margin-bottom: 0;
+}
