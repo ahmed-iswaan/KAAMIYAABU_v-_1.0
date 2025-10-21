@@ -10,3 +10,8 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('agent.tasks.{userId}', function($user, $userId){
     return (string)$user->id === (string)$userId; // ensure user is same
 });
+
+Broadcast::channel('task.presence.{taskId}', function ($user, $taskId) {
+    // You can add logic to check if the user is allowed to join the task
+    return ['id' => $user->id, 'name' => $user->name, 'profile_picture' => $user->profile_picture];
+});

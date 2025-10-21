@@ -1,3 +1,4 @@
+<div>
 @section('title', $pageTitle)
 {{-- Agents Management: Final layout (Task List | Directory Details + Forms/Notes/Task Detail) --}}
 <div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
@@ -296,6 +297,27 @@
                                             @endif
                                         </div>
                                         <div class="text-gray-500 fw-semibold fs-7">{{ $d->id_card_number }}</div>
+                                        {{-- Online users for this task --}}
+                                        <div class="mt-2">
+                                            <span class="fw-semibold fs-8 text-muted">Online now:</span>
+                                            <div class="d-flex flex-wrap gap-2 mt-1">
+                                                @foreach($onlineUsers[$selectedTask->id] ?? [] as $uid => $val)
+                                                    @php $user = \App\Models\User::find($uid); @endphp
+                                                    @if($user)
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="symbol symbol-30px" title="{{ $user->name }}">
+                                                                @if($user->profile_picture)
+                                                                    <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" style="object-fit:cover;" />
+                                                                @else
+                                                                    <div class="symbol-label fs-7 fw-semibold bg-light-primary text-primary">{{ Str::upper(Str::substr($user->name,0,1)) }}</div>
+                                                                @endif
+                                                            </div>
+                                                            <span class="badge badge-light-success">{{ $user->name }}</span>
+                                                        </div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
@@ -750,55 +772,80 @@
     </div> {{-- /post --}}
 </div> {{-- /content --}}
 
+{{-- DEBUG: Show onlineUsers array --}}
+<pre class="bg-light p-2 small border rounded">@json($onlineUsers)</pre>
+
 @push('scripts')
 <script>
-    document.addEventListener('livewire:init', () => {
-        window.addEventListener('swal', e => {
-            const detail = e.detail || {}; Swal.fire({icon: detail.icon||'success', title: detail.title||'Done', text: detail.text||'', timer:1500, showConfirmButton:false});
-        });
-        document.addEventListener('click', function(ev){
-            const el = ev.target.closest('.copy-to-clipboard');
-            if(!el) return; const text = el.getAttribute('data-copy-text') || el.textContent.trim();
-            if(!text) return; navigator.clipboard.writeText(text).then(()=>{
-                Swal.fire({icon:'success', title:'Copied', text:text, timer:1000, showConfirmButton:false});
-            });
-        });
-
-        // Hardened Echo subscription (silent until ready)
-        function isEchoInstance(e){ return e && typeof e === 'object' && typeof e.private === 'function' && typeof e.channel === 'function'; }
-        function subscribeTaskChannel(){
-            const uid = window.Laravel?.userId;
-            if(!uid) return false;
-            const EchoRef = window.Echo || window.echo || window.__echoInstance;
-            if(!isEchoInstance(EchoRef)) return false; // silently wait until real instance exists
-            try {
-                const channelName = 'agent.tasks.'+uid;
-                const key='__subscribed_'+channelName;
-                if(window[key]) return true;
-                EchoRef.private(channelName)
-                    .listen('.TaskDataChanged', (e) => {
-                        try { Livewire.first().call('selectTask', e.task_id); } catch(err){}
-                        try { Livewire.first().call('$refresh'); } catch(err){}
-                    })
-                    .listen('TaskDataChanged', (e) => { // fallback event name
-                        try { Livewire.first().call('selectTask', e.task_id); } catch(err){}
-                        try { Livewire.first().call('$refresh'); } catch(err){}
-                    });
-                window[key]=true;
-                console.info('[AgentMgmt] Realtime subscribed:', channelName);
-                return true;
-            } catch(err){
-                // Do not spam console with warnings; will retry quietly
-                return false;
-            }
+    let lastTaskId = null;
+    let echoChannel = null;
+    function joinPresenceChannel(taskId) {
+        if (!window.Echo || !taskId) return;
+        console.log('Joining presence channel:', taskId); // Debug log
+        if (echoChannel) {
+            echoChannel.stopListening('TaskUserPresenceChanged');
+            echoChannel = null;
         }
-
-        // Retry until subscribed (max 15 attempts)
-        let attempts=0; const maxAttempts=15; const interval=500; // ~7.5s
-        const retryId=setInterval(()=>{ if(subscribeTaskChannel() || ++attempts>=maxAttempts){ clearInterval(retryId); if(attempts>=maxAttempts) console.info('[AgentMgmt] Realtime subscription gave up (Echo not ready).'); } }, interval);
-        // One late attempt after 5s
-        setTimeout(subscribeTaskChannel, 5000);
+        echoChannel = window.Echo.join('task.presence.' + taskId)
+            .listen('TaskUserPresenceChanged', function(e) {
+                console.log('[Echo] TaskUserPresenceChanged event received:', e);
+                Livewire.first().call('updateUserPresence', e.taskId, e.userId, e.isOnline);
+                Livewire.first().call('$refresh');
+            })
+            .here(function(users) {
+                console.log('[Echo] Presence channel .here users:', users);
+            })
+            .joining(function(user) {
+                console.log('[Echo] Presence channel .joining user:', user);
+            })
+            .leaving(function(user) {
+                console.log('[Echo] Presence channel .leaving user:', user);
+            });
+    }
+    function attachTaskItemListeners() {
+        document.querySelectorAll('.task-item').forEach(function(el) {
+            el.removeEventListener('click', el._presenceClickHandler);
+            el._presenceClickHandler = function() {
+                const tid = el.getAttribute('data-task-id');
+                window.dispatchEvent(new CustomEvent('task-selected', { detail: { taskId: tid } }));
+                joinPresenceChannel(tid); // <-- Ensure presence channel is joined on click
+            };
+            el.addEventListener('click', el._presenceClickHandler);
+        });
+    }
+    document.addEventListener('livewire:load', function() {
+        attachTaskItemListeners();
+        if (window.Livewire && Livewire.hook) {
+            Livewire.hook('message.processed', function() {
+                attachTaskItemListeners();
+            });
+        }
+        window.addEventListener('task-selected', function(e) {
+            const taskId = e.detail?.taskId;
+            if (lastTaskId && lastTaskId !== taskId) {
+                Livewire.first().call('userClosedTask', lastTaskId);
+            }
+            if (taskId) {
+                Livewire.first().call('userOpenedTask', taskId);
+                window.joinPresenceChannel(taskId); // <-- Call global joinPresenceChannel
+                lastTaskId = taskId;
+            }
+        });
+        window.addEventListener('beforeunload', function() {
+            if (lastTaskId) {
+                Livewire.first().call('userClosedTask', lastTaskId);
+            }
+        });
+        setInterval(function() {
+            if (lastTaskId) {
+                Livewire.first().call('$refresh');
+            }
+        }, 10000);
     });
+    // On initial load, join channel for selected task
+    @if($selectedTask && $selectedTask->id)
+        joinPresenceChannel({{ $selectedTask->id }});
+    @endif
 </script>
 <script>
 (function(){
@@ -943,3 +990,4 @@
 })();
 </script>
 @endpush
+</div>

@@ -621,7 +621,3 @@ if(typeof window.Echo === 'undefined') {
     })();
 })();
 </script>
-</body>
-<!--end::Body-->
-
-</html>

@@ -91,6 +91,9 @@ class AgentManagement extends Component
     public $taskStatusEdit = '';
     public $tasksLimit = 12; // added: number of tasks to show for Load More
 
+    // Online users for the selected task
+    public $onlineUsers = [];
+
     protected $queryString = [
         'search' => ['except' => ''],
         'taskStatus' => ['except' => ''],
@@ -140,6 +143,9 @@ class AgentManagement extends Component
         $this->opinionTypeId = $this->opinionRating = null; $this->opinionNote='';
         $this->requestTypeId = null; $this->requestAmount = null; $this->requestNote='';
         $this->taskStatusEdit = $task->status;
+
+        // Mark user as online for this task
+        $this->userOpenedTask($task->id);
     }
 
     protected function loadSubmissionState(): void
@@ -758,5 +764,37 @@ class AgentManagement extends Component
             $this->loadVoterRequests();
         }
         $this->dispatch('$refresh');
+    }
+
+    // Called when a user opens a task
+    public function userOpenedTask($taskId)
+    {
+        $userId = auth()->id();
+        \Log::info('userOpenedTask called', ['taskId' => $taskId, 'userId' => $userId]);
+        $this->onlineUsers[$taskId][$userId] = true;
+        // Broadcast presence
+        broadcast(new \App\Events\TaskUserPresenceChanged($taskId, $userId, true))->toOthers();
+    }
+
+    // Called when a user closes a task
+    public function userClosedTask($taskId)
+    {
+        $userId = auth()->id();
+        \Log::info('userClosedTask called', ['taskId' => $taskId, 'userId' => $userId]);
+        unset($this->onlineUsers[$taskId][$userId]);
+        // Broadcast presence
+        broadcast(new \App\Events\TaskUserPresenceChanged($taskId, $userId, false))->toOthers();
+    }
+
+    // Listen for presence events (called via Echo/JS)
+    public function updateUserPresence($taskId, $userId, $isOnline)
+    {
+        \Log::info('updateUserPresence called', ['taskId' => $taskId, 'userId' => $userId, 'isOnline' => $isOnline]);
+        if ($isOnline) {
+            $this->onlineUsers[$taskId][$userId] = true;
+        } else {
+            unset($this->onlineUsers[$taskId][$userId]);
+        }
+        $this->dispatch('$refresh'); // force Livewire to refresh UI
     }
 }
