@@ -418,83 +418,87 @@
                                             <h4 class="fw-bold mb-0 @if($isDhivehiForm) dv-heading @endif" style="@if($isDhivehiForm) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; @endif">{{ $selectedTask->form->title }}</h4>
                                             <span class="badge badge-light-info">{{ ucfirst($selectedTask->form->language) }}</span>
                                         </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-4">
+                                            <h6 class="fw-bold mb-0 @if($isDhivehiForm) dv-heading @endif" style="@if($isDhivehiForm) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; @endif">{{ $selectedTask->form->description }}</h6>
+                                        </div>
                                         <div class="scroll-y me-n5 pe-5" style="max-height: 600px;">
                                             <form wire:submit.prevent="saveSubmission" @if($isDhivehiForm) class="dv-form" dir="rtl" @endif>
                                                 <div class="d-flex flex-column gap-6">
-                                                    @foreach($selectedTask->form->questions as $question)
-                                                        @php $isDhivehi = $isDhivehiForm; @endphp
-                                                        <div class="form-group">
-                                                            <label class="form-label fw-semibold @if($isDhivehi) dv-text @endif" style="@if($isDhivehi) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; direction: rtl; text-align: right; @endif">{{ $question->question_text }} @if($question->is_required)<span class="text-danger">*</span>@endif</label>
-                                                            @if($question->help_text)
-                                                                <div class="text-muted fs-8 mb-2 @if($isDhivehi) dv-text @endif" style="@if($isDhivehi) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; direction: rtl; text-align: right; @endif">{{ $question->help_text }}</div>
-                                                            @endif
-
-                                                            @switch($question->type)
-                                                                @case('text')
-                                                                    <input type="text" class="form-control form-control-solid @if($isDhivehi) dv-input @endif" wire:model.defer="submissionAnswers.{{ $question->id }}">
-                                                                    @break
-                                                                @case('textarea')
-                                                                    <textarea class="form-control form-control-solid @if($isDhivehi) dv-input @endif" rows="3" wire:model.defer="submissionAnswers.{{ $question->id }}"></textarea>
-                                                                    @break
-                                                                @case('select')
-                                                                    <select class="form-select form-select-solid @if($isDhivehi) dv-input @endif" 
-                                                                            wire:model.defer="submissionAnswers.{{ $question->id }}" 
-                                                                            wire:key="select-{{ $question->id }}"
-                                                                            id="select_{{ $question->id }}">
-                                                                        <option value="">Select...</option>
-                                                                        @foreach($question->options as $option)
-                                                                            <option value="{{ $option->value ?: $option->id }}" @if($isDhivehi) style="font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important;" @endif>{{ $option->label }}</option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                    @break
-                                                                @case('radio')
-                                                                    <div class="d-flex flex-column gap-2 mt-2">
-                                                                        @php $__radio_seen = []; @endphp
-                                                                        @foreach($question->options as $option)
-                                                                            @php $radioVal = $option->value ?: $option->id; if(isset($__radio_seen[$radioVal])) { $radioVal .= '_'.$loop->index; } $__radio_seen[$radioVal]=true; @endphp
-                                                                            <div class="form-check form-check-custom form-check-solid" wire:key="q{{ $question->id }}-radio-{{ $option->id ?? $loop->index }}">
-                                                                                <input class="form-check-input" 
-                                                                                       type="radio" 
-                                                                                       value="{{ $radioVal }}" 
-                                                                                       id="q_{{ $question->id }}_radio_{{ $loop->index }}" 
-                                                                                       wire:model.defer="submissionAnswers.{{ $question->id }}">
-                                                                                <label class="form-check-label @if($isDhivehi) dv-text @endif" 
-                                                                                       for="q_{{ $question->id }}_radio_{{ $loop->index }}" 
-                                                                                       style="@if($isDhivehi) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; direction: rtl; text-align: right; @endif">{{ $option->label }}</label>
-                                                                            </div>
-                                                                        @endforeach
+                                                    @if($selectedTask && $selectedTask->form && $selectedTask->form->sections)
+                                                        @foreach($selectedTask->form->sections as $section)
+                                                            <div class="card">
+                                                             @if(!empty($section->title) || !empty($section->description))
+                                                                    <div class="card-header">
+                                                                        @if(!empty($section->title))
+                                                                            <h5 class="form-section-title fw-bold mb-1">{{ $section->title }}</h5>
+                                                                        @endif
+                                                                        @if(!empty($section->description))
+                                                                            <div class="form-section-description text-muted mb-2">{{ $section->description }}</div>
+                                                                        @endif
                                                                     </div>
-                                                                    @break
-                                                                @case('checkbox')
-                                                                    <div class="d-flex flex-column gap-2 mt-2">
-                                                                        @foreach($question->options as $option)
-                                                                            <div class="form-check form-check-custom form-check-solid" wire:key="q{{ $question->id }}-chk-{{ $option->id ?? $loop->index }}">
-                                                                                <input class="form-check-input" type="checkbox"
-                                                                                       value="{{ $option->id }}"
-                                                                                       id="q_{{ $question->id }}_chk_{{ $loop->index }}"
-                                                                                       wire:model.defer="submissionAnswers.{{ $question->id }}">
-                                                                                <label class="form-check-label @if($isDhivehi) dv-text @endif" for="q_{{ $question->id }}_chk_{{ $loop->index }}" style="@if($isDhivehi) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; direction: rtl; text-align: right; @endif">{{ $option->label }}</label>
-                                                                            </div>
-                                                                        @endforeach
-                                                                    </div>
-                                                                    @break                                                                    @case('multiselect')
-                                                                    <div class="d-flex flex-column gap-2 mt-2">
-                                                                        @foreach($question->options as $option)
-                                                                            <div class="form-check form-check-custom form-check-solid" wire:key="q{{ $question->id }}-ms-{{ $option->id ?? $loop->index }}">
-                                                                                <input class="form-check-input" type="checkbox"
-                                                                                       value="{{ $option->id }}"
-                                                                                       id="q_{{ $question->id }}_ms_{{ $loop->index }}"
-                                                                                       wire:model.defer="submissionAnswers.{{ $question->id }}">
-                                                                                <label class="form-check-label @if($isDhivehi) dv-text @endif" for="q_{{ $question->id }}_ms_{{ $loop->index }}" style="@if($isDhivehi) font-family: 'Faruma', 'Arial Unicode MS', sans-serif !important; direction: rtl; text-align: right; @endif">{{ $option->label }}</label>
-                                                                            </div>
-                                                                        @endforeach
-                                                                    </div>
-                                                                    @break
-                                                                @default
-                                                                    <input type="text" class="form-control form-control-solid @if($isDhivehi) dv-input @endif" wire:model.defer="submissionAnswers.{{ $question->id }}">
-                                                            @endswitch
-                                                        </div>
-                                                    @endforeach
+                                                                @endif
+                                                                <div class="card-body">
+                                                                    @foreach($section->questions as $question)
+                                                                        <div class="form-group mb-4">
+                                                                            <label class="form-label fw-semibold">{{ $question->question_text }} @if($question->is_required)<span class="text-danger">*</span>@endif</label>
+                                                                            @if($question->help_text)
+                                                                                <div class="link-primary p-1 mb-2">{{ $question->help_text }}</div>
+                                                                            @endif
+                                                                            {{-- Render input based on question type --}}
+                                                                            @switch($question->type)
+                                                                                @case('text')
+                                                                                    <input type="text" class="form-control form-control-solid" wire:model.defer="submissionAnswers.{{ $question->id }}">
+                                                                                    @break
+                                                                                @case('textarea')
+                                                                                    <textarea class="form-control form-control-solid" rows="3" wire:model.defer="submissionAnswers.{{ $question->id }}"></textarea>
+                                                                                    @break
+                                                                                @case('select')
+                                                                                    <select class="form-select form-select-solid" wire:model.defer="submissionAnswers.{{ $question->id }}">
+                                                                                        <option value="">Select...</option>
+                                                                                        @foreach($question->options as $option)
+                                                                                            <option value="{{ $option->value ?: $option->id }}">{{ $option->label }}</option>
+                                                                                        @endforeach
+                                                                                    </select>
+                                                                                    @break
+                                                                                @case('radio')
+                                                                                    <div class="d-flex flex-column gap-2 mt-2">
+                                                                                        @foreach($question->options as $option)
+                                                                                            <div class="form-check form-check-custom form-check-solid">
+                                                                                                <input class="form-check-input" type="radio" value="{{ $option->value ?: $option->id }}" wire:model.defer="submissionAnswers.{{ $question->id }}">
+                                                                                                <label class="form-check-label" >{{ $option->label }}</label>
+                                                                                            </div>
+                                                                                        @endforeach
+                                                                                    </div>
+                                                                                    @break
+                                                                                @case('checkbox')
+                                                                                    <div class="d-flex flex-column gap-2 mt-2">
+                                                                                        @foreach($question->options as $option)
+                                                                                            <div class="form-check form-check-custom form-check-solid">
+                                                                                                <input class="form-check-input" type="checkbox" value="{{ $option->id }}" wire:model.defer="submissionAnswers.{{ $question->id }}">
+                                                                                                <label class="form-check-label">{{ $option->label }}</label>
+                                                                                            </div>
+                                                                                        @endforeach
+                                                                                    </div>
+                                                                                    @break
+                                                                                @case('multiselect')
+                                                                                    <div class="d-flex flex-column gap-2 mt-2">
+                                                                                        @foreach($question->options as $option)
+                                                                                            <div class="form-check form-check-custom form-check-solid">
+                                                                                                <input class="form-check-input" type="checkbox" value="{{ $option->id }}" wire:model.defer="submissionAnswers.{{ $question->id }}">
+                                                                                                <label class="form-check-label">{{ $option->label }}</label>
+                                                                                            </div>
+                                                                                        @endforeach
+                                                                                    </div>
+                                                                                    @break
+                                                                                @default
+                                                                                    <input type="text" class="form-control form-control-solid" wire:model.defer="submissionAnswers.{{ $question->id }}">
+                                                                            @endswitch
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
                                                 </div>
                                                 <div class="mt-5 pt-5 border-top">
                                                     <div class="d-flex justify-content-end gap-3">
