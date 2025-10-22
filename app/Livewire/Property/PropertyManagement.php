@@ -14,10 +14,11 @@ use Illuminate\Support\Str;
 use App\Models\PendingTelegramNotification;
 use League\Csv\Writer;
 use SplTempFileObject;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class PropertyManagement extends Component
 {
-    use WithPagination;
+    use WithPagination, AuthorizesRequests;
 
     public $search = '';
     public $perPage = 10;
@@ -310,6 +311,8 @@ class PropertyManagement extends Component
 
     public function render()
     {
+        $this->authorize('property-render');
+
         $properties = Property::query()
             ->where('name', 'like', "%{$this->search}%")
             ->orWhere('register_number', 'like', "%{$this->search}%")

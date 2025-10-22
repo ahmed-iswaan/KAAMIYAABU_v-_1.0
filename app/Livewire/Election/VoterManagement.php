@@ -15,10 +15,11 @@ use App\Models\VoterRequestResponse; // new for responses
 use App\Models\VoterNote; // added for saving notes
 use App\Models\VoterPledge; // added
 use App\Events\VoterDataChanged; // new event
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class VoterManagement extends Component
 {
-    use WithPagination;
+    use WithPagination,AuthorizesRequests;
 
     public $search='';
     public $perPage=10;
@@ -521,6 +522,8 @@ class VoterManagement extends Component
 
     public function render()
     {
+         $this->authorize('voters-render');
+
         return view('livewire.election.voter-management', [
             'voters' => $this->voters,
             'pageTitle' => $this->pageTitle,

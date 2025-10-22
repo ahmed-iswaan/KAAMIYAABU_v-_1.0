@@ -13,11 +13,11 @@ use DB;
 use App\Services\DhiraaguSmsService;
 
 use App\Models\PendingTelegramNotification;
-
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class RolesManagement extends Component
 {
-    use WithPagination;
+    use WithPagination, AuthorizesRequests;
 
     public $perPage = 6;
     public $search = '';
@@ -48,6 +48,8 @@ class RolesManagement extends Component
 
     public function render()
     {
+        $this->authorize('role-render');
+
         $roles = Role::with('permissions')
             ->where('name', 'like', '%' . $this->search . '%')
             ->orWhere('details', 'like', '%' . $this->search . '%') // Search in details column
@@ -68,6 +70,8 @@ class RolesManagement extends Component
 
     public function exportRoles()
     {
+        $this->authorize('role-exportRoles');
+
         // Get all roles with their permissions
         $roles = Role::with('permissions')->get();
 
@@ -131,6 +135,8 @@ class RolesManagement extends Component
 
     public function createRole()
     {
+        $this->authorize('role-createRole');
+
         // Log role creation start event
         EventLog::create([
             'user_id' => auth()->id(),
@@ -250,6 +256,8 @@ class RolesManagement extends Component
     // Edit role details
     public function editRole($id)
     {
+        $this->authorize('role-editRole');
+
         // Log the start of editing
         EventLog::create([
             'user_id' => auth()->id(),
@@ -283,6 +291,8 @@ class RolesManagement extends Component
     // Update role details
     public function updateRole()
     {
+        $this->authorize('role-updateRole');
+
         // Log role update initiation
         EventLog::create([
             'user_id' => auth()->id(),
@@ -378,6 +388,8 @@ class RolesManagement extends Component
 
     public function removeRole($id)
     {
+        $this->authorize('role-deleteRole');
+
         $role = DB::table('roles')->where('id', $id)->first();
 
         if ($role) {

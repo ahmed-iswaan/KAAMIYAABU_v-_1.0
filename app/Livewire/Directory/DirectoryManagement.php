@@ -18,10 +18,11 @@ use App\Models\Consite;
 use App\Models\SubConsite;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Cache; // added
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class DirectoryManagement extends Component
 {
-    use WithPagination, WithFileUploads;
+    use WithPagination, WithFileUploads,AuthorizesRequests;
 
     // Added property to fix missing wire:model warning
     public bool $profile_picture_remove = false;
@@ -336,6 +337,7 @@ class DirectoryManagement extends Component
     /* -------------------- Render -------------------- */
     public function render()
     {
+        $this->authorize('directory-render');
         $directory = Directory::with([
                 'party:id,short_name,name,logo',
                 'subConsite:id,code,name',

@@ -5,10 +5,11 @@ namespace App\Livewire\Forms;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Form;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class FormsList extends Component
 {
-    use WithPagination;
+    use WithPagination,AuthorizesRequests;
 
     public $search = '';
     public $status = '';
@@ -71,6 +72,8 @@ class FormsList extends Component
 
     public function render()
     {
+        $this->authorize('formslist-render');
+
         $query = Form::query();
         if($this->search){
             $query->where('title','like','%'.$this->search.'%');

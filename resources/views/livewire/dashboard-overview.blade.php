@@ -53,77 +53,98 @@
 </div>
 
 @push('scripts')
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('kt_island_population_chart').getContext('2d');
-
-        // Create gradient fills
+        // Debug: log chart data
+        const islandLabels = @json($islandLabels);
+        const islandMaleCounts = @json($islandMaleCounts);
+        const islandFemaleCounts = @json($islandFemaleCounts);
+        console.log('islandLabels:', islandLabels);
+        console.log('islandMaleCounts:', islandMaleCounts);
+        console.log('islandFemaleCounts:', islandFemaleCounts);
+        // Defensive: check if arrays are valid and canvas is visible
+        if (!ctx) {
+            console.error('Chart canvas not found or not visible.');
+            return;
+        }
+        if (!islandLabels.length) {
+            console.warn('No islandLabels data for chart.');
+        }
+        if (!islandMaleCounts.length && !islandFemaleCounts.length) {
+            console.warn('No data for chart bars.');
+        }
+        // Create gradient fills OUTSIDE dataset
         const maleGradient = ctx.createLinearGradient(0, 0, 0, 420);
         maleGradient.addColorStop(0, 'rgba(0,163,255,0.8)');
         maleGradient.addColorStop(1, 'rgba(0,163,255,0.2)');
-
         const femaleGradient = ctx.createLinearGradient(0, 0, 0, 420);
         femaleGradient.addColorStop(0, 'rgba(255,105,180,0.8)');
         femaleGradient.addColorStop(1, 'rgba(255,105,180,0.2)');
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: @json($islandLabels),
-                datasets: [
-                    {
-                        label: 'Male',
-                        data: @json($islandMaleCounts),
-                        backgroundColor: maleGradient,
-                        borderRadius: 6,
-                        maxBarThickness: 42,
-                        stack: 'gender'
-                    },
-                    {
-                        label: 'Female',
-                        data: @json($islandFemaleCounts),
-                        backgroundColor: femaleGradient,
-                        borderRadius: 6,
-                        maxBarThickness: 42,
-                        stack: 'gender'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                scales: {
-                    x: {
-                        stacked: true,
-                        grid: { display: false },
-                        ticks: { color: '#6c757d', font: { size: 12, family: 'Poppins, sans-serif' } }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        stacked: true,
-                        grid: { color: 'rgba(108,117,125,0.15)', borderDash: [4,4] },
-                        ticks: { color: '#6c757d', font: { size: 12, family: 'Poppins, sans-serif' } }
-                    }
+        try {
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: islandLabels,
+                    datasets: [
+                        {
+                            label: 'Male',
+                            data: islandMaleCounts,
+                            backgroundColor: maleGradient,
+                            borderRadius: 6,
+                            maxBarThickness: 42,
+                            stack: 'gender'
+                        },
+                        {
+                            label: 'Female',
+                            data: islandFemaleCounts,
+                            backgroundColor: femaleGradient,
+                            borderRadius: 6,
+                            maxBarThickness: 42,
+                            stack: 'gender'
+                        }
+                    ]
                 },
-                plugins: {
-                    legend: { display: true, position: 'top' },
-                    tooltip: {
-                        backgroundColor: '#fff',
-                        titleColor: '#222',
-                        bodyColor: '#444',
-                        borderColor: '#ddd',
-                        borderWidth: 1,
-                        callbacks: {
-                            footer: (items) => {
-                                let sum = 0; items.forEach(i => sum += i.parsed.y || 0);
-                                return 'Total: ' + sum;
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false },
+                            ticks: { color: '#6c757d', font: { size: 12, family: 'Poppins, sans-serif' } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            stacked: true,
+                            grid: { color: 'rgba(108,117,125,0.15)', borderDash: [4,4] },
+                            ticks: { color: '#6c757d', font: { size: 12, family: 'Poppins, sans-serif' } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            backgroundColor: '#fff',
+                            titleColor: '#222',
+                            bodyColor: '#444',
+                            borderColor: '#ddd',
+                            borderWidth: 1,
+                            callbacks: {
+                                footer: (items) => {
+                                    let sum = 0; items.forEach(i => sum += i.parsed.y || 0);
+                                    return 'Total: ' + sum;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        } catch (e) {
+            console.error('Chart.js error:', e);
+        }
     });
 </script>
 @endpush

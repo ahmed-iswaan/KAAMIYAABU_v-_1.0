@@ -158,6 +158,17 @@
                                 @enderror
                             </div>
 
+
+                            {{-- Phone Number --}}
+                            <div class="fv-row mb-5">
+                                <label class="required fw-semibold fs-6 mb-2">Phone Number</label>
+                                <input type="text" wire:model.defer="phone_number" class="form-control form-control-solid"
+                                    placeholder="Enter Phone Number">
+                                @error('phone_number')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+
                             {{-- Job Title --}}
                             <div class="fv-row mb-5">
                                 <label class="required fw-semibold fs-6 mb-2">Job Title</label>

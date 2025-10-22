@@ -23,10 +23,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Carbon;
 use App\Events\TaskDataChanged; // added
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class AgentManagement extends Component
 {
-    use WithPagination;
+    use WithPagination, AuthorizesRequests;
 
     public $search = '';
     public $taskSearch = ''; // unified task search
@@ -605,6 +606,8 @@ class AgentManagement extends Component
 
     public function render()
     {
+        $this->authorize('agent-render');
+
         $agents = User::query()
             ->when($this->search, function ($q) {
                 $q->where(function ($qq) {

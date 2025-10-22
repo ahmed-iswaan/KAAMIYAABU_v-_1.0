@@ -14,13 +14,14 @@ use League\Csv\Writer;
 use SplTempFileObject;
 use App\Models\EventLog;
 use Illuminate\Support\Facades\Storage; 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class UserManagement extends Component
 {
-    use WithPagination,WithFileUploads;
+    use WithPagination, WithFileUploads, AuthorizesRequests;
 
 
-    public $name, $email,$profile_picture,$job_title, $password, $roles, $userId, $selectedRoles = [];
+    public $name, $email,$profile_picture,$job_title, $phone_number, $password, $roles, $userId, $selectedRoles = [];
     public $updateMode = false;
     public $showModal = false;
     public $staff_id;
@@ -32,7 +33,8 @@ class UserManagement extends Component
 
 
 
-    public $edituserId, $editname, $editlastlogin, $editemail,$editstaff_id, $editjob_title, $editselectedRoles ,$edit_profile_picture;
+
+    public $edituserId, $editname, $editlastlogin, $editemail,$editstaff_id, $editjob_title, $editphone_number, $editselectedRoles ,$edit_profile_picture;
 
     public $edit_profile_picture_path;         // existing DB value
 
@@ -41,6 +43,7 @@ class UserManagement extends Component
         'name' => 'required|string',
         'email' => 'required|email|unique:users,email',
         'password' => 'required|min:6',
+        'phone_number' => 'required|string|max:255',
         'selectedRoles' => 'required'
     ];
 
@@ -50,6 +53,7 @@ class UserManagement extends Component
 
     public function exportUsers()
     {
+        $this->authorize('user-export');
 
         // Get the users based on selected role
         $users = User::all();
@@ -60,6 +64,7 @@ class UserManagement extends Component
 
     public function exportToCSV($users)
     {
+        $this->authorize('user-exportToCSV');
 
 
         // Create a temporary file
@@ -68,7 +73,7 @@ class UserManagement extends Component
 
         // Insert user data
         foreach ($users as $user) {
-            $csv->insertOne([$user->name,$user->staff_id,$user->job_title, $user->email, $user->roles->pluck('name')->join(', ')]);
+            $csv->insertOne([$user->name,$user->staff_id,$user->job_title, $user->email, $user->phone_number, $user->roles->pluck('name')->join(', ')]);
         }
 
         // Get the CSV content as a string
@@ -128,6 +133,8 @@ class UserManagement extends Component
 
     public function render()
     {
+        $this->authorize('user-render');
+
         $users = User::where('name', 'like', '%' . $this->search . '%')
         ->orWhere('email', 'like', '%' . $this->search . '%')
         ->orWhere('staff_id', 'like', '%' . $this->search . '%')
@@ -145,6 +152,8 @@ class UserManagement extends Component
 
 public function createUser()
 {
+    $this->authorize('user-createUser');
+
     // 1) Log the start of the creation process
     EventLog::create([
         'user_id'        => auth()->id(),
@@ -155,6 +164,7 @@ public function createUser()
             'name'       => $this->name,
             'email'      => $this->email,
             'staff_id'   => $this->staff_id,
+            'phone_number' => $this->phone_number,
             'job_title'  => $this->job_title,
             'roles'      => $this->selectedRoles,
         ],
@@ -165,6 +175,7 @@ public function createUser()
     $validated = $this->validate([
         'name'             => 'required|string|max:255',
         'email'            => 'required|email|unique:users,email',
+        'phone_number'     => 'required|string|max:255',
         'password'              => 'required|min:6|confirmed',
         'password_confirmation' => 'required_with:password|min:6',
         'staff_id'         => 'required|string|unique:users,staff_id',
@@ -184,6 +195,7 @@ public function createUser()
         $user = User::create([
             'name'             => $validated['name'],
             'email'            => $validated['email'],
+            'phone_number'     => $validated['phone_number'],
             'password'         => Hash::make($validated['password']),
             'staff_id'         => $validated['staff_id'],
             'job_title'        => $validated['job_title'],
@@ -246,6 +258,7 @@ public function createUser()
         $this->password_confirmation  = '';
         $this->staff_id               = '';
         $this->job_title              = '';
+        $this->phone_number            = '';
         $this->profile_picture        = null;
         $this->selectedRoles          = [];
     }
@@ -253,6 +266,7 @@ public function createUser()
 
     public function editUser($id)
     {
+        $this->authorize('user-editUser');
 
          // Log the start of the editing process
         EventLog::create([
@@ -266,6 +280,8 @@ public function createUser()
                 'name' => $this->editname,
                 'email' => $this->editemail,
                 'staff_id' => $this->editstaff_id,
+                'job_title' => $this->editjob_title,
+                'new_phone_number' => $this->editphone_number,
                 'new_roles' => $this->editselectedRoles,
             ],
             'ip_address' => request()->ip(),
@@ -282,6 +298,7 @@ public function createUser()
             $this->editstaff_id = $user->staff_id;
             $this->editname = $user->name;
             $this->editemail = $user->email;
+            $this->editphone_number = $user->phone_number;
             $this->editjob_title = $user->job_title;
             $this->editlastlogin = $user->last_login_at;
             $this->editselectedRoles = $user->roles->pluck('name')->toArray(); // Assuming the user has roles
@@ -293,6 +310,8 @@ public function createUser()
 
    public function updateUser()
 {
+    $this->authorize('user-updateUser');
+
     // 1) Log start
     EventLog::create([
         'user_id'        => auth()->id(),
@@ -303,6 +322,7 @@ public function createUser()
         'event_data'     => [
             'new_name'        => $this->editname,
             'new_email'       => $this->editemail,
+            'new_phone_number'=> $this->editphone_number,
             'new_staff_id'    => $this->editstaff_id,
             'new_job_title'   => $this->editjob_title,
             'new_roles'       => $this->editselectedRoles,
@@ -316,6 +336,7 @@ public function createUser()
         'editemail'           => 'required|email|unique:users,email,' . $this->edituserId,
         'editstaff_id'        => 'required|string|unique:users,staff_id,' . $this->edituserId,
         'editjob_title'       => 'required|string|max:255',
+        'editphone_number'    => 'required|string|max:255',
         'edit_profile_picture' => 'nullable|image|max:1024', // optional new avatar
         'editselectedRoles'   => 'required|array|min:1',
     ]);
@@ -328,7 +349,7 @@ public function createUser()
         EventLog::create([
             'user_id'        => auth()->id(),
             'event_tab'      => 'User',
-            'event_entry_id'=> $this->edituserId,
+            'event_entry_id' => $this->edituserId,
             'event_type'     => 'User Not Found',
             'description'    => 'Edit failed: user not found.',
             'ip_address'     => request()->ip(),
@@ -348,6 +369,7 @@ public function createUser()
     // 5) Update fields
     $user->name      = $validated['editname'];
     $user->email     = $validated['editemail'];
+    $user->phone_number = $validated['editphone_number'];
     $user->staff_id  = $validated['editstaff_id'];
     $user->job_title = $validated['editjob_title'];
     $user->save();
@@ -359,7 +381,7 @@ public function createUser()
     EventLog::create([
         'user_id'        => auth()->id(),
         'event_tab'      => 'User',
-        'event_entry_id'=> $user->id,
+        'event_entry_id' => $user->id,
         'event_type'     => 'User Updated Successfully',
         'description'    => 'User updated.',
         'event_data'     => [
@@ -388,8 +410,7 @@ public function createUser()
 
     public function removeRole($id)
     {
-
-
+        $this->authorize('user-removeRole');
 
         // Retrieve user details by ID
         $user = User::find($id);
@@ -402,6 +423,7 @@ public function createUser()
             $this->editemail = $user->email;
             $this->editjob_title = $user->job_title;
             $this->editlastlogin = $user->last_login_at;
+            $this->editphone_number = $user->phone_number;
             $this->editselectedRoles = $user->roles->pluck('name')->toArray(); // Assuming the user has roles
         }
 
@@ -417,6 +439,7 @@ public function createUser()
                 'name' => $this->editname,
                 'email' => $this->editemail,
                 'staff_id' => $this->editstaff_id,
+                'phone_number' => $this->editphone_number,
             ],
             'ip_address' => request()->ip(),
         ]);
@@ -427,6 +450,7 @@ public function createUser()
 
     public function RemoveUserRole()
     {
+        $this->authorize('user-RemoveUserRole');
 
         // Log the start of the role removal process
         EventLog::create([
@@ -439,6 +463,7 @@ public function createUser()
                 'user_id' => $this->edituserId,
                 'name' => $this->editname,
                 'email' => $this->editemail,
+                'phone_number' => $this->editphone_number,
                 'staff_id' => $this->editstaff_id,
             ],
             'ip_address' => request()->ip(),
@@ -464,6 +489,7 @@ public function createUser()
                 'event_data' => [
                     'user_id' => $user->id,
                     'staff_id' => $user->staff_id,
+                    'phone_number' => $user->phone_number,
                     'name' => $this->editname,
                     'email' => $this->editemail,
                     'roles_removed' => $this->editselectedRoles,

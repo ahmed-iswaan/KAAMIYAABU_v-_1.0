@@ -10,10 +10,11 @@ use App\Models\Directory;
 use App\Models\VoterRequestResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class RequestsManagement extends Component
 {
-    use WithPagination;
+    use WithPagination,AuthorizesRequests;
 
     public $search='';
     public $status='';
@@ -156,6 +157,7 @@ class RequestsManagement extends Component
     }
 
     public function render(){
+        $this->authorize('voters-requests');
         return view('livewire.election.requests-management', [
             'requests' => $this->requests,
         ])->layout('layouts.master');

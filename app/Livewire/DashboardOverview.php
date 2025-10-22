@@ -5,9 +5,12 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Directory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class DashboardOverview extends Component
 {
+     use AuthorizesRequests;
+
     public $totalPopulation = 0;
     public $maleCount = 0;
     public $femaleCount = 0;
@@ -46,6 +49,7 @@ class DashboardOverview extends Component
 
     public function render()
     {
+         $this->authorize('dashboard-render');
         return view('livewire.dashboard-overview', [
             'totalPopulation'   => $this->totalPopulation,
             'maleCount'         => $this->maleCount,

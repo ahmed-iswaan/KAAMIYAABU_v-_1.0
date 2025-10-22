@@ -85,6 +85,7 @@
                                     <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
                                         <th class="min-w-125px sorting" tabindex="0" aria-controls="kt_table_users" rowspan="1" colspan="1" aria-label="User: activate to sort column ascending" style="width: 278.312px;">Users</th>
                                         <th class="min-w-125px sorting" tabindex="0" aria-controls="kt_table_users" rowspan="1" colspan="1" aria-label="job_title: activate to sort column ascending" style="width: 161.828px;">Job Title</th>
+                                        <th class="min-w-125px sorting" tabindex="0" aria-controls="kt_table_users" rowspan="1" colspan="1" aria-label="phone_number: activate to sort column ascending" style="width: 161.828px;">Phone Number</th>
                                         <th class="min-w-125px sorting" tabindex="0" aria-controls="kt_table_users" rowspan="1" colspan="1" aria-label="Role: activate to sort column ascending" style="width: 161.828px;">Role</th>
                                         <th class="min-w-125px sorting" tabindex="0" aria-controls="kt_table_users" rowspan="1" colspan="1" aria-label="Last login: activate to sort column ascending" style="width: 161.828px;">Last login</th>
                                         <th class="min-w-125px sorting" tabindex="0" aria-controls="kt_table_users" rowspan="1" colspan="1" aria-label="Joined Date: activate to sort column ascending" style="width: 210.328px;">Joined Date</th>
@@ -121,6 +122,7 @@
                                         </td>
 
                                          <td>{{ $user->job_title }}</td>
+                                          <td>{{ $user->phone_number }}</td>
                                         <td>
 
                                                 @if($user->roles->isEmpty())

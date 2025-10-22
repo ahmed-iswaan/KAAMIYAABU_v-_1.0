@@ -7,10 +7,11 @@ use Livewire\WithPagination;
 use App\Models\{Task, Directory, Form, User, Election, Party, SubConsite};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class TaskAssignment extends Component
 {
-    use WithPagination;
+    use WithPagination, AuthorizesRequests;
 
     // Use Bootstrap 5 pagination styling to match Laravel 11 + Metronic
     protected $paginationTheme = 'bootstrap'; // Livewire 3 uses this to pick bootstrap views
@@ -324,6 +325,8 @@ class TaskAssignment extends Component
 
     public function render()
     {
+        $this->authorize('task-render');
+
         // Fetch directories first
         $directories = $this->baseFilteredQuery()
             ->with(['party','subConsite','island','country','property'])

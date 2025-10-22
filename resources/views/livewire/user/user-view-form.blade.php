@@ -115,6 +115,19 @@
                   @enderror
                 </div>
 
+                <!-- Phone Number -->
+                <div class="fv-row mb-5">
+                  <label class="fw-semibold fs-6 mb-2">Phone Number</label>
+                  <input 
+                    type="text" 
+                    wire:model.defer="editphone_number" 
+                    class="form-control form-control-solid"
+                  >
+                  @error('editphone_number') 
+                    <div class="text-danger">{{ $message }}</div> 
+                  @enderror
+                </div>
+
                 <!-- Staff ID -->
                 <div class="fv-row mb-5">
                   <label class="fw-semibold fs-6 mb-2">Staff ID</label>
