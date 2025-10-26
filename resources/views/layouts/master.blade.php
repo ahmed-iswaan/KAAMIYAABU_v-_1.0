@@ -274,13 +274,13 @@ if(!window.__swalBridge){
             if(opts.toast){ // toast uses top-end by default unless overridden
                 if(!detail.position) opts.position = 'top-end';
             }
-            api.fire(opts).then res => { if(detail.callbackEvent){ try { Livewire.dispatch(detail.callbackEvent, {isConfirmed:res.isConfirmed,isDenied:res.isDenied,isDismissed:res.isDismissed}); } catch(_){} } });
+            api.fire(opts).then(res => { if(detail.callbackEvent){ try { Livewire.dispatch(detail.callbackEvent, {isConfirmed:res.isConfirmed,isDenied:res.isDenied,isDismissed:res.isDismissed}); } catch(_){} } });
             try { window.dispatchEvent(new CustomEvent('swal', { detail })); } catch(_){ }
         });
         window.Livewire.on('swal:confirm', (payload) => {
             const d = Array.isArray(payload) ? (payload[0]||{}) : (payload||{}); const api = window.SwalTheme || window.Swal; if(!api) return;
             api.fire({ icon: d.icon || 'question', title: d.title || 'Are you sure?', text: d.text || '', showCancelButton: true, confirmButtonText: d.confirmButtonText || 'Yes', cancelButtonText: d.cancelButtonText || 'No' })
-                .then r => { if(r.isConfirmed && d.callbackEvent){ try { Livewire.dispatch(d.callbackEvent, d.callbackPayload||{}); } catch(_){} } });
+                .then(r => { if(r.isConfirmed && d.callbackEvent){ try { Livewire.dispatch(d.callbackEvent, d.callbackPayload||{}); } catch(_){} } });
         });
         window.__swalBridgeAttached = true;
     });

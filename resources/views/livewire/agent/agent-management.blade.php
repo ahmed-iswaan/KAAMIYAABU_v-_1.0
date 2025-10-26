@@ -155,7 +155,7 @@
                                     .task-item.active{border-color:#3b82f6;background:#f0f6ff;box-shadow:0 3px 6px -2px rgba(30,64,175,.25);}    
                                     .task-item .avatar{width:52px;height:52px;border-radius:50%;background:#0d6efd;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;font-size:18px;flex-shrink:0;overflow:hidden;}
                                     .task-item .avatar img{width:100%;height:100%;object-fit:cover;display:block;}
-                                    .task-meta-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+                                    .task-meta-top{display:flex;align-items:center;gap=8px;flex-wrap:wrap;}
                                     .task-number{font-size:12px;letter-spacing:.5px;}
                                     .task-due{margin-left:auto;font-size:9px;line-height:1.1;text-align:right;min-width:70px;white-space:nowrap;color:#64748b;}
                                     .task-badges{display:flex;flex-wrap:wrap;gap:6px;margin:.25rem 0 .35rem;}
@@ -299,21 +299,23 @@
                                         <div class="text-gray-500 fw-semibold fs-7">{{ $d->id_card_number }}</div>
                                         {{-- Online users for this task --}}
                                         <div class="mt-2">
-                                            <span class="fw-semibold fs-8 text-muted">Online now:</span>
+                                            <span class="fw-semibold fs-8 text-muted">Working On this Task:</span>
                                             <div class="d-flex flex-wrap gap-2 mt-1">
-                                                @foreach($onlineUsers[$selectedTask->id] ?? [] as $uid => $val)
-                                                    @php $user = \App\Models\User::find($uid); @endphp
-                                                    @if($user)
-                                                        <div class="d-flex align-items-center gap-2">
-                                                            <div class="symbol symbol-30px" title="{{ $user->name }}">
-                                                                @if($user->profile_picture)
-                                                                    <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" style="object-fit:cover;" />
-                                                                @else
-                                                                    <div class="symbol-label fs-7 fw-semibold bg-light-primary text-primary">{{ Str::upper(Str::substr($user->name,0,1)) }}</div>
-                                                                @endif
+                                                @foreach($onlineUsers as $user)
+                                                    @if(isset($user['id']))
+                                                        @php $userModel = \App\Models\User::find($user['id']); @endphp
+                                                        @if($userModel)
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <div class="symbol symbol-30px" title="{{ $userModel->name }}">
+                                                                    @if($userModel->profile_picture)
+                                                                        <img src="{{ asset('storage/' . $userModel->profile_picture) }}" alt="{{ $userModel->name }}" style="object-fit:cover;" />
+                                                                    @else
+                                                                        <div class="symbol-label fs-7 fw-semibold bg-light-primary text-primary">{{ Str::upper(Str::substr($userModel->name,0,1)) }}</div>
+                                                                    @endif
+                                                                </div>
+                                                                <span class="badge badge-light-success">{{ $userModel->name }}</span>
                                                             </div>
-                                                            <span class="badge badge-light-success">{{ $user->name }}</span>
-                                                        </div>
+                                                        @endif
                                                     @endif
                                                 @endforeach
                                             </div>
@@ -342,7 +344,7 @@
                                     </div>
                                     <div class="col-md-3 col-6">
                                         <div class="fw-semibold fs-8 text-gray-400">Email</div>
-                                        <div class="fs-7 fw-bold copy-to-clipboard" data-copy-text="{{ $d->email }}">{{ $d->email }}</div>
+                                        <div class="fs-7 fw-bold text-gray-700">{{ $d->email }}</div>
                                     </div>
                                     <div class="col-md-3 col-6">
                                         <div class="fw-semibold fs-8 text-gray-400">Phones</div>
@@ -776,81 +778,217 @@
     </div> {{-- /post --}}
 </div> {{-- /content --}}
 
-{{-- DEBUG: Show onlineUsers array --}}
-<pre class="bg-light p-2 small border rounded">@json($onlineUsers)</pre>
+
 
 @push('scripts')
 <script>
-    let lastTaskId = null;
-    let echoChannel = null;
-    function joinPresenceChannel(taskId) {
-        if (!window.Echo || !taskId) return;
-        console.log('Joining presence channel:', taskId); // Debug log
-        if (echoChannel) {
-            echoChannel.stopListening('TaskUserPresenceChanged');
-            echoChannel = null;
-        }
-        echoChannel = window.Echo.join('task.presence.' + taskId)
-            .listen('TaskUserPresenceChanged', function(e) {
-                console.log('[Echo] TaskUserPresenceChanged event received:', e);
-                Livewire.first().call('updateUserPresence', e.taskId, e.userId, e.isOnline);
-                Livewire.first().call('$refresh');
-            })
-            .here(function(users) {
-                console.log('[Echo] Presence channel .here users:', users);
-            })
-            .joining(function(user) {
-                console.log('[Echo] Presence channel .joining user:', user);
-            })
-            .leaving(function(user) {
-                console.log('[Echo] Presence channel .leaving user:', user);
-            });
+/**
+ * agent-management.optimized.js
+ * Fast, low-overhead task switching + presence for Livewire 3 + Laravel Echo
+ *
+ * Key optimizations:
+ * - Event delegation (one listener for all .task-item)
+ * - Minimal work per click (sync close→open→join, server roundtrip deferred)
+ * - Channel reuse + safe switching (leave-by-name only when needed)
+ * - Burst coalescing (ignore rapid duplicate switches)
+ * - Optional DEBUG gating for logs
+ */
+
+(() => {
+  'use strict';
+
+  // =========================
+  // Config
+  // =========================
+  const DEBUG = false; // toggle verbose logs
+  const SELECTOR_TASK_ITEM = '.task-item';
+  const ATTR_TASK_ID = 'data-task-id';
+  const ACTIVE_CLASS = 'task-item--active';
+
+  // Polyfill for CSS.escape (older browsers)
+  if (typeof CSS === 'undefined' || !CSS.escape) {
+    window.CSS = window.CSS || {};
+    CSS.escape = (s) => String(s).replace(/[^a-zA-Z0-9_\-]/g, '\\$&');
+  }
+
+  // =========================
+  // Globals
+  // =========================
+  window.lastTaskId = window.lastTaskId ?? null;
+  let echoChannel = null;
+  let echoChannelName = null;
+  let switching = false;     // coalesce rapid clicks
+  let pendingTaskId = null;  // last requested switch to avoid redundant work
+
+  const log = (...a) => DEBUG && console.log(...a);
+  const warn = (...a) => DEBUG && console.warn(...a);
+
+  // =========================
+  // Presence helpers
+  // =========================
+  function leavePresenceChannel() {
+    if (!window.Echo || !echoChannelName) return;
+    try {
+      window.Echo.leave(echoChannelName);
+      log('[Echo] left', echoChannelName);
+    } catch (e) {
+      warn('[Echo] leave error:', e);
+    } finally {
+      echoChannel = null;
+      echoChannelName = null;
     }
-    function attachTaskItemListeners() {
-        document.querySelectorAll('.task-item').forEach(function(el) {
-            el.removeEventListener('click', el._presenceClickHandler);
-            el._presenceClickHandler = function() {
-                const tid = el.getAttribute('data-task-id');
-                window.dispatchEvent(new CustomEvent('task-selected', { detail: { taskId: tid } }));
-                joinPresenceChannel(tid); // <-- Ensure presence channel is joined on click
-            };
-            el.addEventListener('click', el._presenceClickHandler);
-        });
+  }
+
+  function joinPresenceChannel(taskId) {
+    if (!window.Echo || !taskId) return;
+
+    const newName = 'task.presence.' + taskId;
+    if (echoChannelName === newName && echoChannel) {
+      // Already on correct channel — no extra work.
+      return;
     }
-    document.addEventListener('livewire:load', function() {
-        attachTaskItemListeners();
-        if (window.Livewire && Livewire.hook) {
-            Livewire.hook('message.processed', function() {
-                attachTaskItemListeners();
-            });
+
+    leavePresenceChannel();
+    echoChannelName = newName;
+
+    echoChannel = window.Echo.join(echoChannelName)
+      .listen('TaskUserPresenceChanged', (e) => {
+        if (window.Livewire) {
+          Livewire.dispatch('updateUserPresence', {
+            taskId: e.taskId, userId: e.userId, isOnline: e.isOnline
+          });
         }
-        window.addEventListener('task-selected', function(e) {
-            const taskId = e.detail?.taskId;
-            if (lastTaskId && lastTaskId !== taskId) {
-                Livewire.first().call('userClosedTask', lastTaskId);
-            }
-            if (taskId) {
-                Livewire.first().call('userOpenedTask', taskId);
-                window.joinPresenceChannel(taskId); // <-- Call global joinPresenceChannel
-                lastTaskId = taskId;
-            }
-        });
-        window.addEventListener('beforeunload', function() {
-            if (lastTaskId) {
-                Livewire.first().call('userClosedTask', lastTaskId);
-            }
-        });
-        setInterval(function() {
-            if (lastTaskId) {
-                Livewire.first().call('$refresh');
-            }
-        }, 10000);
+      })
+      .here((users) => {
+        // Normalize to [{id,name?}, ...]
+        let arr = Array.isArray(users) ? users : [];
+        if (!Array.isArray(arr) || !arr.length) {
+          arr = [];
+        }
+        if (!arr.length && window.Laravel?.user) {
+          arr = [{ id: window.Laravel.user.id, name: window.Laravel.user.name }];
+        }
+        if (window.Livewire) {
+          Livewire.dispatch('updateOnlineUsers', { users: arr });
+        }
+      })
+      .joining((user) => window.Livewire && Livewire.dispatch('userJoined', { user }))
+      .leaving((user) => window.Livewire && Livewire.dispatch('userLeft', { user }));
+  }
+
+  // =========================
+  // UI helpers (optimistic)
+  // =========================
+  function setActiveTaskItem(id) {
+    // Avoid heavy DOM work: only toggle if state actually changes
+    if (id === window.lastTaskId) return;
+
+    const prev = document.querySelector(`.${ACTIVE_CLASS}`);
+    if (prev) prev.classList.remove(ACTIVE_CLASS);
+
+    const next = document.querySelector(`${SELECTOR_TASK_ITEM}[${ATTR_TASK_ID}="${CSS.escape(id)}"]`);
+    if (next) next.classList.add(ACTIVE_CLASS);
+  }
+
+  // =========================
+  // Core switch routine
+  // =========================
+  function switchTask(newTaskId) {
+    if (!newTaskId) return;
+
+    // Coalesce bursts: if we're switching and user clicks again to same ID, skip
+    if (switching && pendingTaskId === newTaskId) return;
+    switching = true;
+    pendingTaskId = newTaskId;
+
+    // No-op if same as current
+    if (window.lastTaskId === newTaskId) {
+      switching = false;
+      return;
+    }
+
+    // 1) Instant UI feedback
+    setActiveTaskItem(newTaskId);
+
+    // 2) Presence close → open (no await)
+    if (window.Livewire) {
+      if (window.lastTaskId) {
+        Livewire.dispatch('user-closed-task', { taskId: window.lastTaskId });
+      }
+      Livewire.dispatch('user-opened-task', { taskId: newTaskId });
+    }
+    joinPresenceChannel(newTaskId);
+
+    // 3) Commit local state
+    window.lastTaskId = newTaskId;
+
+    // 4) Ask server to load detail after a tick (keeps UI snappy)
+    queueMicrotask(() => {
+      try {
+        if (window.Livewire) {
+          Livewire.dispatch('task-selected', { taskId: newTaskId });
+          // Or, to call a specific component method:
+          // const cmpId = document.querySelector('[data-task-manager]')?.getAttribute('wire:id');
+          // if (cmpId) Livewire.find(cmpId).call('selectTask', newTaskId);
+        }
+      } finally {
+        switching = false;
+      }
     });
-    // On initial load, join channel for selected task
-    @if($selectedTask && $selectedTask->id)
-        joinPresenceChannel({{ $selectedTask->id }});
-    @endif
+  }
+
+  // =========================
+  // Event delegation (one-time)
+  // =========================
+  function onDelegatedClick(e) {
+    const el = e.target.closest(SELECTOR_TASK_ITEM);
+    if (!el) return;
+    const tid = el.getAttribute(ATTR_TASK_ID);
+    if (!tid) return;
+
+    // Let wire:click handlers also run; we just optimize presence/UI
+    switchTask(tid);
+  }
+
+  // =========================
+  // Boot
+  // =========================
+  document.addEventListener('livewire:init', () => {
+    log('[agent-management] optimized init');
+
+    // One delegated listener — no rebind after morphs
+    document.addEventListener('click', onDelegatedClick, { capture: true });
+
+    // If PHP emits a selection programmatically
+    if (window.Livewire) {
+      Livewire.on('task-selected', ({ taskId }) => {
+        if (!taskId || taskId === window.lastTaskId) return;
+        switchTask(taskId);
+      });
+    }
+
+    // Clean shutdown
+    window.addEventListener('beforeunload', () => {
+      if (window.lastTaskId && window.Livewire) {
+        try { Livewire.dispatch('user-closed-task', { taskId: window.lastTaskId }); } catch (_) {}
+      }
+      leavePresenceChannel();
+    });
+  });
+
+  // Optional debug API
+  window.TaskPresence = {
+    get lastTaskId() { return window.lastTaskId; },
+    get channel() { return echoChannelName; },
+    switch: switchTask,
+    join: joinPresenceChannel,
+    leave: leavePresenceChannel,
+  };
+})();
 </script>
+
+
+
 <script>
 (function(){
     function ensureSelect2Css(){
