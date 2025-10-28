@@ -125,10 +125,18 @@ class AgentManagement extends Component
     /* Select a task */
     public function selectTask($id): void
     {
-        $task = Task::with(['form.sections.questions.options'])
-            ->where('id', $id)
-            ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
-            ->first();
+        $start = microtime(true);
+        $task = Task::with([
+            'form.sections.questions.options',
+            'form.questions.options',
+            'submission.answers',
+            'directory.party',
+            'directory.subConsite',
+            'assignees',
+        ])
+        ->where('id', $id)
+        ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
+        ->first();
 
         if (!$task) {
             $this->dispatch('swal', icon:'error', title:'Restricted', text:'Task not assigned to you.');
@@ -137,8 +145,8 @@ class AgentManagement extends Component
 
         $this->selectedTaskId = $task->id;
         $this->taskStatusEdit = $task->status;
-        $this->loadSubmissionState();
-        $this->loadDirectoryLocationFields();
+        $this->loadSubmissionStateFromTask($task);
+        $this->loadDirectoryLocationFieldsFromTask($task);
         $this->loadVoterNotes();
         $this->loadVoterOpinions();
         $this->loadVoterRequests();
@@ -152,11 +160,54 @@ class AgentManagement extends Component
         $this->requestAmount = null;
         $this->requestNote = '';
 
-        \Log::debug('selectTask', ['task_id' => $task->id, 'user_id' => auth()->id()]);
+        \Log::debug('selectTask', ['task_id' => $task->id, 'user_id' => auth()->id(), 'duration_ms' => round((microtime(true)-$start)*1000)]);
 
         // mark presence in PHP + notify JS to join presence channel
         $this->userOpenedTask($task->id);
         $this->dispatch('task-selected', taskId: (string)$task->id);
+    }
+
+    protected function loadSubmissionStateFromTask($task): void
+    {
+        $this->submissionId = null;
+        $this->submissionAnswers = [];
+        if (!$task || !$task->form) return;
+        $questionsById = $task->form->questions->keyBy('id');
+        if ($task->submission) {
+            $this->submissionId = $task->submission->id;
+            foreach ($task->submission->answers as $ans) {
+                $question = $questionsById->get($ans->form_question_id);
+                if (!$question) continue;
+                if (in_array($question->type, ['checkbox','multiselect'])) {
+                    $stored = $ans->value_json ?? [];
+                    if ($stored && array_keys($stored) !== range(0, count($stored)-1)) {
+                        $stored = array_keys(array_filter($stored));
+                    }
+                    $stored = array_map('strval', array_values(array_unique($stored)));
+                    $this->submissionAnswers[$question->id] = $stored;
+                } else {
+                    $val = $ans->value_json ?? $ans->value_text ?? null;
+                    $this->submissionAnswers[$ans->form_question_id] = $val;
+                }
+            }
+        }
+        foreach ($task->form->questions as $q) {
+            if (!array_key_exists($q->id, $this->submissionAnswers)) {
+                $this->submissionAnswers[$q->id] = in_array($q->type, ['checkbox','multiselect']) ? [] : null;
+            }
+        }
+    }
+
+    protected function loadDirectoryLocationFieldsFromTask($task): void
+    {
+        $this->selectedDirectoryId  = $task->directory->id ?? null;
+        $this->currentAddress       = $task->directory->current_address ?? '';
+        $this->currentStreetAddress = $task->directory->current_street_address ?? '';
+        $this->contactEmail         = $task->directory->email ?? '';
+        $this->contactPhones        = is_array($task->directory->phones) ? implode(', ', $task->directory->phones) : ($task->directory->phones ?? '');
+        $this->currentCountryId     = $task->directory->current_country_id ?? '';
+        $this->currentIslandId      = $task->directory->current_island_id ?? '';
+        $this->currentPropertyId    = $task->directory->current_properties_id ?? '';
     }
 
     protected function loadSubmissionState(): void
@@ -737,16 +788,10 @@ class AgentManagement extends Component
 
         $tasks = $tasksQuery->take($this->tasksLimit)->get();
 
-        if (!$this->selectedTaskId && $tasks->count() > 0) {
-            $first = $tasks->first();
-            $this->selectedTaskId = $first->id;
-            $this->taskStatusEdit = $first->status;
-            $this->loadSubmissionState();
-            $this->loadDirectoryLocationFields();
-            $this->loadVoterNotes();
-            $this->loadVoterOpinions();
-            $this->loadVoterRequests();
-        }
+        // Do not auto-select the latest task; keep as null
+        // if (!$this->selectedTaskId && $tasks->count() > 0) {
+        //     $this->selectTask($tasks->first()->id);
+        // }
 
         $selectedTask = null;
         if ($this->selectedTaskId) {
