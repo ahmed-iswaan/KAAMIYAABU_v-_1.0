@@ -15,3 +15,8 @@ Broadcast::channel('task.presence.{taskId}', function ($user, $taskId) {
     // You can add logic to check if the user is allowed to join the task
     return ['id' => $user->id, 'name' => $user->name, 'profile_picture' => $user->profile_picture];
 });
+
+// Global tasks stats channel (for dashboard ranking updates)
+Broadcast::channel('tasks.global', function ($user) {
+    return $user->can('dashboard-render');
+});

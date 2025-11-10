@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Carbon;
 use App\Events\TaskDataChanged;
+use App\Events\TaskStatsUpdated; // added
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
 
@@ -781,6 +782,8 @@ class AgentManagement extends Component
                        ->orWhereHas('directory', function($dq) use ($term){
                            $dq->where('name','like','%'.$term.'%')
                               ->orWhere('id_card_number','like','%'.$term.'%')
+                              // phone search (phones stored as JSON or comma separated text)
+                              ->orWhere('phones','like','%'.$term.'%')
                               ->orWhereHas('party', fn($pq)=>$pq->where('short_name','like','%'.$term.'%'))
                               ->orWhereHas('subConsite', fn($sq)=>$sq->where('code','like','%'.$term.'%'));
                        });
@@ -853,6 +856,10 @@ class AgentManagement extends Component
             $userIds = $task->users()->pluck('users.id')->unique();
             foreach ($userIds as $uid) {
                 TaskDataChanged::dispatch($task->id, (string)$uid, $changeType, $extra);
+            }
+            // Global stats update (single dispatch) for ranking/summary tables
+            if (in_array($changeType, ['status_updated','submission_submitted','submission_saved','engagement_changed'], true)) {
+                TaskStatsUpdated::dispatch($task->id, $changeType, $userIds->map(fn($x)=>(string)$x)->toArray());
             }
         } catch (\Throwable $e) {
             // swallow; don't break UI
