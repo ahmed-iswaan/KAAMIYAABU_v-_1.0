@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('event_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->unsignedBigInteger('user_id')->nullable();
+            $table->uuid('task_id')->nullable(); // added: optional related task
             $table->string('event_type');
             $table->string('event_tab');
             $table->string('event_entry_id')->nullable();
@@ -23,6 +24,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('task_id')->references('id')->on('tasks')->nullOnDelete();
+            $table->index('task_id');
         });
     }
 

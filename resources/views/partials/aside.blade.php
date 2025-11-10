@@ -76,7 +76,7 @@
                                     </div>
                                     @endcan
                                     <!--end:Menu item-->
-                                 @can('voters-requests') 
+                                 @can('requests-voters-render') 
                                     <!--begin:Menu item-->
                                     <div class="menu-item">
                                         <!--begin:Menu link-->
@@ -93,8 +93,10 @@
                                     </div>
                                     <!--end:Menu item-->
                                 <!--begin:Menu item-->
-                                </div>
                                    @endcan
+
+                                </div>
+                                
 								<!--end:Menu item-->
 
 

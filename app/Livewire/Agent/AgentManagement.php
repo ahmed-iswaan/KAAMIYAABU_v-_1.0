@@ -354,7 +354,7 @@ class AgentManagement extends Component
             'opinionNote'   => 'nullable|string|max:2000',
         ]);
 
-        VoterOpinion::create([
+        $opinion = VoterOpinion::create([
             'directory_id'    => $task->directory_id,
             'election_id'     => $task->election_id,
             'opinion_type_id' => $this->opinionTypeId,
@@ -370,6 +370,7 @@ class AgentManagement extends Component
 
         $this->loadVoterOpinions();
         $this->broadcastTaskChange($task, 'engagement_changed', ['section' => 'opinions']);
+        $this->logTaskEvent('opinions.added', $task, ['opinion_id' => $opinion->id ?? null]);
         $this->dispatch('swal', icon:'success', title:'Added', text:'Opinion added.');
     }
 
@@ -406,7 +407,7 @@ class AgentManagement extends Component
             'requestNote'   => 'nullable|string|max:2000',
         ]);
 
-        VoterRequest::create([
+        $request = VoterRequest::create([
             'directory_id'    => $task->directory_id,
             'election_id'     => $task->election_id,
             'request_type_id' => $this->requestTypeId,
@@ -422,6 +423,7 @@ class AgentManagement extends Component
 
         $this->loadVoterRequests();
         $this->broadcastTaskChange($task,'engagement_changed', ['section'=>'requests']);
+        $this->logTaskEvent('requests.added', $task, ['request_id' => $request->id ?? null]);
         $this->dispatch('swal', icon:'success', title:'Added', text:'Request added.');
     }
 
@@ -486,7 +488,7 @@ class AgentManagement extends Component
 
         Directory::where('id',$this->selectedDirectoryId)->update([
             'current_address'       => $this->currentAddress ?: null,
-            'current_street_address'=> $this->currentStreetAddress ?: null,
+            'current_street_address' => $this->currentStreetAddress ?: null,
             'email'                 => $this->contactEmail ?: null,
             'phones'                => $phones ?: null,
             'current_country_id'    => $this->currentCountryId ?: null,
@@ -507,7 +509,7 @@ class AgentManagement extends Component
 
         $this->validate(['newNote' => 'required|string|max:2000']);
 
-        VoterNote::create([
+        $note = VoterNote::create([
             'directory_id' => $task->directory_id,
             'election_id'  => $task->election_id,
             'note'         => $this->newNote,
@@ -517,6 +519,7 @@ class AgentManagement extends Component
         $this->newNote = '';
         $this->loadVoterNotes();
         $this->broadcastTaskChange($task,'engagement_changed',['section'=>'notes']);
+        $this->logTaskEvent('notes.added', $task, ['note_id' => $note->id ?? null]);
         $this->dispatch('swal', icon:'success', title:'Added', text:'Note added.');
     }
 
@@ -595,6 +598,7 @@ class AgentManagement extends Component
 
         TaskDataChanged::dispatch($task->id, (string)auth()->id(), 'submission_saved', ['task_id'=>$task->id]);
         $this->broadcastTaskChange($task,'submission_saved',['task_id'=>$task->id]);
+        $this->logTaskEvent('submission.saved', $task, ['task_id' => $task->id]);
         $this->dispatch('swal', icon:'success', title:'Saved', text:'Progress saved.');
     }
 
@@ -636,6 +640,7 @@ class AgentManagement extends Component
 
         $this->loadSubmissionState();
         $this->broadcastTaskChange($task,'submission_submitted',['status'=>$task->status]);
+        $this->logTaskEvent('submission.submitted', $task, ['task_id' => $task->id]);
         $this->dispatch('swal', icon:'success', title:'Submitted', text:'Form submitted.');
     }
 
@@ -872,12 +877,23 @@ class AgentManagement extends Component
         if (!$task) return;
 
         if ($task->status !== $this->taskStatusEdit) {
+            $original = $task->status;
             $task->status = $this->taskStatusEdit;
 
             if ($this->taskStatusEdit === 'completed') {
                 $task->completed_at = $task->completed_at ?: now();
-            } else {
+                $task->completed_by = auth()->id();
+                $task->follow_up_by = null; // clear any previous follow-up marker
+            } elseif ($this->taskStatusEdit === 'follow_up') {
+                $task->follow_up_by = auth()->id();
+                // do not set completed_at; ensure not marked completed
                 $task->completed_at = null;
+                $task->completed_by = null;
+            } else { // pending
+                $task->completed_at = null;
+                $task->completed_by = null;
+                // keep follow_up_by only if original was follow_up; otherwise clear
+                if ($original !== 'follow_up') { $task->follow_up_by = null; }
             }
 
             $task->save();
@@ -885,6 +901,13 @@ class AgentManagement extends Component
             $this->broadcastTaskChange($task,'status_updated',[
                 'status' => $task->status,
                 'completed_at' => $task->completed_at?->toISOString(),
+                'completed_by' => $task->completed_by,
+                'follow_up_by' => $task->follow_up_by,
+            ]);
+            $this->logTaskEvent('task.status_changed', $task, [
+                'status' => $task->status,
+                'completed_by' => $task->completed_by,
+                'follow_up_by' => $task->follow_up_by,
             ]);
 
             $this->dispatch('swal', icon:'success', title:'Updated', text:'Task status updated.');
@@ -1027,5 +1050,21 @@ public function userClosedTask(string $taskId): void
         }
 
         $this->dispatch('$refresh');
+    }
+
+    protected function logTaskEvent(string $type, ?Task $task = null, array $data = [], ?string $tab = null, ?string $entryId = null, ?string $description = null): void
+    {
+        try {
+            \App\Models\EventLog::create([
+                'user_id' => auth()->id(),
+                'event_type' => $type,
+                'event_tab' => $tab ?? 'tasks',
+                'event_entry_id' => $entryId,
+                'description' => $description,
+                'event_data' => $data,
+                'ip_address' => request()->ip(),
+                'task_id' => $task?->id,
+            ]);
+        } catch(\Throwable $e){ /* swallow logging errors */ }
     }
 }

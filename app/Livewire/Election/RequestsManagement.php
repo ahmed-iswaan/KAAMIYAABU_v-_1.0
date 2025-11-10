@@ -157,7 +157,7 @@ class RequestsManagement extends Component
     }
 
     public function render(){
-        $this->authorize('voters-requests');
+        $this->authorize('requests-voters-render');
         return view('livewire.election.requests-management', [
             'requests' => $this->requests,
         ])->layout('layouts.master');

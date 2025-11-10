@@ -30,7 +30,6 @@ class PermissionTableSeeder extends Seeder
            'user-RemoveUserRole',
            'agent-render',
            'voters-render',
-           'voters-requests',
            'directory-render',
            'task-render',
            'property-render',
@@ -38,6 +37,7 @@ class PermissionTableSeeder extends Seeder
            'election-render',
            'formslist-render',
            'dashboard-render',
+           'requests-voters-render'
         ];
         
         foreach ($permissions as $permission) {

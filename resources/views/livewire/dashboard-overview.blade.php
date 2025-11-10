@@ -3,6 +3,7 @@
 <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
     <div class="container-xxl">
         <div class="row gx-6 gx-xl-9">
+            @can('directory-render')
             <!-- Full-width card -->
             <div class="col-12">
                 <div class="card h-100">
@@ -48,6 +49,7 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
     </div>
 </div>

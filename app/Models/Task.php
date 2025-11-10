@@ -16,7 +16,7 @@ class Task extends Model
 
     protected $fillable = [
         'number', // added
-        'title','notes','type','status','priority','form_id','directory_id','election_id','due_at','completed_at','created_by','updated_by','meta'
+        'title','notes','type','status','priority','form_id','directory_id','election_id','due_at','completed_at','completed_by','follow_up_by','created_by','updated_by','meta'
     ];
 
     protected $casts = [
@@ -47,10 +47,13 @@ class Task extends Model
     public function creator(){ return $this->belongsTo(User::class,'created_by'); }
     public function updater(){ return $this->belongsTo(User::class,'updated_by'); }
     public function submission(){ return $this->hasOne(FormSubmission::class,'task_id'); }
+    public function completedBy(){ return $this->belongsTo(User::class,'completed_by'); }
+    public function followUpBy(){ return $this->belongsTo(User::class,'follow_up_by'); }
 
     /* Helpers */
     public function scopeStatus($q,$status){ if($status) $q->where('status',$status); }
-    public function markCompleted(){ $this->update(['status'=>'completed','completed_at'=>now()]); }
+    public function markCompleted(){ $this->update(['status'=>'completed','completed_at'=>now(),'completed_by'=>auth()->id()]); }
+    public function markFollowUp(){ $this->update(['status'=>'follow_up','follow_up_by'=>auth()->id()]); }
     public function isOverdue(): bool { return $this->status !== 'completed' && $this->due_at && $this->due_at->isPast(); }
     public function priorityBadge(): string {
         return match($this->priority){
