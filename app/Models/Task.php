@@ -16,12 +16,13 @@ class Task extends Model
 
     protected $fillable = [
         'number', // added
-        'title','notes','type','status','priority','form_id','directory_id','election_id','due_at','completed_at','completed_by','follow_up_by','created_by','updated_by','meta'
+        'title','notes','type','status','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta'
     ];
 
     protected $casts = [
         'meta' => 'array',
         'due_at' => 'datetime',
+        'follow_up_date' => 'datetime', // added
         'completed_at' => 'datetime',
     ];
 

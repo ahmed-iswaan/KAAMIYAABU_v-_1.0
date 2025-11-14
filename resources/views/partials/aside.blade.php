@@ -1,4 +1,3 @@
-
 <!--begin::Aside-->
 				<div id="kt_aside" class="aside aside-default aside-hoverable" data-kt-drawer="true" data-kt-drawer-name="aside" data-kt-drawer-activate="{default: true, lg: false}" data-kt-drawer-overlay="true" data-kt-drawer-width="{default:'200px', '300px': '250px'}" data-kt-drawer-direction="start" data-kt-drawer-toggle="#kt_aside_toggle">
 					<!--begin::Brand-->
@@ -181,7 +180,20 @@
                                 </div>
                                 <!--end:Menu item (Form Builder) -->
                                 @endcan
-                               @can('user-render')
+                                @can('request-types-render')
+                                <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('system/request-types') ? 'active' : '' }}" href="{{ route('request-types.index') }}">
+                                        <span class="menu-icon">
+                                            <i class="ki-duotone ki-category fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Request Types</span>
+                                    </a>
+                                </div>
+                                @endcan
+                                @can('user-render')
                                <!--begin:Menu item-->
                                   <div class="menu-item">
                                  <!--begin:Menu link-->

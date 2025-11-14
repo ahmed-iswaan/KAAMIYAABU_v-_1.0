@@ -221,26 +221,30 @@
                                             </div>
                                             <div class="flex-grow-1 min-w-0 d-flex flex-column">
                                                 <div class="task-meta-top">
-                                                    <span class="task-number fw-bold text-gray-900">{{ $task->number }}</span>
-                          
+                                                    @if($directory)
+                                                        <span class="fw-bold text-gray-700" style="font-size:12px; max-width:160px;" title="{{ $directory->name }}">{{ Str::limit($directory->name,22) }}</span>
+                                                    @endif
                                                     <span class="task-due @if($dueClass) {{ $dueClass }} @endif">
                                                         @if($dueLabel)
-                                                            {{-- Removed static 'Due' prefix per request --}}
                                                             <span class="fw-semibold">{{ $dueLabel }}</span>
                                                         @endif
                                                     </span>
                                                 </div>
                                                 <div class="task-badges">
-                                                                              @if($partyShort)
+                                                    @if($partyShort)
                                                         <span class="badge badge-light-info fw-semibold px-2 py-1 fs-8">{{ $partyShort }}</span>
                                                     @endif
                                                     @if($subCode)
                                                         <span class="badge badge-light-info fw-semibold px-2 py-1 fs-8">{{ $subCode }}</span>
                                                     @endif
+                                                    @php $firstPhone = null; if($directory){ $phonesRaw = is_array($directory->phones)? $directory->phones : ( $directory->phones ? json_decode($directory->phones,true) : [] ); if(is_array($phonesRaw) && count($phonesRaw)) { $firstPhone = $phonesRaw[0]; } } @endphp
+                                                    @if($firstPhone)
+                                                        <span class="badge badge-light-dark fw-semibold px-2 py-1 fs-8">{{ $firstPhone }}</span>
+                                                    @endif
                                                     <span class="badge {{ $statusBadgeClass }} fw-semibold px-2 py-1 fs-8">{{ ucfirst(str_replace('_',' ',$task->status)) }}</span>
                                                     <span class="badge {{ $task->priorityBadge() }} fw-semibold px-2 py-1 fs-8">{{ ucfirst($task->priority) }}</span>
                                                 </div>
-                                                <div class="task-title text-truncate" title="{{ $task->title }}">{{ $task->title }}</div>
+                                                <span class="task-number fw-semibold text-gray-500" style="font-size:9px;">{{ $task->number }}</span>
                                             </div>
                                         </div>
                                     @empty
@@ -393,7 +397,11 @@
                                                 <option value="follow_up">Follow Up</option>
                                                 <option value="completed">Completed</option>
                                             </select>
-                                            <span class="spinner-border spinner-border-sm" wire:loading wire:target="taskStatusEdit"></span>
+                                            @if($taskStatusEdit==='follow_up')
+                                                <input type="datetime-local" class="form-control form-control-sm w-auto" wire:model.live="followUpDate" title="Follow Up Date" min="{{ now()->format('Y-m-d\TH:i') }}" />
+                                                <button type="button" class="btn btn-sm btn-light-primary" wire:click="saveFollowUpStatus" wire:loading.attr="disabled">Save Follow Up</button>
+                                            @endif
+                                            <span class="spinner-border spinner-border-sm" wire:loading wire:target="taskStatusEdit,saveFollowUpStatus"></span>
                                         </div>
                                     </div>
                                 </div>

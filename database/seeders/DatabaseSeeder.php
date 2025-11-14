@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             ElectionSeeder::class,
             ParticipantSeeder::class,
             OpinionAndRequestTypeSeeder::class,
+            MayorAndPartyChangeRequestTypeSeeder::class,
             DirectoriesTableSeeder::class,
         ]);
     }

@@ -15,6 +15,7 @@ use App\Livewire\Forms\FormsList;
 use App\Livewire\Forms\FormBuilder;
 use App\Livewire\Tasks\TaskAssignment;
 use App\Http\Controllers\Auth\LoginController;
+use App\Livewire\System\RequestTypesManagement; // added
 
 
 
@@ -46,5 +47,8 @@ Route::get('/tasks/assign', TaskAssignment::class)->name('tasks.assign');
 Route::get('/forms', FormsList::class)->name('forms.index');
 Route::get('/forms/create', FormBuilder::class)->name('forms.create');
 Route::get('/forms/{form}/edit', FormBuilder::class)->name('forms.edit');
+
+// Replace controller-based request types with Livewire component
+Route::get('/system/request-types', RequestTypesManagement::class)->name('request-types.index');
 
 });

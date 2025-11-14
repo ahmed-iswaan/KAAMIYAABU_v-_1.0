@@ -37,8 +37,12 @@ class PermissionTableSeeder extends Seeder
         //    'election-render',
         //    'formslist-render',
         //    'dashboard-render',
-           'requests-voters-render',
-           'dashboard-task-performance',
+        //    'requests-voters-render',
+        //    'dashboard-task-performance',
+           'request-types-render',
+           'request-types-create',
+           'request-types-edit',
+           'request-types-toggle',
         ];
         
         foreach ($permissions as $permission) {

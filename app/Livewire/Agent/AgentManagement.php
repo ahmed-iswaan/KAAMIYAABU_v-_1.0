@@ -87,6 +87,7 @@ class AgentManagement extends Component
     // Task status (editable)
     public $taskStatusEdit = '';
     public $tasksLimit = 12;
+    public $followUpDate = null; // added
 
     // Online users (flat list for the **currently selected task**)
     public $onlineUsers = [];
@@ -146,6 +147,7 @@ class AgentManagement extends Component
 
         $this->selectedTaskId = $task->id;
         $this->taskStatusEdit = $task->status;
+        $this->followUpDate = $task->follow_up_date?->format('Y-m-d\TH:i'); // preload
         $this->loadSubmissionStateFromTask($task);
         $this->loadDirectoryLocationFieldsFromTask($task);
         $this->loadVoterNotes();
@@ -820,7 +822,7 @@ class AgentManagement extends Component
         $parties       = Party::orderBy('short_name')->get(['id','short_name','name']);
         $subConsites   = SubConsite::orderBy('code')->get(['id','code']);
         $opinionTypes  = OpinionType::orderBy('name')->get(['id','name']);
-        $requestTypes  = RequestType::orderBy('name')->get(['id','name']);
+        $requestTypes  = RequestType::where('active', true)->orderBy('name')->get(['id','name']);
         $countries     = Country::orderBy('name')->get(['id','name']);
 
         $this->maldivesCountryId = $this->maldivesCountryId ?: ($countries->firstWhere('name','Maldives')->id ?? null);
@@ -871,6 +873,15 @@ class AgentManagement extends Component
      */
     public function updatedTaskStatusEdit($value): void
     {
+        // Only auto update for statuses that do not require extra input
+        if ($value !== 'follow_up') {
+            $this->updateTaskStatus();
+        }
+    }
+
+    public function saveFollowUpStatus(): void
+    {
+        // Explicit save when follow_up date chosen
         $this->updateTaskStatus();
     }
 
@@ -878,29 +889,33 @@ class AgentManagement extends Component
     {
         if (!$this->selectedTaskId) return;
 
-        $this->validate(['taskStatusEdit' => 'required|in:pending,follow_up,completed']);
+        $this->validate([
+            'taskStatusEdit' => 'required|in:pending,follow_up,completed',
+            'followUpDate' => $this->taskStatusEdit === 'follow_up' ? 'required|date|after_or_equal:today' : 'nullable',
+        ]);
 
         $task = Task::with('users')->find($this->selectedTaskId);
         if (!$task) return;
 
-        if ($task->status !== $this->taskStatusEdit) {
+        if ($task->status !== $this->taskStatusEdit || ($this->taskStatusEdit==='follow_up' && $this->followUpDate !== $task->follow_up_date?->format('Y-m-d\TH:i'))) {
             $original = $task->status;
             $task->status = $this->taskStatusEdit;
 
             if ($this->taskStatusEdit === 'completed') {
                 $task->completed_at = $task->completed_at ?: now();
                 $task->completed_by = auth()->id();
-                $task->follow_up_by = null; // clear any previous follow-up marker
+                $task->follow_up_by = null;
+                $task->follow_up_date = null; // clear
             } elseif ($this->taskStatusEdit === 'follow_up') {
                 $task->follow_up_by = auth()->id();
-                // do not set completed_at; ensure not marked completed
                 $task->completed_at = null;
                 $task->completed_by = null;
+                $task->follow_up_date = $this->followUpDate ? \Carbon\Carbon::parse($this->followUpDate) : null;
             } else { // pending
                 $task->completed_at = null;
                 $task->completed_by = null;
-                // keep follow_up_by only if original was follow_up; otherwise clear
                 if ($original !== 'follow_up') { $task->follow_up_by = null; }
+                $task->follow_up_date = null; // clear when returning to pending
             }
 
             $task->save();
@@ -910,11 +925,13 @@ class AgentManagement extends Component
                 'completed_at' => $task->completed_at?->toISOString(),
                 'completed_by' => $task->completed_by,
                 'follow_up_by' => $task->follow_up_by,
+                'follow_up_date' => $task->follow_up_date?->toISOString(),
             ]);
             $this->logTaskEvent('task.status_changed', $task, [
                 'status' => $task->status,
                 'completed_by' => $task->completed_by,
                 'follow_up_by' => $task->follow_up_by,
+                'follow_up_date' => $task->follow_up_date?->toISOString(),
             ]);
 
             $this->dispatch('swal', icon:'success', title:'Updated', text:'Task status updated.');
@@ -1073,5 +1090,12 @@ public function userClosedTask(string $taskId): void
                 'task_id' => $task?->id,
             ]);
         } catch(\Throwable $e){ /* swallow logging errors */ }
+    }
+
+    public function updatedFollowUpDate($value): void
+    {
+        if ($this->taskStatusEdit === 'follow_up') {
+            $this->updateTaskStatus();
+        }
     }
 }
