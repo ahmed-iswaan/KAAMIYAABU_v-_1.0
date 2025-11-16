@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use App\Services\UniqueIdGenerator; // added
+use Illuminate\Database\Eloquent\Builder;
 
 class Task extends Model
 {
@@ -16,7 +17,8 @@ class Task extends Model
 
     protected $fillable = [
         'number', // added
-        'title','notes','type','status','sub_status_id','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta'
+        'title','notes','type','status','sub_status_id','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta',
+        'deleted','deleted_at','deleted_by', // new
     ];
 
     protected $casts = [
@@ -24,6 +26,8 @@ class Task extends Model
         'due_at' => 'datetime',
         'follow_up_date' => 'datetime', // added
         'completed_at' => 'datetime',
+        'deleted' => 'boolean',
+        'deleted_at' => 'datetime', // cast
     ];
 
     protected static function booted()
@@ -35,6 +39,9 @@ class Task extends Model
             if(empty($model->number)) {
                 $model->number = UniqueIdGenerator::generate('tasks','number','TSK-',6);
             }
+        });
+        static::addGlobalScope('not_deleted', function(Builder $builder){
+            $builder->where('deleted', false);
         });
     }
 
@@ -64,5 +71,22 @@ class Task extends Model
             'low' => 'badge-light-secondary',
             default => 'badge-light-info'
         };
+    }
+    public function scopeWithDeleted(Builder $q): Builder { return $q->withoutGlobalScope('not_deleted'); }
+    public function markDeleted(): void {
+        $this->deleted = true;
+        $this->deleted_at = now();
+        $this->deleted_by = auth()->id();
+        $this->save();
+        \App\Models\EventLog::create([
+            'user_id'=>auth()->id(),
+            'event_type'=>'task_mark_deleted',
+            'event_tab'=>'tasks',
+            'event_entry_id'=>$this->id,
+            'task_id'=>$this->id,
+            'description'=>'Task marked deleted',
+            'event_data'=>['task_id'=>$this->id,'deleted_at'=>$this->deleted_at,'deleted_by'=>$this->deleted_by],
+            'ip_address'=>request()->ip(),
+        ]);
     }
 }

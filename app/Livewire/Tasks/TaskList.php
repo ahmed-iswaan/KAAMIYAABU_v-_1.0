@@ -92,8 +92,8 @@ class TaskList extends Component
 
     public function getStatsProperty(): array
     {
-        // Build a base filtered query matching the table view (without pagination)
         $base = Task::query()
+            ->where('deleted', false) // explicit
             ->when($this->search, function($q){
                 $term = trim($this->search);
                 $q->where(function($qq) use ($term){
@@ -153,6 +153,7 @@ class TaskList extends Component
         $this->authorize('task-list-render');
 
         $tasks = Task::with(['directory.party','directory.subConsite','assignees','subStatus'])
+            ->where('deleted', false)
             ->when($this->search, function($q){
                 $term = trim($this->search);
                 $q->where(function($qq) use ($term){
@@ -173,7 +174,7 @@ class TaskList extends Component
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
             ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
             ->latest()
-            ->paginate((int)$this->perPage); // cast to int explicitly
+            ->paginate((int)$this->perPage);
         // Track current page task IDs for selection toggling
         $this->currentPageTaskIds = $tasks->pluck('id')->toArray();
 
@@ -207,7 +208,7 @@ class TaskList extends Component
 
     protected function filteredBaseQuery()
     {
-        return Task::query()
+        return Task::query()->where('deleted', false)
             ->when($this->search, function($q){
                 $term = trim($this->search);
                 $q->where(function($qq) use ($term){

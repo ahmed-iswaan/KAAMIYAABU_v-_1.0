@@ -782,12 +782,13 @@ class AgentManagement extends Component
             ->paginate($this->perPage);
 
         $tasksQuery = Task::with(['assignees','form.questions.options','submission.answers','directory.party','directory.subConsite','subStatus'])
+            ->where('deleted', false) // exclude deleted tasks
             ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
             ->when($this->taskStatus, fn($q)=>$q->where('status',$this->taskStatus))
             ->when($this->taskType, fn($q)=>$q->where('type',$this->taskType))
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
             ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
-            ->when($this->filterSubStatusId, fn($q)=>$q->where('sub_status_id',$this->filterSubStatusId)) // added
+            ->when($this->filterSubStatusId, fn($q)=>$q->where('sub_status_id',$this->filterSubStatusId))
             ->when($this->taskSearch, function($q){
                 $term = trim($this->taskSearch);
                 $q->where(function($qq) use ($term){
@@ -820,8 +821,9 @@ class AgentManagement extends Component
             $selectedTask = Task::with([
                 'assignees','directory.party','directory.subConsite',
                 'form.questions.options','submission.answers',
-                'completedBy','followUpBy', // added
+                'completedBy','followUpBy',
             ])
+            ->where('deleted', false) // exclude deleted
             ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
             ->find($this->selectedTaskId);
 
