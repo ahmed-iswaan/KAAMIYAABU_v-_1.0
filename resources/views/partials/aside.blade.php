@@ -148,7 +148,7 @@
                                 @can('task-render')
                                 <!--begin:Menu item (Task Assignment) -->
                                 <div class="menu-item">
-                                    <a class="menu-link {{ request()->is('tasks/assign') ? 'active' : '' }}" href="{{ route('tasks.assign') }}">
+                                    <a class="menu-link {{ request()->is('tasks') ? 'active' : '' }}" href="{{ route('tasks.index') }}">
                                         <span class="menu-icon">
                                            <i class="ki-duotone ki-text-circle">
                                             <span class="path1"></span>
@@ -190,6 +190,19 @@
                                             </i>
                                         </span>
                                         <span class="menu-title">Request Types</span>
+                                    </a>
+                                </div>
+                                @endcan
+                                @can('sub-status-render')
+                                <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('system/sub-statuses') ? 'active' : '' }}" href="{{ route('sub-statuses.index') }}">
+                                        <span class="menu-icon">
+                                            <i class="ki-duotone ki-setting-2 fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Sub Status Types</span>
                                     </a>
                                 </div>
                                 @endcan

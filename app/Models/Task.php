@@ -16,7 +16,7 @@ class Task extends Model
 
     protected $fillable = [
         'number', // added
-        'title','notes','type','status','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta'
+        'title','notes','type','status','sub_status_id','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta'
     ];
 
     protected $casts = [
@@ -50,6 +50,7 @@ class Task extends Model
     public function submission(){ return $this->hasOne(FormSubmission::class,'task_id'); }
     public function completedBy(){ return $this->belongsTo(User::class,'completed_by'); }
     public function followUpBy(){ return $this->belongsTo(User::class,'follow_up_by'); }
+    public function subStatus(){ return $this->belongsTo(SubStatus::class,'sub_status_id'); }
 
     /* Helpers */
     public function scopeStatus($q,$status){ if($status) $q->where('status',$status); }

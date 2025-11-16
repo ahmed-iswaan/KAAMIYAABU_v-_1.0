@@ -134,6 +134,15 @@
                                                         @endforeach
                                                     </select>
                                                 </div>
+                                                <div class="d-flex flex-column gap-2">
+                                                    <label class="form-label fw-semibold mb-1">Sub Status</label>
+                                                    <select class="form-select form-select-sm form-select-solid" wire:model="filterSubStatusId">
+                                                        <option value="">Sub Status</option>
+                                                        @foreach($subStatuses as $ss)
+                                                            <option value="{{ $ss->id }}">{{ $ss->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
                                             </div>
                                             <div class="px-4 py-3 border-top d-flex justify-content-between gap-3">
                                                 <button type="button" class="btn btn-light btn-sm" wire:click="resetTaskFilters">Reset</button>
@@ -241,6 +250,9 @@
                                                     @if($firstPhone)
                                                         <span class="badge badge-light-dark fw-semibold px-2 py-1 fs-8">{{ $firstPhone }}</span>
                                                     @endif
+                                                    @if($task->subStatus?->name)
+                                                        <span class="badge badge-danger fw-semibold px-2 py-1 fs-8" title="Sub Status">{{ $task->subStatus->name }}</span>
+                                                    @endif
                                                     <span class="badge {{ $statusBadgeClass }} fw-semibold px-2 py-1 fs-8">{{ ucfirst(str_replace('_',' ',$task->status)) }}</span>
                                                     <span class="badge {{ $task->priorityBadge() }} fw-semibold px-2 py-1 fs-8">{{ ucfirst($task->priority) }}</span>
                                                 </div>
@@ -301,28 +313,25 @@
                                             @endif
                                         </div>
                                         <div class="text-gray-500 fw-semibold fs-7">{{ $d->id_card_number }}</div>
-                                        {{-- Online users for this task --}}
-                                        <div class="mt-2">
-                                            <span class="fw-semibold fs-8 text-muted">Working On this Task:</span>
-                                            <div class="d-flex flex-wrap gap-2 mt-1">
-                                                @foreach($onlineUsers as $user)
-                                                    @if(isset($user['id']))
-                                                        @php $userModel = \App\Models\User::find($user['id']); @endphp
-                                                        @if($userModel)
-                                                            <div class="d-flex align-items-center gap-2">
-                                                                <div class="symbol symbol-30px" title="{{ $userModel->name }}">
-                                                                    @if($userModel->profile_picture)
-                                                                        <img src="{{ asset('storage/' . $userModel->profile_picture) }}" alt="{{ $userModel->name }}" style="object-fit:cover;" />
-                                                                    @else
-                                                                        <div class="symbol-label fs-7 fw-semibold bg-light-primary text-primary">{{ Str::upper(Str::substr($userModel->name,0,1)) }}</div>
-                                                                    @endif
-                                                                </div>
-                                                                <span class="badge badge-light-success">{{ $userModel->name }}</span>
-                                                            </div>
-                                                        @endif
+                                        <div class="d-flex flex-wrap gap-3 mt-2 fs-8 text-muted">
+                                            <div>Created: <span class="text-gray-700 fw-semibold" title="{{ $selectedTask->created_at }}">{{ $selectedTask->created_at->diffForHumans() }}</span></div>
+                                            @if($selectedTask->status === 'follow_up' && $selectedTask->follow_up_by)
+                                                <div>Follow Up By: <span class="text-gray-700 fw-semibold">{{ $selectedTask->followUpBy?->name }}</span>
+                                                    @if($selectedTask->follow_up_date)
+                                                        on <span class="text-gray-700 fw-semibold" title="{{ $selectedTask->follow_up_date }}">{{ $selectedTask->follow_up_date->format('M d, H:i') }}</span>
                                                     @endif
-                                                @endforeach
-                                            </div>
+                                                </div>
+                                            @endif
+                                            @if($selectedTask->status === 'completed' && $selectedTask->completed_by)
+                                                <div>Completed By: <span class="text-gray-700 fw-semibold">{{ $selectedTask->completedBy?->name }}</span>
+                                                    @if($selectedTask->completed_at)
+                                                        on <span class="text-gray-700 fw-semibold" title="{{ $selectedTask->completed_at }}">{{ $selectedTask->completed_at->format('M d, H:i') }}</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                            @if($selectedTask->sub_status_id)
+                                                <div>Sub Status: <span class="text-gray-700 fw-semibold">{{ $selectedTask->subStatus?->name }}</span></div>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -401,7 +410,13 @@
                                                 <input type="datetime-local" class="form-control form-control-sm w-auto" wire:model.live="followUpDate" title="Follow Up Date" min="{{ now()->format('Y-m-d\TH:i') }}" />
                                                 <button type="button" class="btn btn-sm btn-light-primary" wire:click="saveFollowUpStatus" wire:loading.attr="disabled">Save Follow Up</button>
                                             @endif
-                                            <span class="spinner-border spinner-border-sm" wire:loading wire:target="taskStatusEdit,saveFollowUpStatus"></span>
+                                            <select class="form-select form-select-sm form-select-solid w-auto" wire:model.defer="subStatusId" wire:change="updateSubStatus" title="Sub Status">
+                                                <option value="">Sub Status...</option>
+                                                @foreach($subStatuses as $ss)
+                                                    <option value="{{ $ss->id }}">{{ $ss->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="spinner-border spinner-border-sm" wire:loading wire:target="taskStatusEdit,saveFollowUpStatus,updateSubStatus"></span>
                                         </div>
                                     </div>
                                 </div>

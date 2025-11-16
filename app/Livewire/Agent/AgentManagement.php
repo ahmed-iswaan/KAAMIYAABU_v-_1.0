@@ -26,6 +26,7 @@ use App\Events\TaskDataChanged;
 use App\Events\TaskStatsUpdated; // added
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
+use App\Models\SubStatus; // added
 
 class AgentManagement extends Component
 {
@@ -40,6 +41,7 @@ class AgentManagement extends Component
     public $taskType = '';
     public $filterPartyId = '';
     public $filterSubConsiteId = '';
+    public $filterSubStatusId = ''; // added missing property for sub status filter
 
     public $directorySearch = '';
     public $selectedDirectoryIds = [];
@@ -92,6 +94,10 @@ class AgentManagement extends Component
     // Online users (flat list for the **currently selected task**)
     public $onlineUsers = [];
 
+    // Sub status
+    public $subStatusId = ''; // added selected sub status
+    public $subStatuses = []; // list of active sub statuses
+
     protected $queryString = [
         'search' => ['except' => ''],
         'taskStatus' => ['except' => ''],
@@ -100,6 +106,7 @@ class AgentManagement extends Component
         'taskSearch' => ['except' => ''],
         'filterPartyId' => ['except' => ''],
         'filterSubConsiteId' => ['except' => ''],
+        'filterSubStatusId' => ['except' => ''], // added
     ];
 
     /* Pagination resets */
@@ -111,10 +118,11 @@ class AgentManagement extends Component
     public function updatingTaskSearch(){ $this->resetPage('tasks_page'); }
     public function updatingFilterPartyId(){ $this->resetPage('tasks_page'); }
     public function updatingFilterSubConsiteId(){ $this->resetPage('tasks_page'); }
+    public function updatingFilterSubStatusId(){ $this->resetPage('tasks_page'); } // added
 
     public function resetTaskFilters(): void
     {
-        $this->taskSearch = $this->taskStatus = $this->taskType = $this->filterPartyId = $this->filterSubConsiteId = '';
+        $this->taskSearch = $this->taskStatus = $this->taskType = $this->filterPartyId = $this->filterSubConsiteId = $this->filterSubStatusId = ''; // added sub status
         $this->tasksLimit = 12;
         $this->resetPage('tasks_page');
     }
@@ -135,6 +143,8 @@ class AgentManagement extends Component
             'directory.party',
             'directory.subConsite',
             'assignees',
+            'completedBy', // added
+            'followUpBy',  // added
         ])
         ->where('id', $id)
         ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
@@ -148,6 +158,7 @@ class AgentManagement extends Component
         $this->selectedTaskId = $task->id;
         $this->taskStatusEdit = $task->status;
         $this->followUpDate = $task->follow_up_date?->format('Y-m-d\TH:i'); // preload
+        $this->subStatusId = $task->sub_status_id ?? ''; // preload sub status
         $this->loadSubmissionStateFromTask($task);
         $this->loadDirectoryLocationFieldsFromTask($task);
         $this->loadVoterNotes();
@@ -474,7 +485,7 @@ class AgentManagement extends Component
 
         $this->validate([
             'currentAddress'     => 'nullable|string|max:500',
-            'currentStreetAddress'=> 'nullable|string|max:255',
+            'currentStreetAddress' => 'nullable|string|max:255',
             'contactEmail'       => 'nullable|email:rfc,dns|max:255',
             'contactPhones'      => 'nullable|string|max:255',
             'currentCountryId'   => 'nullable|uuid|exists:countries,id',
@@ -770,12 +781,13 @@ class AgentManagement extends Component
             ->latest()
             ->paginate($this->perPage);
 
-        $tasksQuery = Task::with(['assignees','form.questions.options','submission.answers','directory.party','directory.subConsite'])
+        $tasksQuery = Task::with(['assignees','form.questions.options','submission.answers','directory.party','directory.subConsite','subStatus'])
             ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
             ->when($this->taskStatus, fn($q)=>$q->where('status',$this->taskStatus))
             ->when($this->taskType, fn($q)=>$q->where('type',$this->taskType))
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
             ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
+            ->when($this->filterSubStatusId, fn($q)=>$q->where('sub_status_id',$this->filterSubStatusId)) // added
             ->when($this->taskSearch, function($q){
                 $term = trim($this->taskSearch);
                 $q->where(function($qq) use ($term){
@@ -808,6 +820,7 @@ class AgentManagement extends Component
             $selectedTask = Task::with([
                 'assignees','directory.party','directory.subConsite',
                 'form.questions.options','submission.answers',
+                'completedBy','followUpBy', // added
             ])
             ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
             ->find($this->selectedTaskId);
@@ -824,6 +837,8 @@ class AgentManagement extends Component
         $opinionTypes  = OpinionType::orderBy('name')->get(['id','name']);
         $requestTypes  = RequestType::where('active', true)->orderBy('name')->get(['id','name']);
         $countries     = Country::orderBy('name')->get(['id','name']);
+        $subStatuses   = SubStatus::where('active',true)->orderBy('name')->get(['id','name']); // added
+        $this->subStatuses = $subStatuses; // ensure property populated for blade
 
         $this->maldivesCountryId = $this->maldivesCountryId ?: ($countries->firstWhere('name','Maldives')->id ?? null);
         $currentIslands    = ($this->currentCountryId && $this->currentCountryId === $this->maldivesCountryId)
@@ -848,6 +863,7 @@ class AgentManagement extends Component
             'currentIslands'    => $currentIslands,
             'currentProperties' => $currentProperties,
             'maldivesCountryId' => $this->maldivesCountryId,
+            'subStatuses'      => $this->subStatuses, // use property
         ])->layout('layouts.master');
     }
 
@@ -1097,5 +1113,19 @@ public function userClosedTask(string $taskId): void
         if ($this->taskStatusEdit === 'follow_up') {
             $this->updateTaskStatus();
         }
+    }
+
+    public function updateSubStatus(): void
+    {
+        if(!$this->selectedTaskId) return;
+        $this->validate([
+            'subStatusId' => 'nullable|uuid|exists:sub_statuses,id',
+        ]);
+        $task = Task::find($this->selectedTaskId);
+        if(!$task) return;
+        $task->sub_status_id = $this->subStatusId ?: null;
+        $task->save();
+        $this->broadcastTaskChange($task,'status_updated',[ 'sub_status_id' => $task->sub_status_id ]);
+        $this->dispatch('swal', icon:'success', title:'Updated', text:'Sub status updated.');
     }
 }

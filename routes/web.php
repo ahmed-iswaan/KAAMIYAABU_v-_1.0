@@ -14,8 +14,11 @@ use App\Livewire\Agent\AgentManagement;
 use App\Livewire\Forms\FormsList;
 use App\Livewire\Forms\FormBuilder;
 use App\Livewire\Tasks\TaskAssignment;
+use App\Livewire\Tasks\TaskList; // added
+use App\Livewire\Tasks\TaskEdit; // added
 use App\Http\Controllers\Auth\LoginController;
 use App\Livewire\System\RequestTypesManagement; // added
+use App\Livewire\System\SubStatusManagement; // added
 
 
 
@@ -42,6 +45,8 @@ Route::get('/elections/voters', VoterManagement::class)->name('elections.voters'
 Route::get('/elections/requests', RequestsManagement::class)->name('elections.requests');
 Route::get('/agents', AgentManagement::class)->name('agents');
 Route::get('/tasks/assign', TaskAssignment::class)->name('tasks.assign');
+Route::get('/tasks', TaskList::class)->name('tasks.index'); // added
+Route::get('/tasks/{task}/edit', TaskEdit::class)->name('tasks.edit')->whereUuid('task'); // added
 
 // Forms
 Route::get('/forms', FormsList::class)->name('forms.index');
@@ -50,5 +55,6 @@ Route::get('/forms/{form}/edit', FormBuilder::class)->name('forms.edit');
 
 // Replace controller-based request types with Livewire component
 Route::get('/system/request-types', RequestTypesManagement::class)->name('request-types.index');
+Route::get('/system/sub-statuses', SubStatusManagement::class)->name('sub-statuses.index'); // added
 
 });

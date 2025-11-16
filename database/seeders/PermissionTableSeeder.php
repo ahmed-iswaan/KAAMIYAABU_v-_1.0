@@ -39,10 +39,25 @@ class PermissionTableSeeder extends Seeder
         //    'dashboard-render',
         //    'requests-voters-render',
         //    'dashboard-task-performance',
-           'request-types-render',
-           'request-types-create',
-           'request-types-edit',
-           'request-types-toggle',
+        //    'request-types-render',
+        //    'request-types-create',
+        //    'request-types-edit',
+        //    'request-types-toggle',
+           'sub-status-render',
+           'sub-status-create',
+           'sub-status-edit',
+           'sub-status-toggle',
+           'task-list-render',
+           'task-edit-render',
+           'task-edit-update',
+           // Bulk task assignment permissions
+           'task-bulk-assign',
+           'task-bulk-assign-selected',
+           'task-bulk-assign-filtered',
+           // Remove assignment permissions
+           'task-bulk-unassign',
+           'task-bulk-unassign-selected',
+           'task-bulk-unassign-filtered',
         ];
         
         foreach ($permissions as $permission) {
