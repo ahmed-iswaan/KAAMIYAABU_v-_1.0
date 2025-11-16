@@ -90,6 +90,7 @@ class DashboardOverview extends Component
         }
 
         // Ranked performance table
+        $today = now()->toDateString();
         $userRows = DB::table('users')
             ->join('task_user','users.id','=','task_user.user_id')
             ->join('tasks','task_user.task_id','=','tasks.id')
@@ -97,7 +98,8 @@ class DashboardOverview extends Component
                 DB::raw('COUNT(tasks.id) as total'),
                 DB::raw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending"),
                 DB::raw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up"),
-                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed")
+                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_today")
             )
             ->groupBy('users.id','users.name')
             ->orderByRaw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) DESC")
@@ -114,6 +116,7 @@ class DashboardOverview extends Component
                 'pending' => (int)$r->pending,
                 'follow_up' => (int)$r->follow_up,
                 'completed' => (int)$r->completed,
+                'completed_today' => (int)$r->completed_today,
                 'completed_pct' => $pct,
             ];
         })->toArray();
@@ -143,6 +146,7 @@ class DashboardOverview extends Component
         }
 
         // Ranked performance recompute
+        $today = now()->toDateString();
         $rankedRows = DB::table('users')
             ->join('task_user','users.id','=','task_user.user_id')
             ->join('tasks','task_user.task_id','=','tasks.id')
@@ -150,7 +154,8 @@ class DashboardOverview extends Component
                 DB::raw('COUNT(tasks.id) as total'),
                 DB::raw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending"),
                 DB::raw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up"),
-                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed")
+                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_today")
             )
             ->groupBy('users.id','users.name')
             ->orderByRaw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) DESC")
@@ -167,6 +172,7 @@ class DashboardOverview extends Component
                 'pending' => (int)$r->pending,
                 'follow_up' => (int)$r->follow_up,
                 'completed' => (int)$r->completed,
+                'completed_today' => (int)$r->completed_today,
                 'completed_pct' => $pct,
             ];
         })->toArray();

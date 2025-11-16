@@ -137,7 +137,7 @@
                             </div>
                             <div>
                                 <h4 class="fw-bold mb-0">Users Task Performance</h4>
-                                <div class="text-muted fs-8">Ranked by total completed tasks</div>
+                                <div class="text-muted fs-8">Ranked by total completed tasks • Daily completions shown</div>
                             </div>
                         </div>
                         <span class="badge badge-light-success fs-8 fw-semibold px-4 py-2">{{ count($userTaskStats) }} Users</span>
@@ -153,6 +153,7 @@
                                         <th class="text-center">Pending</th>
                                         <th class="text-center">Follow Up</th>
                                         <th class="text-center">Completed</th>
+                                        <th class="text-center">Daily</th>
                                         <th class="text-end pe-3" style="min-width:160px;">Completion</th>
                                     </tr>
                                 </thead>
@@ -172,6 +173,7 @@
                                             <td class="text-center"><span class="badge badge-light-warning fw-semibold">{{ $row['pending'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-info fw-semibold">{{ $row['follow_up'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-success fw-semibold">{{ $row['completed'] }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-primary fw-semibold" title="Tasks completed today">{{ $row['completed_today'] }}</span></td>
                                             <td class="text-end pe-3">
                                                 <div class="d-flex align-items-center justify-content-end gap-3">
                                                     <div class="progress w-100" style="max-width:120px;height:6px;">
@@ -182,7 +184,7 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="7" class="text-muted fst-italic py-10 text-center">No task assignments found.</td></tr>
+                                        <tr><td colspan="8" class="text-muted fst-italic py-10 text-center">No task assignments found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
