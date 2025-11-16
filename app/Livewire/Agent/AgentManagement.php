@@ -1123,9 +1123,14 @@ public function userClosedTask(string $taskId): void
         ]);
         $task = Task::find($this->selectedTaskId);
         if(!$task) return;
+        $old = $task->sub_status_id;
         $task->sub_status_id = $this->subStatusId ?: null;
         $task->save();
         $this->broadcastTaskChange($task,'status_updated',[ 'sub_status_id' => $task->sub_status_id ]);
+        $this->logTaskEvent('task.sub_status_changed', $task, [
+            'old_sub_status_id' => $old,
+            'new_sub_status_id' => $task->sub_status_id,
+        ], 'tasks', $task->id, 'Sub status updated');
         $this->dispatch('swal', icon:'success', title:'Updated', text:'Sub status updated.');
     }
 }
