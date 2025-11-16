@@ -71,7 +71,7 @@ class DashboardOverview extends Component
     }
     protected function computeTaskStats(): void
     {
-        // Logged in user summary
+        // Logged in user summary (assigned to current user)
         $taskRows = DB::table('tasks')
             ->join('task_user','tasks.id','=','task_user.task_id')
             ->where('task_user.user_id', auth()->id())
@@ -81,16 +81,16 @@ class DashboardOverview extends Component
             ->selectRaw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed")
             ->first();
         if($taskRows){
-            $this->taskTotal = $taskRows->total;
-            $this->taskPending = $taskRows->pending;
-            $this->taskFollowUp = $taskRows->follow_up;
-            $this->taskCompleted = $taskRows->completed;
+            $this->taskTotal = (int)$taskRows->total;
+            $this->taskPending = (int)$taskRows->pending;
+            $this->taskFollowUp = (int)$taskRows->follow_up;
+            $this->taskCompleted = (int)$taskRows->completed;
         } else {
             $this->taskTotal = $this->taskPending = $this->taskFollowUp = $this->taskCompleted = 0;
         }
 
-        // Ranked performance table
         $today = now()->toDateString();
+        // Ranked performance (assigned stats + separate completed_by aggregates)
         $userRows = DB::table('users')
             ->join('task_user','users.id','=','task_user.user_id')
             ->join('tasks','task_user.task_id','=','tasks.id')
@@ -99,10 +99,14 @@ class DashboardOverview extends Component
                 DB::raw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending"),
                 DB::raw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed"),
+                // Personal completion counts
+                DB::raw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id) as completed_by_user"),
+                DB::raw("(SELECT COUNT(*) FROM tasks t3 WHERE t3.completed_by = users.id AND DATE(t3.completed_at) = '{$today}') as completed_by_user_today"),
+                // Daily assigned completions (status changed today while assigned)
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_today")
             )
             ->groupBy('users.id','users.name')
-            ->orderByRaw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) DESC")
+            ->orderByRaw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id) DESC")
             ->orderBy('users.name')
             ->get();
         $rank = 1;
@@ -117,10 +121,13 @@ class DashboardOverview extends Component
                 'follow_up' => (int)$r->follow_up,
                 'completed' => (int)$r->completed,
                 'completed_today' => (int)$r->completed_today,
+                'completed_by_user' => (int)$r->completed_by_user,
+                'completed_by_user_today' => (int)$r->completed_by_user_today,
                 'completed_pct' => $pct,
             ];
         })->toArray();
     }
+
     public function refreshStats(): void
     {
         $this->computeTaskStats();
@@ -145,7 +152,6 @@ class DashboardOverview extends Component
             $this->taskTotal = $this->taskPending = $this->taskFollowUp = $this->taskCompleted = 0;
         }
 
-        // Ranked performance recompute
         $today = now()->toDateString();
         $rankedRows = DB::table('users')
             ->join('task_user','users.id','=','task_user.user_id')
@@ -155,10 +161,12 @@ class DashboardOverview extends Component
                 DB::raw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending"),
                 DB::raw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed"),
+                DB::raw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id) as completed_by_user"),
+                DB::raw("(SELECT COUNT(*) FROM tasks t3 WHERE t3.completed_by = users.id AND DATE(t3.completed_at) = '{$today}') as completed_by_user_today"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_today")
             )
             ->groupBy('users.id','users.name')
-            ->orderByRaw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) DESC")
+            ->orderByRaw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id) DESC")
             ->orderBy('users.name')
             ->get();
         $rank = 1;
@@ -173,6 +181,8 @@ class DashboardOverview extends Component
                 'follow_up' => (int)$r->follow_up,
                 'completed' => (int)$r->completed,
                 'completed_today' => (int)$r->completed_today,
+                'completed_by_user' => (int)$r->completed_by_user,
+                'completed_by_user_today' => (int)$r->completed_by_user_today,
                 'completed_pct' => $pct,
             ];
         })->toArray();
