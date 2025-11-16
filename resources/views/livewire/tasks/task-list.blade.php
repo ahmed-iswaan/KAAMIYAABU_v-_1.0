@@ -234,9 +234,16 @@
                                         <td>{{ $task->directory?->subConsite?->code }}</td>
                                         <td>{{ $task->subStatus?->name }}</td>
                                         <td>
-                                            @foreach($task->assignees as $u)
-                                                <span class="badge badge-light-secondary">{{ Str::limit($u->name,12) }}</span>
-                                            @endforeach
+                                            <div class="d-flex flex-wrap gap-2">
+                                                @foreach($task->assignees as $u)
+                                                    <div class="d-inline-flex align-items-center bg-light rounded px-2 py-1 gap-2" style="line-height:1;">
+                                                        <div class="symbol symbol-25px">
+                                                            <img src="{{ $u->profile_picture ? asset('storage/'.$u->profile_picture) : asset('assets/media/avatars/blank.png') }}" alt="{{ $u->name }}" class="rounded-circle" style="width:25px;height:25px;object-fit:cover;">
+                                                        </div>
+                                                        <span class="fw-semibold text-gray-700" style="font-size: .75rem;">{{ Str::limit($u->name,18) }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </td>
                                         <td>
                                             @if($task->due_at)
