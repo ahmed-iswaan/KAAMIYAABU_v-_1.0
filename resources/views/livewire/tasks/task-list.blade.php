@@ -177,7 +177,8 @@
                                 </div>
                             </div>
                             <a href="{{ route('tasks.assign') }}" class="btn btn-sm btn-light-success">Create</a>
-                            <select class="form-select form-select-sm form-select-solid w-auto" wire:model="perPage">
+                            <select class="form-select form-select-sm form-select-solid w-auto" wire:model.live="perPage">
+                                <option value="5">5</option>
                                 <option value="10">10</option>
                                 <option value="25">25</option>
                                 <option value="50">50</option>

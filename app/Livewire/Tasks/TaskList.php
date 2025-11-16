@@ -21,7 +21,8 @@ class TaskList extends Component
     public $filterSubConsiteId='';
     public $filterAssigneeId='';
     public $filterSubStatusId='';
-    public $perPage=25;
+    public $perPage = 25; // ensure default
+    protected array $perPageOptions = [5,10,25,50,100];
 
     // draft copies for dropdown filtering (apply on click)
     public $searchDraft='';
@@ -62,8 +63,16 @@ class TaskList extends Component
         $this->filterSubStatusIdDraft = $this->filterSubStatusId;
     }
 
-    // remove live updating hooks except perPage (filters apply manually)
-    public function updatingPerPage(){ $this->resetPage(); }
+    // Remove old updatingPerPage, replace with updatedPerPage with validation & casting
+    public function updatedPerPage($value): void
+    {
+        $value = (int)$value;
+        if(! in_array($value, $this->perPageOptions, true)) {
+            $value = 25; // fallback
+        }
+        $this->perPage = $value; // casted
+        $this->resetPage();
+    }
 
     public function applyFilters(): void
     {
@@ -164,7 +173,7 @@ class TaskList extends Component
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
             ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
             ->latest()
-            ->paginate($this->perPage);
+            ->paginate((int)$this->perPage); // cast to int explicitly
         // Track current page task IDs for selection toggling
         $this->currentPageTaskIds = $tasks->pluck('id')->toArray();
 
