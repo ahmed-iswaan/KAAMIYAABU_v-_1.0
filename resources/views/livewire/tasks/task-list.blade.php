@@ -207,6 +207,7 @@
                                     <th>SubConsite</th>
                                     <th>Sub Status</th>
                                     <th>Assignees</th>
+                                    <th>Created</th>
                                     <th>Due</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
@@ -247,6 +248,9 @@
                                             </div>
                                         </td>
                                         <td>
+                                            <span class="text-muted" title="{{ $task->created_at }}">{{ $task->created_at->diffForHumans() }}</span>
+                                        </td>
+                                        <td>
                                             @if($task->due_at)
                                                 <span class="@if($task->isOverdue()) text-danger fw-bold @else text-muted @endif" title="{{ $task->due_at }}">{{ $task->due_at->diffForHumans() }}</span>
                                             @endif
@@ -256,7 +260,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="13" class="text-center text-muted py-10">No tasks found.</td></tr>
+                                    <tr><td colspan="14" class="text-center text-muted py-10">No tasks found.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
