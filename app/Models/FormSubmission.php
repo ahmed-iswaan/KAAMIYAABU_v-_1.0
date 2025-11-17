@@ -36,4 +36,5 @@ class FormSubmission extends Model
     public function submitter(){ return $this->belongsTo(User::class,'submitted_by'); }
     public function agent(){ return $this->belongsTo(User::class,'assigned_agent_id'); }
     public function task(){ return $this->belongsTo(Task::class,'task_id'); }
+    public function directory(){ return $this->belongsTo(Directory::class,'directory_id'); }
 }
