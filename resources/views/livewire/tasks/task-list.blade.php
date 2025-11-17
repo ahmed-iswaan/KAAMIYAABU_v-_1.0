@@ -231,7 +231,7 @@
                                         <td><span class="badge {{ $statusClass }}">{{ ucfirst(str_replace('_',' ',$task->status)) }}</span></td>
                                         <td>{{ ucfirst(str_replace('_',' ',$task->type)) }}</td>
                                         <td><span class="badge {{ $priorityClass }}">{{ ucfirst($task->priority) }}</span></td>
-                                        <td>{{ $task->directory?->name }}</td>
+                                        <td>{{ $task->directory?->name }} @if($task->directory?->id_card_number) <span class="text-muted">({{ $task->directory->id_card_number }})</span>@endif</td>
                                         <td>{{ $task->directory?->party?->short_name }}</td>
                                         <td>{{ $task->directory?->subConsite?->code }}</td>
                                         <td>{{ $task->subStatus?->name }}</td>
