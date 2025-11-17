@@ -111,6 +111,10 @@
                                     <td class="text-muted">{{ $form->updated_at->diffForHumans() }}</td>
                                     <td class="text-end">
                                         <div class="d-flex justify-content-end flex-shrink-0 gap-1">
+                                            <!-- View Responses -->
+                                            <a href="{{ route('forms.responses',$form->id) }}" class="btn btn-sm btn-light-success" title="View Responses">
+                                                <i class="ki-duotone ki-chart fs-2"><span class="path1"></span><span class="path2"></span></i>
+                                            </a>
                                             <!-- Edit -->
                                             <a href="{{ route('forms.edit',$form->id) }}" class="btn btn-sm btn-light-primary" title="Edit">
                                                 <i class="ki-duotone ki-pencil fs-2"><span class="path1"></span><span class="path2"></span></i>

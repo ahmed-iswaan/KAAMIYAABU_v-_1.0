@@ -13,6 +13,7 @@ use App\Livewire\Election\RequestsManagement;
 use App\Livewire\Agent\AgentManagement;
 use App\Livewire\Forms\FormsList;
 use App\Livewire\Forms\FormBuilder;
+use App\Livewire\Forms\FormResponses; // added
 use App\Livewire\Tasks\TaskAssignment;
 use App\Livewire\Tasks\TaskList; // added
 use App\Livewire\Tasks\TaskEdit; // added
@@ -52,6 +53,7 @@ Route::get('/tasks/{task}/edit', TaskEdit::class)->name('tasks.edit')->whereUuid
 Route::get('/forms', FormsList::class)->name('forms.index');
 Route::get('/forms/create', FormBuilder::class)->name('forms.create');
 Route::get('/forms/{form}/edit', FormBuilder::class)->name('forms.edit');
+Route::get('/forms/{form}/responses', FormResponses::class)->name('forms.responses');
 
 // Replace controller-based request types with Livewire component
 Route::get('/system/request-types', RequestTypesManagement::class)->name('request-types.index');
