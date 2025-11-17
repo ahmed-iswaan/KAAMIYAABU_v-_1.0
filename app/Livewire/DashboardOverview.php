@@ -99,18 +99,20 @@ class DashboardOverview extends Component
                 DB::raw('COUNT(tasks.id) as total'),
                 DB::raw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending"),
                 DB::raw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up"),
-                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed"),
-                DB::raw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id AND t2.deleted = 0) as completed_by_user"),
-                DB::raw("(SELECT COUNT(*) FROM tasks t3 WHERE t3.completed_by = users.id AND t3.deleted = 0 AND DATE(t3.completed_at) = '{$today}') as completed_by_user_today"),
-                DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_today")
+                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed_assigned"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) as completed_by_user"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_by_user_today"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_assigned_today"),
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id THEN 1 ELSE 0 END) as follow_up_by_user"),
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id AND DATE(tasks.follow_up_date) = '{$today}' THEN 1 ELSE 0 END) as follow_up_by_user_today")
             )
             ->groupBy('users.id','users.name')
-            ->orderByRaw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id AND t2.deleted = 0) DESC")
+            ->orderByRaw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) DESC")
             ->orderBy('users.name')
             ->get();
         $rank = 1;
         $this->userTaskStats = $userRows->map(function($r) use (&$rank){
-            $pct = $r->total ? round(($r->completed / $r->total)*100) : 0;
+            $pct = $r->total ? round(($r->completed_assigned / $r->total)*100) : 0;
             return [
                 'rank' => $rank++,
                 'user_id' => $r->id,
@@ -118,10 +120,12 @@ class DashboardOverview extends Component
                 'total' => (int)$r->total,
                 'pending' => (int)$r->pending,
                 'follow_up' => (int)$r->follow_up,
-                'completed' => (int)$r->completed,
-                'completed_today' => (int)$r->completed_today,
-                'completed_by_user' => (int)$r->completed_by_user,
+                'completed' => (int)$r->completed_assigned, // assigned completed
+                'completed_today' => (int)$r->completed_assigned_today, // assigned completed today
+                'completed_by_user' => (int)$r->completed_by_user, // user performed
                 'completed_by_user_today' => (int)$r->completed_by_user_today,
+                'follow_up_by_user' => (int)$r->follow_up_by_user,
+                'follow_up_by_user_today' => (int)$r->follow_up_by_user_today,
                 'completed_pct' => $pct,
             ];
         })->toArray();
@@ -160,18 +164,20 @@ class DashboardOverview extends Component
                 DB::raw('COUNT(tasks.id) as total'),
                 DB::raw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending"),
                 DB::raw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up"),
-                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed"),
-                DB::raw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id AND t2.deleted = 0) as completed_by_user"),
-                DB::raw("(SELECT COUNT(*) FROM tasks t3 WHERE t3.completed_by = users.id AND t3.deleted = 0 AND DATE(t3.completed_at) = '{$today}') as completed_by_user_today"),
-                DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_today")
+                DB::raw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed_assigned"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) as completed_by_user"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_by_user_today"),
+                DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_assigned_today"),
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id THEN 1 ELSE 0 END) as follow_up_by_user"),
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id AND DATE(tasks.follow_up_date) = '{$today}' THEN 1 ELSE 0 END) as follow_up_by_user_today")
             )
             ->groupBy('users.id','users.name')
-            ->orderByRaw("(SELECT COUNT(*) FROM tasks t2 WHERE t2.completed_by = users.id AND t2.deleted = 0) DESC")
+            ->orderByRaw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) DESC")
             ->orderBy('users.name')
             ->get();
         $rank = 1;
         $this->userTaskStats = $rankedRows->map(function($r) use (&$rank){
-            $pct = $r->total ? round(($r->completed / $r->total)*100) : 0;
+            $pct = $r->total ? round(($r->completed_assigned / $r->total)*100) : 0;
             return [
                 'rank' => $rank++,
                 'user_id' => $r->id,
@@ -179,10 +185,12 @@ class DashboardOverview extends Component
                 'total' => (int)$r->total,
                 'pending' => (int)$r->pending,
                 'follow_up' => (int)$r->follow_up,
-                'completed' => (int)$r->completed,
-                'completed_today' => (int)$r->completed_today,
+                'completed' => (int)$r->completed_assigned,
+                'completed_today' => (int)$r->completed_assigned_today,
                 'completed_by_user' => (int)$r->completed_by_user,
                 'completed_by_user_today' => (int)$r->completed_by_user_today,
+                'follow_up_by_user' => (int)$r->follow_up_by_user,
+                'follow_up_by_user_today' => (int)$r->follow_up_by_user_today,
                 'completed_pct' => $pct,
             ];
         })->toArray();
