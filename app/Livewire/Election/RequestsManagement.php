@@ -114,6 +114,8 @@ class RequestsManagement extends Component
             'voter.currentCountry:id,name',
             'voter.property:id,name',
             'voter.currentProperty:id,name',
+            // Added voter notes with author for display
+            'voter.voterNotes.author:id,name',
             'responses.responder:id,name'
         ])->find($this->activeRequestId);
     }

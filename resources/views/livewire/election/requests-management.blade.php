@@ -272,6 +272,35 @@
                                             </button>
                                         </div>
                                     </div>
+                                    <!-- Directory Notes -->
+                                    <div class="mb-10">
+                                        <div class="d-flex justify-content-between align-items-center mb-4">
+                                            <h5 class="fw-bold mb-0">Directory Notes</h5>
+                                            <span class="badge badge-light-secondary">{{ $activeRequest->voter->voterNotes->count() }}</span>
+                                        </div>
+                                        @if($activeRequest->voter->voterNotes->count())
+                                            <div class="vstack gap-4">
+                                                @foreach($activeRequest->voter->voterNotes->sortByDesc('created_at') as $vn)
+                                                    <div class="border rounded p-4 bg-light">
+                                                        <div class="d-flex align-items-start gap-3">
+                                                            <div class="symbol symbol-35px symbol-circle bg-white shadow-sm flex-shrink-0">
+                                                                <span class="symbol-label text-primary fw-bold small">{{ strtoupper(mb_substr($vn->author->name ?? 'U',0,1)) }}</span>
+                                                            </div>
+                                                            <div class="flex-grow-1">
+                                                                <div class="d-flex flex-wrap align-items-center mb-1 gap-2">
+                                                                    <span class="fw-semibold text-gray-800">{{ $vn->author->name ?? '—' }}</span>
+                                                                    <span class="text-muted fs-8 ms-auto" title="{{ $vn->created_at }}">{{ $vn->created_at?->diffForHumans() }}</span>
+                                                                </div>
+                                                                <div class="text-gray-700 fs-7">{{ $vn->note }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <div class="text-muted small">No notes for this directory.</div>
+                                        @endif
+                                    </div>
                                     <!-- Responses List (restyled) -->
                                     <div class="mb-5" id="responses_section">
                                         <div class="d-flex justify-content-between align-items-center mb-4">
