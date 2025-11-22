@@ -39,6 +39,8 @@
     .option-row{padding:.55rem .75rem .7rem; border-radius:10px; border:1px solid #f1f3f6; background:#ffffff;}
     .option-row:not(:last-child){margin-bottom:.75rem;}
     .option-row:hover{border-color:#d9dde3; box-shadow:0 2px 8px -4px rgba(0,0,0,.06);}    
+    .address-cell{max-width:180px;}
+    .respondent-table td.address-col{max-width:180px;}
 </style>
 @endpush
 @push('scripts')
@@ -139,6 +141,9 @@
                                                                 <tr class="text-gray-600">
                                                                     <th class="border-0 ps-2">Directory</th>
                                                                     <th class="border-0">ID Card</th>
+                                                                    <th class="border-0">Phones</th>
+                                                                    <th class="border-0">Current Addr</th>
+                                                                    <th class="border-0">Permanent Addr</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -146,6 +151,17 @@
                                                                     <tr class="border-dashed border-bottom">
                                                                         <td class="ps-2 {{ $form->language==='dv' ? 'dv-text text-end' : '' }}" {{ $form->language==='dv' ? 'lang=dv' : '' }}>{{ $r['directory_name'] }}</td>
                                                                         <td><span class="respondent-id-pill">{{ $r['id_card_number'] }}</span></td>
+                                                                        <td>
+                                                                            @if(!empty($r['phones']))
+                                                                                @foreach(array_slice($r['phones'],0,2) as $ph)
+                                                                                    <span class="badge badge-light-dark fw-semibold me-1 mb-1">{{ $ph }}</span>
+                                                                                @endforeach
+                                                                            @else
+                                                                                —
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-muted address-col" style="font-size:10px;">{{ $r['current_address'] ?? '—' }}</td>
+                                                                        <td class="text-muted address-col" style="font-size:10px;">{{ $r['permanent_address'] ?? '—' }}</td>
                                                                     </tr>
                                                                 @endforeach
                                                             </tbody>
@@ -179,6 +195,9 @@
                                         <tr class="text-gray-600 fw-semibold">
                                             <th class="min-w-150px">Directory</th>
                                             <th class="min-w-90px">ID Card</th>
+                                            <th class="min-w-120px">Phones</th>
+                                            <th class="min-w-160px">Current Address</th>
+                                            <th class="min-w-160px">Permanent Address</th>
                                             <th class="min-w-120px">Submitted</th>
                                         </tr>
                                     </thead>
@@ -187,10 +206,21 @@
                                             <tr>
                                                 <td data-label="Directory" class="{{ $form->language==='dv' ? 'text-end dv-text' : '' }}" {{ $form->language==='dv' ? 'lang=dv' : '' }}>{{ $s['directory_name'] ?? '—' }}</td>
                                                 <td data-label="ID Card" class="text-muted">{{ $s['id_card_number'] ?? '—' }}</td>
+                                                <td data-label="Phones" class="text-muted">
+                                                    @if(!empty($s['phones']))
+                                                        @foreach(array_slice($s['phones'],0,3) as $ph)
+                                                            <span class="badge badge-light-dark fw-semibold me-1 mb-1">{{ $ph }}</span>
+                                                        @endforeach
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
+                                                <td data-label="Current" class="text-muted address-cell">{{ $s['current_address'] ?? '—' }}</td>
+                                                <td data-label="Permanent" class="text-muted address-cell">{{ $s['permanent_address'] ?? '—' }}</td>
                                                 <td data-label="Submitted" class="text-muted" title="{{ $s['submitted_at'] }}">{{ $s['submitted_at']->diffForHumans() }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="3" class="text-center text-muted py-10">No submissions yet.</td></tr>
+                                            <tr><td colspan="6" class="text-center text-muted py-10">No submissions yet.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>

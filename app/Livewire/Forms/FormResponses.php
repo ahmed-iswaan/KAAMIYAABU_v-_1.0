@@ -46,11 +46,20 @@ class FormResponses extends Component
                 }
                 $count = $matching->count();
                 $respondents = $matching->map(function($ans){
+                    $dir = $ans->submission->directory;
+                    $phonesArr = [];
+                    if($dir){
+                        $raw = is_array($dir->phones) ? $dir->phones : ($dir->phones ? json_decode($dir->phones,true) : []);
+                        if(is_array($raw)) { $phonesArr = $raw; }
+                    }
                     return [
                         'submission_id' => $ans->submission->id ?? null,
                         'directory_id' => $ans->submission->directory_id,
-                        'directory_name' => $ans->submission->directory?->name ?? '—',
-                        'id_card_number' => $ans->submission->directory?->id_card_number ?? '—',
+                        'directory_name' => $dir?->name ?? '—',
+                        'id_card_number' => $dir?->id_card_number ?? '—',
+                        'phones' => $phonesArr,
+                        'current_address' => $dir?->currentLocationString(),
+                        'permanent_address' => $dir?->permanentLocationString(),
                     ];
                 })
                 ->unique(fn($r) => $r['submission_id'] ?: ($r['directory_id'].'-'.$r['id_card_number']))
@@ -81,11 +90,20 @@ class FormResponses extends Component
             ->get();
         $this->totalSubmissions = $subs->count();
         $this->submissions = $subs->map(function($s){
+            $dir = $s->directory;
+            $phonesArr = [];
+            if($dir){
+                $raw = is_array($dir->phones) ? $dir->phones : ($dir->phones ? json_decode($dir->phones,true) : []);
+                if(is_array($raw)) { $phonesArr = $raw; }
+            }
             return [
                 'id' => $s->id,
                 'submitted_at' => $s->created_at,
-                'directory_name' => $s->directory?->name,
-                'id_card_number' => $s->directory?->id_card_number,
+                'directory_name' => $dir?->name,
+                'id_card_number' => $dir?->id_card_number,
+                'phones' => $phonesArr,
+                'current_address' => $dir?->currentLocationString(),
+                'permanent_address' => $dir?->permanentLocationString(),
             ];
         })->toArray();
     }
