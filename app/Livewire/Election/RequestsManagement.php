@@ -108,7 +108,12 @@ class RequestsManagement extends Component
         $this->activeRequest = VoterRequest::with([
             'type:id,name',
             'author:id,name',
-            'voter:id,name,id_card_number,profile_picture,phones,email',
+            // Expanded voter fields & relationships for address/phones display
+            'voter:id,name,id_card_number,profile_picture,phones,email,address,street_address,current_address,current_street_address,country_id,current_country_id,properties_id,current_properties_id',
+            'voter.country:id,name',
+            'voter.currentCountry:id,name',
+            'voter.property:id,name',
+            'voter.currentProperty:id,name',
             'responses.responder:id,name'
         ])->find($this->activeRequestId);
     }

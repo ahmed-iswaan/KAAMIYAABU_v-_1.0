@@ -37,10 +37,20 @@
     .respondent-table tbody td{padding:.35rem .5rem !important; font-size:11px;}
     .respondent-id-pill{background:#eef3f9; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:600;}
     .option-row{padding:.55rem .75rem .7rem; border-radius:10px; border:1px solid #f1f3f6; background:#ffffff;}
-    .option-row:not(:last-child){margin-bottom:.75rem;}
+    .option-row:not(:last-child){margin-bottom:.55rem;}
     .option-row:hover{border-color:#d9dde3; box-shadow:0 2px 8px -4px rgba(0,0,0,.06);}    
     .address-cell{max-width:180px;}
     .respondent-table td.address-col{max-width:180px;}
+    /* New compact export button styling */
+    .btn-export{padding:4px 10px;font-size:10px;line-height:1.2;border-radius:24px;border:1px solid #dbe1e8;background:#ffffff;color:#2f7d4d;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;box-shadow:0 1px 2px rgba(0,0,0,.04);transition:.25s;}
+    .btn-export:hover{background:#f5f8fa;border-color:#cbd3db;color:#25613a;}
+    .btn-export:active{background:#eef3f7;}
+    .btn-export svg{width:12px;height:12px;stroke:currentColor;}
+    /* Density & hover improvements */
+    .option-row:not(:last-child){margin-bottom:.55rem;}
+    .progress.h-8px{margin-bottom:.35rem !important;}
+    .respondent-table tbody tr:hover{background:#f8fafc;}
+    .dv-text{padding-right:4px;}
 </style>
 @endpush
 @push('scripts')
@@ -102,6 +112,11 @@
                                 <span class="text-muted fs-8">Insight per option (only option-type questions)</span>
                             </div>
                             <span class="badge badge-soft fw-semibold px-4 py-2">{{ $totalSubmissions }} Submissions</span>
+                            <!-- Replaced big export button with compact pill -->
+                            <a href="{{ route('forms.responses.export.options',$form->id) }}" class="btn-export" title="Download all option respondents as CSV" aria-label="Export all option respondents CSV">
+                                <svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4 17h16v4H4z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                <span>CSV</span>
+                            </a>
                         </div>
                         <div class="card-body pt-5 flex-grow-1">
                             @php $colorClasses=['bg-primary','bg-success','bg-info','bg-warning','bg-danger','bg-dark']; @endphp
@@ -123,11 +138,18 @@
                                                     <div class="d-flex align-items-center gap-2">
                                                         <span class="fw-bold text-gray-800">{{ $opt['count'] }} <span class="text-muted fs-8">({{ $pct }}%)</span></span>
                                                         @if($opt['count']>0 && !empty($opt['respondents']))
-                                                            <button type="button" class="respondent-toggle-btn toggle-respondents" data-target="{{ $listId }}" aria-expanded="false">
-                                                                <span class="arrow">▶</span>
-                                                                <span class="toggle-text">Show</span>
-                                                                <span class="badge badge-light border fw-semibold" style="font-size:9px;">{{ count($opt['respondents']) }}</span>
-                                                            </button>
+                                                            <div class="mt-1 d-flex gap-2 flex-wrap">
+                                                                <button type="button" class="respondent-toggle-btn toggle-respondents" data-target="{{ $listId }}" aria-controls="{{ $listId }}" aria-expanded="false" title="Show respondents for this option">
+                                                                    <span class="arrow">▶</span>
+                                                                    <span class="toggle-text">Show</span>
+                                                                    <span class="badge badge-light border fw-semibold" style="font-size:9px;" title="{{ count($opt['respondents']) }} respondents">{{ count($opt['respondents']) }}</span>
+                                                                </button>
+                                                                <!-- Compact per-option export button -->
+                                                                <a href="{{ route('forms.responses.export.single',[$form->id,$qs['question_id'],$opt['value']]) }}" class="btn-export" title="Download respondents CSV for this option" aria-label="Export respondents CSV (option)">
+                                                                    <svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4 17h16v4H4z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                                                    <span>CSV</span>
+                                                                </a>
+                                                            </div>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -135,7 +157,7 @@
                                                     <div class="progress-bar {{ $barClass }} glow" style="width: {{ $pct }}%"></div>
                                                 </div>
                                                 @if(!empty($opt['respondents']))
-                                                    <div class="respondent-list" id="{{ $listId }}" style="display:none;">
+                                                    <div class="respondent-list" id="{{ $listId }}" style="display:none;" role="region" aria-label="Respondent list for option {{ $opt['label'] }}">
                                                         <table class="table respondent-table table-sm craft-table mb-0">
                                                             <thead>
                                                                 <tr class="text-gray-600">

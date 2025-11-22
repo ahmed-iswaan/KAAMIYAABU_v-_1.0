@@ -191,9 +191,35 @@
                                                     <span class="badge badge-light-{{ $statusColor }} text-capitalize">{{ str_replace('_',' ',$activeRequest->status) }}</span>
                                                     <span class="badge badge-light-primary">{{ $activeRequest->type->name ?? '—' }}</span>
                                                 </div>
-                                                <div class="d-flex flex-wrap gap-6 small text-gray-600">
-                                                    <span>Amount: <strong class="text-gray-800">{{ $activeRequest->amount !== null ? number_format($activeRequest->amount,2) : '—' }}</strong></span>
-                                                    <span>Created: <strong class="text-gray-800">{{ $activeRequest->created_at?->format('Y-m-d H:i') }}</strong></span>
+                                                <div class="d-flex flex-column gap-2 small text-gray-700">
+                                                    <div class="d-flex flex-wrap gap-6">
+                                                        <span>Amount: <strong class="text-gray-800">{{ $activeRequest->amount !== null ? number_format($activeRequest->amount,2) : '—' }}</strong></span>
+                                                        <span>Created: <strong class="text-gray-800">{{ $activeRequest->created_at?->format('Y-m-d H:i') }}</strong></span>
+                                                        <span>ID Card: <strong class="text-gray-800">{{ $activeRequest->voter->id_card_number ?: '—' }}</strong></span>
+                                                    </div>
+                                                    <!-- Phones -->
+                                                    <div>
+                                                        <span class="fw-semibold me-2">Phones:</span>
+                                                        @php $phones = $activeRequest->voter->phones ?? []; @endphp
+                                                        @if(!empty($phones))
+                                                            @foreach(array_slice($phones,0,4) as $ph)
+                                                                <span class="badge badge-light-dark fw-semibold me-1 mb-1">{{ $ph }}</span>
+                                                            @endforeach
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
+                                                    </div>
+                                                    <!-- Addresses -->
+                                                    <div class="d-flex flex-column gap-1">
+                                                        <div>
+                                                            <span class="fw-semibold me-1">Permanent:</span>
+                                                            <span class="text-gray-800">{{ $activeRequest->voter->permanentLocationString() }}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span class="fw-semibold me-1">Current:</span>
+                                                            <span class="text-gray-800">{{ $activeRequest->voter->currentLocationString() }}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="dropdown">

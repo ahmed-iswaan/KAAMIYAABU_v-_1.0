@@ -54,6 +54,11 @@ Route::get('/forms', FormsList::class)->name('forms.index');
 Route::get('/forms/create', FormBuilder::class)->name('forms.create');
 Route::get('/forms/{form}/edit', FormBuilder::class)->name('forms.edit');
 Route::get('/forms/{form}/responses', FormResponses::class)->name('forms.responses');
+Route::get('/forms/{form}/responses/export-options', [\App\Http\Controllers\FormResponsesExportController::class,'exportOptionRespondents'])->name('forms.responses.export.options');
+Route::get('/forms/{form}/responses/export-option/{question}/{optionValue}', [\App\Http\Controllers\FormResponsesExportController::class,'exportSingleOption'])
+    ->whereUuid('form')
+    ->whereUuid('question')
+    ->name('forms.responses.export.single');
 
 // Replace controller-based request types with Livewire component
 Route::get('/system/request-types', RequestTypesManagement::class)->name('request-types.index');
