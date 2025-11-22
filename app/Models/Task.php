@@ -16,18 +16,18 @@ class Task extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'number', // added
+        'number',
         'title','notes','type','status','sub_status_id','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta',
-        'deleted','deleted_at','deleted_by', // new
+        'deleted','deleted_at','deleted_by',
     ];
 
     protected $casts = [
         'meta' => 'array',
         'due_at' => 'datetime',
-        'follow_up_date' => 'datetime', // added
+        'follow_up_date' => 'datetime',
         'completed_at' => 'datetime',
         'deleted' => 'boolean',
-        'deleted_at' => 'datetime', // cast
+        'deleted_at' => 'datetime',
     ];
 
     protected static function booted()
@@ -62,7 +62,7 @@ class Task extends Model
     /* Helpers */
     public function scopeStatus($q,$status){ if($status) $q->where('status',$status); }
     public function markCompleted(){ $this->update(['status'=>'completed','completed_at'=>now(),'completed_by'=>auth()->id()]); }
-    public function markFollowUp(){ $this->update(['status'=>'follow_up','follow_up_by'=>auth()->id()]); }
+    public function markFollowUp(){ $this->update(['status'=>'follow_up','follow_up_by'=>auth()->id(),'follow_up_date'=>now()]); }
     public function isOverdue(): bool { return $this->status !== 'completed' && $this->due_at && $this->due_at->isPast(); }
     public function priorityBadge(): string {
         return match($this->priority){
