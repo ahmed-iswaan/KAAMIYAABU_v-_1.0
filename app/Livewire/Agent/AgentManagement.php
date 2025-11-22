@@ -850,6 +850,12 @@ class AgentManagement extends Component
             ? Property::where('island_id',$this->currentIslandId)->orderBy('name')->get(['id','name'])
             : collect();
 
+        // Enrich online users (single query) for presence display
+        $onlineUserIds = collect($this->onlineUsers)->pluck('id')->filter()->unique()->values();
+        $onlineUserRecords = $onlineUserIds->count()
+            ? \App\Models\User::whereIn('id',$onlineUserIds)->get(['id','name','profile_picture'])
+            : collect();
+
         return view('livewire.agent.agent-management', [
             'agents'            => $agents,
             'tasks'             => $tasks,
@@ -865,7 +871,9 @@ class AgentManagement extends Component
             'currentIslands'    => $currentIslands,
             'currentProperties' => $currentProperties,
             'maldivesCountryId' => $this->maldivesCountryId,
-            'subStatuses'      => $this->subStatuses, // use property
+            'subStatuses'       => $this->subStatuses,
+            'onlineUsers'       => $this->onlineUsers,
+            'onlineUserRecords' => $onlineUserRecords,
         ])->layout('layouts.master');
     }
 

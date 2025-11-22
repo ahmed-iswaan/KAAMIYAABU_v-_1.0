@@ -299,50 +299,36 @@
                                         @if($avatar)
                                             <img src="{{ asset('storage/' . $avatar) }}" alt="{{ $d->name }}" style="object-fit:cover;" />
                                         @else
-                                            <div class="symbol-label fs-2 fw-semibold bg-light-danger text-danger">{{ $initial }}</div>
+                                            <div class="symbol-label bg-primary text-white fw-bold fs-5">{{ $initial }}</div>
                                         @endif
                                     </div>
-                                    <div>
-                                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                                            <span class="text-gray-800 fs-4 fw-bold">{{ $d->name }}</span>
-                                            <span class="badge badge-light-secondary">#{{ $selectedTask->number }}</span>
-                                            <span class="badge {{ $selectedTask->priorityBadge() }}">{{ ucfirst($selectedTask->priority) }}</span>
-                                            <span class="badge badge-light @switch($selectedTask->status) @case('completed') badge-light-success @break @case('follow_up') badge-light-primary @break @default badge-light-warning @endswitch">{{ ucfirst(str_replace('_',' ',$selectedTask->status)) }}</span>
-                                            @if($selectedTask->due_at)
-                                                <span class="fs-8 @if($selectedTask->isOverdue()) text-danger fw-bold @else text-muted @endif">Due: {{ $selectedTask->due_at->format('M d, H:i') }}</span>
-                                            @endif
-                                        </div>
-                                        <div class="text-gray-500 fw-semibold fs-7">{{ $d->id_card_number }}</div>
-                                        <div class="d-flex flex-wrap gap-3 mt-2 fs-8 text-muted">
-                                            <div>Created: <span class="text-gray-700 fw-semibold" title="{{ $selectedTask->created_at }}">{{ $selectedTask->created_at->diffForHumans() }}</span></div>
-                                            @if($selectedTask->status === 'follow_up' && $selectedTask->follow_up_by)
-                                                <div>Follow Up By: <span class="text-gray-700 fw-semibold">{{ $selectedTask->followUpBy?->name }}</span>
-                                                    @if($selectedTask->follow_up_date)
-                                                        on <span class="text-gray-700 fw-semibold" title="{{ $selectedTask->follow_up_date }}">{{ $selectedTask->follow_up_date->format('M d, H:i') }}</span>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                            @if($selectedTask->status === 'completed' && $selectedTask->completed_by)
-                                                <div>Completed By: <span class="text-gray-700 fw-semibold">{{ $selectedTask->completedBy?->name }}</span>
-                                                    @if($selectedTask->completed_at)
-                                                        on <span class="text-gray-700 fw-semibold" title="{{ $selectedTask->completed_at }}">{{ $selectedTask->completed_at->format('M d, H:i') }}</span>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                            @if($selectedTask->sub_status_id)
-                                                <div>Sub Status: <span class="text-gray-700 fw-semibold">{{ $selectedTask->subStatus?->name }}</span></div>
-                                            @endif
-                                        </div>
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-bold fs-5 text-gray-800">{{ $d->name }}</span>
+                                        <span class="text-muted fs-8">Task: {{ $selectedTask->number }} | Status: {{ ucfirst(str_replace('_',' ',$selectedTask->status)) }}</span>
                                     </div>
                                 </div>
-                                <div class="d-flex flex-wrap gap-2">
-                                    @if ($d->party)
-                                        <span class="badge badge-light-info">{{ $d->party->short_name ?? $d->party->name }}</span>
-                                    @endif
-                                    @if ($d->subConsite)
-                                        <span class="badge badge-light-primary">{{ $d->subConsite->code }}</span>
-                                    @endif
-                                    <span class="badge badge-light-{{ $d->gender === 'male' ? 'success' : 'warning' }}">{{ ucfirst($d->gender) }}</span>
+                                {{-- Presence inline badge --}}
+                                <div class="d-flex flex-column align-items-end">
+                                    @php $onlineCount = count($onlineUsers); @endphp
+                                    <span class="badge badge-light-primary px-3 py-2 fw-semibold">Presence: {{ $onlineCount }}</span>
+                                    <div class="mt-2 d-flex flex-wrap gap-2" style="max-width:260px;">
+                                        @foreach($onlineUserRecords as $u)
+                                            <div class="d-flex align-items-center gap-1 px-2 py-1 border rounded-pill bg-light">
+                                                <div class="symbol symbol-25px">
+                                                    @if($u->profile_picture)
+                                                        <img src="{{ asset('storage/'.$u->profile_picture) }}" alt="{{ $u->name }}" class="rounded-circle" />
+                                                    @else
+                                                        <span class="symbol-label bg-primary text-white fw-semibold fs-8">{{ Str::substr($u->name,0,1) }}</span>
+                                                    @endif
+                                                </div>
+                                                <span class="fs-8 text-gray-700">{{ Str::limit($u->name,14) }}</span>
+                                                <span class="badge badge-success fs-8">●</span>
+                                            </div>
+                                        @endforeach
+                                        @if(!$onlineCount)
+                                            <span class="text-muted fs-8">No other users online</span>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body pt-4">
