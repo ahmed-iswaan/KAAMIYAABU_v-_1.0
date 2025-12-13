@@ -20,7 +20,7 @@ use App\Livewire\Tasks\TaskEdit; // added
 use App\Http\Controllers\Auth\LoginController;
 use App\Livewire\System\RequestTypesManagement; // added
 use App\Livewire\System\SubStatusManagement; // added
-
+use App\Http\Controllers\RequestReportController;
 
 
 Route::get('/', function () {
@@ -44,6 +44,7 @@ Route::get('/properties', PropertyManagement::class)->name('properties');
 //          ->whereUuid('property');
 Route::get('/elections/voters', VoterManagement::class)->name('elections.voters');
 Route::get('/elections/requests', RequestsManagement::class)->name('elections.requests');
+Route::get('/elections/requests/export', [RequestReportController::class, 'exportRequests'])->name('elections.requests.export');
 Route::get('/agents', AgentManagement::class)->name('agents');
 Route::get('/tasks/assign', TaskAssignment::class)->name('tasks.assign');
 Route::get('/tasks', TaskList::class)->name('tasks.index'); // added

@@ -1,5 +1,6 @@
 @section('title','Requests')
 <div>
+<div>
     <div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
         <!-- Toolbar -->
         <div class="toolbar" id="kt_toolbar">
@@ -13,6 +14,12 @@
                         <li class="breadcrumb-item text-muted"><a href="#" class="text-muted text-hover-primary">Election</a></li>
                         <li class="breadcrumb-item text-dark">Requests</li>
                     </ul>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#kt_modal_export_requests">
+                        <i class="ki-duotone ki-exit-up fs-2"><span class="path1"></span><span class="path2"></span></i>
+                        Export CSV
+                    </button>
                 </div>
             </div>
         </div>
@@ -354,6 +361,58 @@
     </div>
 </div>
 
+<!-- Export Modal -->
+<div class="modal fade" id="kt_modal_export_requests" tabindex="-1" aria-hidden="true" wire:ignore.self>
+    <div class="modal-dialog modal-dialog-centered mw-650px">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="fw-bold">Export Requests</h2>
+                <div class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal">
+                    <i class="ki-duotone ki-cross fs-1"><span class="path1"></span><span class="path2"></span></i>
+                </div>
+            </div>
+            <div class="modal-body scroll-y mx-5 mx-xl-15 my-7">
+                <form id="kt_modal_export_requests_form" class="form" action="{{ route('elections.requests.export') }}" method="GET">
+                    <div class="fv-row mb-10">
+                        <label class="form-label fs-6 fw-semibold">Election:</label>
+                        <select name="electionId" class="form-select form-select-solid fw-bold">
+                            <option value="">All Elections</option>
+                            @foreach($elections as $e)
+                                <option value="{{ $e->id }}">{{ $e->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="fv-row mb-10">
+                        <label class="form-label fs-6 fw-semibold">Request Type:</label>
+                        <select name="requestTypeId" class="form-select form-select-solid fw-bold">
+                            <option value="">All Types</option>
+                            @foreach($requestTypes as $t)
+                                <option value="{{ $t->id }}">{{ $t->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="fv-row mb-10">
+                        <label class="form-label fs-6 fw-semibold">Status:</label>
+                        <select name="status" class="form-select form-select-solid fw-bold">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="fulfilled">Fulfilled</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="indicator-label">Export</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+                                            </div>
 @push('styles')
 <style>
 #requestListCard .request-item{transition:background .15s ease, box-shadow .15s ease;}
