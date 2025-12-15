@@ -11,12 +11,12 @@ use App\Models\EventLog;
 class DeactivateNonListedDirectoriesSeeder extends Seeder
 {
     /**
-     * Keep only directories present in updatevoterslist.json as Active,
+     * Keep only directories present in newupdate.json as Active,
      * and set status of all other directories to Inactive.
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/updatevoterslist.json');
+        $file = database_path('seeders/data/newupdate.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
@@ -24,7 +24,7 @@ class DeactivateNonListedDirectoriesSeeder extends Seeder
 
         $rows = json_decode(File::get($file), true);
         if (!is_array($rows)) {
-            $this->command->error('updatevoterslist.json is not a valid JSON array.');
+            $this->command->error('newupdate.json is not a valid JSON array.');
             return;
         }
 

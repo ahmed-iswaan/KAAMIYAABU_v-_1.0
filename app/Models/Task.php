@@ -17,7 +17,7 @@ class Task extends Model
 
     protected $fillable = [
         'number',
-        'title','notes','type','status','sub_status_id','priority','form_id','directory_id','election_id','due_at','follow_up_date','completed_at','completed_by','follow_up_by','created_by','updated_by','meta',
+        'title','notes','type','status','sub_status_id','priority','form_id','directory_id','election_id','due_at','follow_up_date','followup_at','completed_at','completed_by','follow_up_by','created_by','updated_by','meta',
         'deleted','deleted_at','deleted_by',
     ];
 
@@ -25,6 +25,7 @@ class Task extends Model
         'meta' => 'array',
         'due_at' => 'datetime',
         'follow_up_date' => 'datetime',
+        'followup_at' => 'datetime',
         'completed_at' => 'datetime',
         'deleted' => 'boolean',
         'deleted_at' => 'datetime',
@@ -38,6 +39,16 @@ class Task extends Model
             // generate sequential human readable number if missing
             if(empty($model->number)) {
                 $model->number = UniqueIdGenerator::generate('tasks','number','TSK-',6);
+            }
+            // Ensure followup_at set if creating with follow_up status
+            if(($model->status ?? null) === 'follow_up' && empty($model->followup_at)){
+                $model->followup_at = now();
+            }
+        });
+        static::saving(function($model){
+            // If status is follow_up and followup_at is empty, set today
+            if(($model->status ?? null) === 'follow_up' && empty($model->followup_at)){
+                $model->followup_at = now();
             }
         });
         static::addGlobalScope('not_deleted', function(Builder $builder){
@@ -62,7 +73,16 @@ class Task extends Model
     /* Helpers */
     public function scopeStatus($q,$status){ if($status) $q->where('status',$status); }
     public function markCompleted(){ $this->update(['status'=>'completed','completed_at'=>now(),'completed_by'=>auth()->id()]); }
-    public function markFollowUp(){ $this->update(['status'=>'follow_up','follow_up_by'=>auth()->id(),'follow_up_date'=>now()]); }
+    public function markFollowUp($date = null): void
+    {
+        $dt = $date ? now()->parse($date) : now();
+        $this->update([
+            'status' => 'follow_up',
+            'follow_up_by' => auth()->id(),
+            'follow_up_date' => $dt,
+            'followup_at' => now(),
+        ]);
+    }
     public function isOverdue(): bool { return $this->status !== 'completed' && $this->due_at && $this->due_at->isPast(); }
     public function priorityBadge(): string {
         return match($this->priority){
