@@ -1,0 +1,17 @@
+[
+  {
+    "ID":"123456",
+    "NAME":"John Doe",
+    "GENDER":"M",
+    "DOB":"1990-01-01",
+    "PHONE":["7790001","9607790001"],
+    "CODE":"T01",
+    "PERMANENT_ISLAND":"Hulhumale",
+    "CURRENT_ISLAND":"Hulhumale",
+    "PROPERTY_NUMBER":"HUL-1234",
+    "PROPERTY_ADDRESS":"Street 1, Hulhumale",
+    "PROPERTY_TYPE":"House",
+    "STATUS":"Active",
+    "NOTES":"Sample record"
+  }
+]

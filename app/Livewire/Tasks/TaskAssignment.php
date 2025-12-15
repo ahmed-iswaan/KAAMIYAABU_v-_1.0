@@ -143,7 +143,7 @@ class TaskAssignment extends Component
         $this->selectMode = 'all';
         $this->selectedDirectoryIds = [];
         $this->excludedDirectoryIds = [];
-        $this->bulkBaseCount = Directory::count();
+        $this->bulkBaseCount = Directory::where('status','Active')->count();
         $this->selectionCount = $this->bulkBaseCount;
         $this->dispatch('swal', type:'success', title:'All Voters Selected');
     }
@@ -159,6 +159,7 @@ class TaskAssignment extends Component
     private function baseFilteredQuery()
     {
         return Directory::query()
+            ->where('status','Active')
             ->when($this->directorySearch,function($q){
                 $term = $this->directorySearch;
                 $q->where(function($qq) use ($term){
@@ -175,11 +176,9 @@ class TaskAssignment extends Component
     private function recalculateSelectionCount()
     {
         if($this->selectMode === 'all'){
-            // Always refresh total count (in case directories added/removed)
-            $this->bulkBaseCount = Directory::count();
+            $this->bulkBaseCount = Directory::where('status','Active')->count();
             $this->selectionCount = $this->bulkBaseCount - count($this->excludedDirectoryIds);
         } elseif($this->selectMode === 'filtered') {
-            // Always recalc filtered base count (avoid stale cached value after new filters applied)
             $this->bulkBaseCount = $this->baseFilteredQuery()->count();
             if(count($this->excludedDirectoryIds)){
                 $excludedInFiltered = $this->baseFilteredQuery()->whereIn('id',$this->excludedDirectoryIds)->count();
@@ -188,7 +187,6 @@ class TaskAssignment extends Component
                 $this->selectionCount = $this->bulkBaseCount;
             }
         } else {
-            // Manual selection
             $this->selectionCount = count($this->selectedDirectoryIds);
         }
     }
@@ -208,7 +206,7 @@ class TaskAssignment extends Component
                 $this->selectionCount = $this->bulkBaseCount;
             }
         } elseif($this->selectMode === 'all') {
-            $total = Directory::count();
+            $total = Directory::where('status','Active')->count();
             if($total !== $this->bulkBaseCount){ $this->bulkBaseCount = $total; }
             $this->selectionCount = max(0, $this->bulkBaseCount - count($this->excludedDirectoryIds));
         } else {
@@ -220,7 +218,7 @@ class TaskAssignment extends Component
     public function getWillCreateCountProperty()
     {
         if($this->selectMode === 'all'){
-            $total = Directory::count();
+            $total = Directory::where('status','Active')->count();
             return max(0, $total - count($this->excludedDirectoryIds));
         }
         if($this->selectMode === 'filtered'){
@@ -238,7 +236,7 @@ class TaskAssignment extends Component
     public function getCreateTaskCountProperty()
     {
         if($this->selectMode === 'all'){
-            return max(0, Directory::count() - count($this->excludedDirectoryIds));
+            return max(0, Directory::where('status','Active')->count() - count($this->excludedDirectoryIds));
         }
         if($this->selectMode === 'filtered'){
             $total = $this->baseFilteredQuery()->count();
@@ -266,21 +264,25 @@ class TaskAssignment extends Component
         ]);
 
         $countToCreate = $this->createTaskCount; // use computed
-        if($countToCreate === 0){
+        if ($countToCreate === 0) {
             $this->addError('selection','Select at least one voter.');
             return;
         }
 
         $due = $this->taskDueAt ? now()->parse($this->taskDueAt) : null;
 
-        DB::transaction(function() use ($due){
-            if($this->selectMode){
-                $query = $this->selectMode === 'all' ? Directory::query() : $this->baseFilteredQuery();
-                if(count($this->excludedDirectoryIds)){
+        DB::transaction(function () use ($due) {
+            if ($this->selectMode) {
+                $query = $this->selectMode === 'all'
+                    ? Directory::where('status','Active')
+                    : $this->baseFilteredQuery();
+
+                if (count($this->excludedDirectoryIds)) {
                     $query->whereNotIn('id', $this->excludedDirectoryIds);
                 }
-                $query->select('id')->chunk(1000, function($chunk){
-                    foreach($chunk as $dir){
+
+                $query->select('id')->chunk(1000, function ($chunk) use ($due) {
+                    foreach ($chunk as $dir) {
                         $task = Task::create([
                             'title' => $this->taskTitle,
                             'notes' => $this->taskNotes,
@@ -290,14 +292,14 @@ class TaskAssignment extends Component
                             'form_id' => $this->taskFormId,
                             'directory_id' => $dir->id,
                             'election_id' => $this->taskElectionId,
-                            'due_at' => $this->taskDueAt ? now()->parse($this->taskDueAt) : null,
+                            'due_at' => $due,
                             'created_by' => auth()->id(),
                         ]);
                         $task->assignees()->sync($this->assigneeIds);
                     }
                 });
             } else {
-                foreach($this->selectedDirectoryIds as $dirId){
+                foreach ($this->selectedDirectoryIds as $dirId) {
                     $task = Task::create([
                         'title' => $this->taskTitle,
                         'notes' => $this->taskNotes,
@@ -344,6 +346,7 @@ class TaskAssignment extends Component
         $elections = Election::orderByDesc('start_date')->get(['id','name']);
         $parties = Party::orderBy('name')->get(['id','name','short_name']);
         $subConsites = SubConsite::orderBy('code')->get(['id','code']);
+        $activeCount = Directory::where('status','Active')->count();
 
         return view('livewire.tasks.task-assignment', [
             'directories' => $directories,
@@ -352,6 +355,7 @@ class TaskAssignment extends Component
             'elections' => $elections,
             'parties' => $parties,
             'subConsites' => $subConsites,
+            'activeCount' => $activeCount,
         ])->layout('layouts.master');
     }
 }

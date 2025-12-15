@@ -442,6 +442,8 @@ class VoterManagement extends Component
             ->select([
                 'directories.id','name','profile_picture','id_card_number','gender','date_of_birth','phones','email','party_id','sub_consite_id','properties_id','street_address','address','country_id','island_id','status','created_at'
             ])
+            // Only Active directories
+            ->where('status','Active')
             ->addSelect([
                 'opinions_count' => \App\Models\VoterOpinion::selectRaw('COUNT(*)')
                     ->whereColumn('directory_id','directories.id')
@@ -524,10 +526,23 @@ class VoterManagement extends Component
     {
          $this->authorize('voters-render');
 
+        $voters = $this->voters;
+
+        // Total voters (Active) participating in the selected election
+        $totalVoters = 0;
+        if ($this->electionId) {
+            $totalVoters = Directory::where('status','Active')
+                ->whereIn('sub_consite_id', function($q){
+                    $q->select('sub_consite_id')->from('participants')->where('election_id', $this->electionId);
+                })
+                ->count();
+        }
+
         return view('livewire.election.voter-management', [
-            'voters' => $this->voters,
+            'voters' => $voters,
             'pageTitle' => $this->pageTitle,
             'elections' => $this->elections,
+            'totalVoters' => $totalVoters,
         ])->layout('layouts.master');
     }
 

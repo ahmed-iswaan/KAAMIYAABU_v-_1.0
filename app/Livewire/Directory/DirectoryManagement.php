@@ -367,6 +367,10 @@ class DirectoryManagement extends Component
             ->latest()
             ->paginate($this->perPage);
 
+        // Status totals (overall)
+        $totalActive = Directory::where('status','Active')->count();
+        $totalInactive = Directory::where('status','Inactive')->count();
+
         return view('livewire.directory.directory-management', [
             'directory' => $directory,
             'pageTitle' => $this->pageTitle,
@@ -376,6 +380,8 @@ class DirectoryManagement extends Component
             'parties' => $this->parties,
             'consites' => $this->consites,
             'contacts' => $this->contacts,
+            'totalActive' => $totalActive,
+            'totalInactive' => $totalInactive,
         ])->layout('layouts.master');
     }
 

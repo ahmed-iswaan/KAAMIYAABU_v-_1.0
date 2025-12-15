@@ -20,6 +20,10 @@
 							</li>
 							<li class="breadcrumb-item text-dark">Directory</li>
 							</ul>
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                                <span class="badge badge-light-success">Active: {{ $totalActive }}</span>
+                                <span class="badge badge-light-danger">Inactive: {{ $totalInactive }}</span>
+                            </div>
 						</div>
 						<!--end::Info-->
 
@@ -158,7 +162,7 @@
                                         <div>{{ $entry->current_street_address ?? '' }} {{ $entry->current_address ? ' / '.$entry->current_address : '' }}</div>
                                         <div class="fw-semibold fs-7 text-muted">{{ $entry->currentIsland?->atoll?->code }}. {{ $entry->currentIsland?->name }}, {{ $entry->currentCountry?->name }}</div>
                                       </td>
-                                      <td><div class="badge badge-light-success fw-bold">{{ $entry->status }}</div></td>
+                                      <td><div class="badge {{ $entry->status==='Active' ? 'badge-light-success' : 'badge-light-danger' }} fw-bold">{{ $entry->status }}</div></td>
                                       <td class="text-end position-relative" >
                                             <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                             <i class="ki-duotone ki-down fs-5 ms-1"></i></a>

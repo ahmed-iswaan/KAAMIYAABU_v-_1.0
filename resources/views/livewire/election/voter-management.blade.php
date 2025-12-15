@@ -6,7 +6,7 @@
                     <h1 class="text-dark fw-bold my-1 fs-2">{{$pageTitle}}</h1>
                     <ul class="breadcrumb fw-semibold fs-base my-1">
                         <li class="breadcrumb-item text-muted"><a href="#" class="text-muted text-hover-primary">Election</a></li>
-                        <li class="breadcrumb-item text-dark">Voters</li>
+                        <li class="breadcrumb-item text-dark">Voters </li>
                     </ul>
                 </div>
             </div>
