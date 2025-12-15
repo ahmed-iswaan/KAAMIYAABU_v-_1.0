@@ -40,15 +40,19 @@ class Task extends Model
             if(empty($model->number)) {
                 $model->number = UniqueIdGenerator::generate('tasks','number','TSK-',6);
             }
-            // Ensure followup_at set if creating with follow_up status
-            if(($model->status ?? null) === 'follow_up' && empty($model->followup_at)){
-                $model->followup_at = now();
+            // Set or clear followup_at based on initial status
+            if(($model->status ?? null) === 'follow_up'){
+                if(empty($model->followup_at)) { $model->followup_at = now(); }
+            } else {
+                $model->followup_at = null;
             }
         });
         static::saving(function($model){
-            // If status is follow_up and followup_at is empty, set today
-            if(($model->status ?? null) === 'follow_up' && empty($model->followup_at)){
-                $model->followup_at = now();
+            // Maintain followup_at according to status
+            if(($model->status ?? null) === 'follow_up'){
+                if(empty($model->followup_at)) { $model->followup_at = now(); }
+            } else {
+                $model->followup_at = null; // clear when not follow_up
             }
         });
         static::addGlobalScope('not_deleted', function(Builder $builder){
@@ -72,7 +76,7 @@ class Task extends Model
 
     /* Helpers */
     public function scopeStatus($q,$status){ if($status) $q->where('status',$status); }
-    public function markCompleted(){ $this->update(['status'=>'completed','completed_at'=>now(),'completed_by'=>auth()->id()]); }
+    public function markCompleted(){ $this->update(['status'=>'completed','completed_at'=>now(),'completed_by'=>auth()->id(),'followup_at'=>null]); }
     public function markFollowUp($date = null): void
     {
         $dt = $date ? now()->parse($date) : now();

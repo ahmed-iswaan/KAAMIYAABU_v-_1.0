@@ -103,8 +103,8 @@ class DashboardOverview extends Component
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) as completed_by_user"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_by_user_today"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_assigned_today"),
-                DB::raw("SUM(CASE WHEN tasks.follow_up_by = users.id THEN 1 ELSE 0 END) as follow_up_by_user"),
-                DB::raw("SUM(CASE WHEN tasks.follow_up_by = users.id AND DATE(tasks.follow_up_date) = '{$today}' THEN 1 ELSE 0 END) as follow_up_by_user_today")
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id THEN 1 ELSE 0 END) as follow_up_by_user"),
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id AND DATE(tasks.followup_at) = '{$today}' THEN 1 ELSE 0 END) as follow_up_by_user_today")
             )
             ->groupBy('users.id','users.name')
             ->orderByRaw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) DESC")
@@ -168,8 +168,8 @@ class DashboardOverview extends Component
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) as completed_by_user"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_by_user_today"),
                 DB::raw("SUM(CASE WHEN tasks.status='completed' AND DATE(tasks.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_assigned_today"),
-                DB::raw("SUM(CASE WHEN tasks.follow_up_by = users.id THEN 1 ELSE 0 END) as follow_up_by_user"),
-                DB::raw("SUM(CASE WHEN tasks.follow_up_by = users.id AND DATE(tasks.follow_up_date) = '{$today}' THEN 1 ELSE 0 END) as follow_up_by_user_today")
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id THEN 1 ELSE 0 END) as follow_up_by_user"),
+                DB::raw("SUM(CASE WHEN tasks.status='follow_up' AND tasks.follow_up_by = users.id AND DATE(tasks.followup_at) = '{$today}' THEN 1 ELSE 0 END) as follow_up_by_user_today")
             )
             ->groupBy('users.id','users.name')
             ->orderByRaw("SUM(CASE WHEN tasks.status='completed' AND tasks.completed_by = users.id THEN 1 ELSE 0 END) DESC")
