@@ -21,6 +21,10 @@ class AdminDashboard extends Component
     public $subConsiteFollowUp = [];
     public $subConsiteCompleted = [];
     public $subConsiteNoTasks = [];
+    public $dirSubConsiteLabels = [];
+    public $dirMaleCounts = [];
+    public $dirFemaleCounts = [];
+    public $dirOtherCounts = [];
 
     public function mount(): void
     {
@@ -81,6 +85,22 @@ class AdminDashboard extends Component
         // Map to existing label order
         $noTaskMap = collect($noTaskRows)->mapWithKeys(fn($r)=>[$r->code => (int)$r->no_tasks])->toArray();
         $this->subConsiteNoTasks = array_map(fn($code)=> $noTaskMap[$code] ?? 0, $this->subConsiteLabels);
+
+        // Active directories by gender grouped by sub_consite
+        $dirRows = DB::table('directories')
+            ->join('sub_consites','directories.sub_consite_id','=','sub_consites.id')
+            ->where('directories.status','Active')
+            ->select('sub_consites.code as code')
+            ->selectRaw("SUM(CASE WHEN directories.gender='male' THEN 1 ELSE 0 END) as male")
+            ->selectRaw("SUM(CASE WHEN directories.gender='female' THEN 1 ELSE 0 END) as female")
+            ->selectRaw("SUM(CASE WHEN directories.gender IS NULL OR (directories.gender NOT IN ('male','female')) THEN 1 ELSE 0 END) as other")
+            ->groupBy('sub_consites.code')
+            ->orderBy('sub_consites.code')
+            ->get();
+        $this->dirSubConsiteLabels = $dirRows->pluck('code')->toArray();
+        $this->dirMaleCounts = $dirRows->pluck('male')->map(fn($v)=>(int)$v)->toArray();
+        $this->dirFemaleCounts = $dirRows->pluck('female')->map(fn($v)=>(int)$v)->toArray();
+        $this->dirOtherCounts = $dirRows->pluck('other')->map(fn($v)=>(int)$v)->toArray();
     }
 
     public function render()
@@ -96,6 +116,10 @@ class AdminDashboard extends Component
             'subConsiteFollowUp' => $this->subConsiteFollowUp,
             'subConsiteCompleted' => $this->subConsiteCompleted,
             'subConsiteNoTasks' => $this->subConsiteNoTasks,
+            'dirSubConsiteLabels' => $this->dirSubConsiteLabels,
+            'dirMaleCounts' => $this->dirMaleCounts,
+            'dirFemaleCounts' => $this->dirFemaleCounts,
+            'dirOtherCounts' => $this->dirOtherCounts,
         ])->layout('layouts.master');
     }
 }

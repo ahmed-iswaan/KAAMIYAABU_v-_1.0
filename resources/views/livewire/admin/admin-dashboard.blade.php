@@ -59,6 +59,16 @@
             <canvas id="subConsiteStatusChart"></canvas>
         </div>
     </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Active Directories by SubConsite & Gender</div>
+            <div class="fs-7 text-muted">Male / Female / Other</div>
+        </div>
+        <div style="height: 360px;">
+            <canvas id="dirBySubConsiteGender"></canvas>
+        </div>
+    </div>
 </div>
 
 {{-- Inline Chart.js for this blade only --}}
@@ -113,6 +123,35 @@
                     { label: 'Follow-up', data: followUp, backgroundColor: '#3e97ff' },
                     { label: 'Completed', data: completed, backgroundColor: '#50cd89' },
                     { label: 'No Tasks', data: noTasks, backgroundColor: '#f1416c' },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    })();
+
+    (function(){
+        const ctx3 = document.getElementById('dirBySubConsiteGender');
+        if(!ctx3) return;
+        const labels = @json($dirSubConsiteLabels);
+        const male = @json($dirMaleCounts);
+        const female = @json($dirFemaleCounts);
+        const other = @json($dirOtherCounts);
+        new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Male', data: male, backgroundColor: '#3e97ff' },
+                    { label: 'Female', data: female, backgroundColor: '#f1416c' },
+                    { label: 'Other', data: other, backgroundColor: '#a1a5b7' },
                 ]
             },
             options: {
