@@ -34,35 +34,37 @@ Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::group(['middleware' => ['auth']], function() {
 
-Route::get('/dashboard', DashboardOverview::class)->name('dashboard');
-Route::get('/roles', RolesManagement::class)->name('roles');
-Route::get('/users', UserManagement::class)->name('users');
-Route::get('/directory', DirectoryManagement::class)->name('directory');
-Route::get('/properties', PropertyManagement::class)->name('properties');
-// Route::get('properties/{property}', ViewProperty::class)
-//          ->name('properties.view')
-//          ->whereUuid('property');
-Route::get('/elections/voters', VoterManagement::class)->name('elections.voters');
-Route::get('/elections/requests', RequestsManagement::class)->name('elections.requests');
-Route::get('/elections/requests/export', [RequestReportController::class, 'exportRequests'])->name('elections.requests.export');
-Route::get('/agents', AgentManagement::class)->name('agents');
-Route::get('/tasks/assign', TaskAssignment::class)->name('tasks.assign');
-Route::get('/tasks', TaskList::class)->name('tasks.index'); // added
-Route::get('/tasks/{task}/edit', TaskEdit::class)->name('tasks.edit')->whereUuid('task'); // added
+    Route::get('/dashboard', DashboardOverview::class)->name('dashboard');
+    Route::get('/roles', RolesManagement::class)->name('roles');
+    Route::get('/users', UserManagement::class)->name('users');
+    Route::get('/directory', DirectoryManagement::class)->name('directory');
+    Route::get('/properties', PropertyManagement::class)->name('properties');
+    // Route::get('properties/{property}', ViewProperty::class)
+    //          ->name('properties.view')
+    //          ->whereUuid('property');
+    Route::get('/elections/voters', VoterManagement::class)->name('elections.voters');
+    Route::get('/elections/requests', RequestsManagement::class)->name('elections.requests');
+    Route::get('/elections/requests/export', [RequestReportController::class, 'exportRequests'])->name('elections.requests.export');
+    Route::get('/agents', AgentManagement::class)->name('agents');
+    Route::get('/tasks/assign', TaskAssignment::class)->name('tasks.assign');
+    Route::get('/tasks', TaskList::class)->name('tasks.index'); // added
+    Route::get('/tasks/{task}/edit', TaskEdit::class)->name('tasks.edit')->whereUuid('task'); // added
 
-// Forms
-Route::get('/forms', FormsList::class)->name('forms.index');
-Route::get('/forms/create', FormBuilder::class)->name('forms.create');
-Route::get('/forms/{form}/edit', FormBuilder::class)->name('forms.edit');
-Route::get('/forms/{form}/responses', FormResponses::class)->name('forms.responses');
-Route::get('/forms/{form}/responses/export-options', [\App\Http\Controllers\FormResponsesExportController::class,'exportOptionRespondents'])->name('forms.responses.export.options');
-Route::get('/forms/{form}/responses/export-option/{question}/{optionValue}', [\App\Http\Controllers\FormResponsesExportController::class,'exportSingleOption'])
-    ->whereUuid('form')
-    ->whereUuid('question')
-    ->name('forms.responses.export.single');
+    // Forms
+    Route::get('/forms', FormsList::class)->name('forms.index');
+    Route::get('/forms/create', FormBuilder::class)->name('forms.create');
+    Route::get('/forms/{form}/edit', FormBuilder::class)->name('forms.edit');
+    Route::get('/forms/{form}/responses', FormResponses::class)->name('forms.responses');
+    Route::get('/forms/{form}/responses/export-options', [\App\Http\Controllers\FormResponsesExportController::class,'exportOptionRespondents'])->name('forms.responses.export.options');
+    Route::get('/forms/{form}/responses/export-option/{question}/{optionValue}', [\App\Http\Controllers\FormResponsesExportController::class,'exportSingleOption'])
+        ->whereUuid('form')
+        ->whereUuid('question')
+        ->name('forms.responses.export.single');
 
-// Replace controller-based request types with Livewire component
-Route::get('/system/request-types', RequestTypesManagement::class)->name('request-types.index');
-Route::get('/system/sub-statuses', SubStatusManagement::class)->name('sub-statuses.index'); // added
+    // System
+    Route::get('/system/request-types', RequestTypesManagement::class)->name('request-types.index');
+    Route::get('/system/sub-statuses', SubStatusManagement::class)->name('sub-statuses.index'); // added
 
+    // Admin dashboard
+    Route::get('/admin/dashboard', \App\Livewire\Admin\AdminDashboard::class)->name('admin.dashboard');
 });

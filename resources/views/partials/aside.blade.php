@@ -40,6 +40,19 @@
                                     </div>
                                     <!--end:Menu item-->
                                   @endcan    
+                                  @can('admin-dashboard-render')
+                                    <div class="menu-item">
+                                        <a class="menu-link {{ request()->is('admin/dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-chart-pie-1 fs-2">
+                                                    <span class="path1"></span>
+                                                    <span class="path2"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Admin Dashboard</span>
+                                        </a>
+                                    </div>
+                                    @endcan
                                   @can('agent-render')                               <!--begin:Menu item (Agents) -->
                                  <div class="menu-item">
                                     <a class="menu-link {{ request()->is('agents') ? 'active' : '' }}" href="/agents">
