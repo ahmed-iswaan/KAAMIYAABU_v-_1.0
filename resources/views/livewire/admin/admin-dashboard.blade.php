@@ -38,15 +38,11 @@
                 <div class="fs-7 text-muted">Total Active</div>
             </div>
         </div>
-        <div class="d-flex gap-6 mt-4">
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge" style="width:12px;height:12px;background:#50cd89;"></span>
-                <span class="fs-7 text-muted">With Tasks</span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge" style="width:12px;height:12px;background:#f1416c;"></span>
-                <span class="fs-7 text-muted">No Tasks</span>
-            </div>
+        <div class="d-flex flex-wrap gap-6 mt-4">
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f1416c;"></span><span class="fs-7 text-muted">No Task</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f6c000;"></span><span class="fs-7 text-muted">Pending</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#3e97ff;"></span><span class="fs-7 text-muted">Follow-up</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#50cd89;"></span><span class="fs-7 text-muted">Completed</span></div>
         </div>
     </div>
 
@@ -71,99 +67,132 @@
     </div>
 </div>
 
-{{-- Inline Chart.js for this blade only --}}
+<!-- Load Chart.js first -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-@push('scripts')
+
+<!-- Totals above bars plugin must be defined before charts use it -->
 <script>
-    (function(){
-        const ctx = document.getElementById('noTaskPie');
-        if(!ctx) return;
-        const totalActive = {{ (int) $activeDirectories }};
-        const noTasks = {{ (int) $directoriesWithNoTasks }};
-        const withTasks = Math.max(0, totalActive - noTasks);
-
-        // Update center total
-        document.getElementById('noTaskTotal').textContent = totalActive.toLocaleString();
-
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['With Tasks','No Tasks'],
-                datasets: [{
-                    data: [withTasks, noTasks],
-                    backgroundColor: ['#50cd89','#f1416c'],
-                    borderWidth: 0,
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                cutout: '60%',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
-                }
-            }
+const TotalsAboveBarsPlugin = {
+    id: 'totalsAboveBars',
+    afterDatasetsDraw(chart) {
+        const {ctx, data} = chart;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data) return;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#5e6278';
+        ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+        data.labels.forEach((label, index) => {
+            let total = 0;
+            data.datasets.forEach(ds => { total += (parseFloat(ds.data[index]) || 0); });
+            const el = meta.data[index];
+            if (!el) return;
+            const x = el.x;
+            const yTop = chart.scales.y.getPixelForValue(total);
+            ctx.fillText(total.toLocaleString(), x, yTop - 6);
         });
-    })();
-
-    (function(){
-        const ctx2 = document.getElementById('subConsiteStatusChart');
-        if(!ctx2) return;
-        const labels = @json($subConsiteLabels);
-        const pending = @json($subConsitePending);
-        const followUp = @json($subConsiteFollowUp);
-        const completed = @json($subConsiteCompleted);
-        const noTasks = @json($subConsiteNoTasks);
-        new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Pending', data: pending, backgroundColor: '#f6c000' },
-                    { label: 'Follow-up', data: followUp, backgroundColor: '#3e97ff' },
-                    { label: 'Completed', data: completed, backgroundColor: '#50cd89' },
-                    { label: 'No Tasks', data: noTasks, backgroundColor: '#f1416c' },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
-                },
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    })();
-
-    (function(){
-        const ctx3 = document.getElementById('dirBySubConsiteGender');
-        if(!ctx3) return;
-        const labels = @json($dirSubConsiteLabels);
-        const male = @json($dirMaleCounts);
-        const female = @json($dirFemaleCounts);
-        const other = @json($dirOtherCounts);
-        new Chart(ctx3, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Male', data: male, backgroundColor: '#3e97ff' },
-                    { label: 'Female', data: female, backgroundColor: '#f1416c' },
-                    { label: 'Other', data: other, backgroundColor: '#a1a5b7' },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
-                },
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    })();
+        ctx.restore();
+    }
+};
 </script>
-@endpush
+
+<!-- No Task pie chart (4 segments) -->
+<script>
+(function(){
+    const el = document.getElementById('noTaskPie');
+    if(!el) return;
+    const data = [
+        parseInt(@json($directoriesWithNoTasks ?? 0), 10) || 0,
+        parseInt(@json($piePendingDirs ?? 0), 10) || 0,
+        parseInt(@json($pieFollowUpDirs ?? 0), 10) || 0,
+        parseInt(@json($pieCompletedDirs ?? 0), 10) || 0,
+    ];
+    const labels = ['No Task','Pending','Follow-up','Completed'];
+    const colors = ['#f1416c','#f6c000','#3e97ff','#50cd89'];
+    new Chart(el, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    // Center total = Active Directories
+    const totalEl = document.getElementById('noTaskTotal');
+    if (totalEl) {
+        const totalActive = parseInt(@json($activeDirectories ?? 0), 10) || 0;
+        totalEl.textContent = totalActive.toLocaleString();
+    }
+})();
+</script>
+
+<!-- SubConsite tasks chart -->
+<script>
+(function(){
+    const el = document.getElementById('subConsiteStatusChart');
+    if(!el) return;
+    const labels = @json($subConsiteLabels ?? []);
+    const pending = @json($subConsitePending ?? []);
+    const followUp = @json($subConsiteFollowUp ?? []);
+    const completed = @json($subConsiteCompleted ?? []);
+    const noTask = @json($subConsiteNoTask ?? []);
+    if (!labels.length) return; // avoid errors when no data
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Pending', data: pending, backgroundColor: '#f6c000' },
+                { label: 'Follow-up', data: followUp, backgroundColor: '#3e97ff' },
+                { label: 'Completed', data: completed, backgroundColor: '#50cd89' },
+                { label: 'No Task', data: noTask, backgroundColor: '#f1416c' },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+            plugins: { legend: { position: 'bottom' } }
+        },
+        plugins: [TotalsAboveBarsPlugin]
+    });
+})();
+</script>
+
+<!-- Directories by subConsite & gender chart -->
+<script>
+(function(){
+    const el = document.getElementById('dirBySubConsiteGender');
+    if(!el) return;
+    const labels = @json($dirSubConsiteLabels ?? []);
+    const male = @json($dirMaleCounts ?? []);
+    const female = @json($dirFemaleCounts ?? []);
+    const other = @json($dirOtherCounts ?? []);
+    if (!labels.length) return;
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Male', data: male, backgroundColor: '#3e97ff' },
+                { label: 'Female', data: female, backgroundColor: '#f1416c' },
+                { label: 'Other', data: other, backgroundColor: '#a1a5b7' },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+            plugins: { legend: { position: 'bottom' } }
+        },
+        plugins: [TotalsAboveBarsPlugin]
+    });
+})();
+</script>
