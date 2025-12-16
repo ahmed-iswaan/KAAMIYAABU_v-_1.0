@@ -103,6 +103,7 @@
         const pending = @json($subConsitePending);
         const followUp = @json($subConsiteFollowUp);
         const completed = @json($subConsiteCompleted);
+        const noTasks = @json($subConsiteNoTasks);
         new Chart(ctx2, {
             type: 'bar',
             data: {
@@ -111,6 +112,7 @@
                     { label: 'Pending', data: pending, backgroundColor: '#f6c000' },
                     { label: 'Follow-up', data: followUp, backgroundColor: '#3e97ff' },
                     { label: 'Completed', data: completed, backgroundColor: '#50cd89' },
+                    { label: 'No Tasks', data: noTasks, backgroundColor: '#f1416c' },
                 ]
             },
             options: {

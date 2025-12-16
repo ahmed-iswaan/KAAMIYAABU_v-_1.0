@@ -20,6 +20,7 @@ class AdminDashboard extends Component
     public $subConsitePending = [];
     public $subConsiteFollowUp = [];
     public $subConsiteCompleted = [];
+    public $subConsiteNoTasks = [];
 
     public function mount(): void
     {
@@ -63,6 +64,23 @@ class AdminDashboard extends Component
         $this->subConsitePending = $rows->pluck('pending')->map(fn($v)=>(int)$v)->toArray();
         $this->subConsiteFollowUp = $rows->pluck('follow_up')->map(fn($v)=>(int)$v)->toArray();
         $this->subConsiteCompleted = $rows->pluck('completed')->map(fn($v)=>(int)$v)->toArray();
+
+        // Active directories with no tasks per sub_consite
+        $noTaskRows = DB::table('sub_consites')
+            ->leftJoin('directories','directories.sub_consite_id','=','sub_consites.id')
+            ->leftJoin('tasks', function($join){
+                $join->on('tasks.directory_id','=','directories.id')
+                     ->where('tasks.deleted', false);
+            })
+            ->where('directories.status','Active')
+            ->select('sub_consites.code as code')
+            ->selectRaw('SUM(CASE WHEN tasks.id IS NULL THEN 1 ELSE 0 END) as no_tasks')
+            ->groupBy('sub_consites.code')
+            ->orderBy('sub_consites.code')
+            ->get();
+        // Map to existing label order
+        $noTaskMap = collect($noTaskRows)->mapWithKeys(fn($r)=>[$r->code => (int)$r->no_tasks])->toArray();
+        $this->subConsiteNoTasks = array_map(fn($code)=> $noTaskMap[$code] ?? 0, $this->subConsiteLabels);
     }
 
     public function render()
@@ -77,6 +95,7 @@ class AdminDashboard extends Component
             'subConsitePending' => $this->subConsitePending,
             'subConsiteFollowUp' => $this->subConsiteFollowUp,
             'subConsiteCompleted' => $this->subConsiteCompleted,
+            'subConsiteNoTasks' => $this->subConsiteNoTasks,
         ])->layout('layouts.master');
     }
 }
