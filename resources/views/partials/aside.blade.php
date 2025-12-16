@@ -44,9 +44,11 @@
                                     <div class="menu-item">
                                         <a class="menu-link {{ request()->is('admin/dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
                                             <span class="menu-icon">
-                                                <i class="ki-duotone ki-chart-pie-1 fs-2">
+                                           <i class="ki-duotone ki-element-11 fs-2">
                                                     <span class="path1"></span>
                                                     <span class="path2"></span>
+                                                    <span class="path3"></span>
+                                                    <span class="path4"></span>
                                                 </i>
                                             </span>
                                             <span class="menu-title">Admin Dashboard</span>

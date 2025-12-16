@@ -48,10 +48,15 @@ class TaskAssignment extends Component
 
     public $currentPageIds = []; // IDs of directories on current pagination page
 
+    // New properties for "no tasks" filter
+    public $filterNoTaskOnly = false; // show only voters with no tasks
+    public $filterNoTaskOnlyDraft = false; // draft UI value
+
     protected $queryString = [
         'directorySearch' => ['except' => ''],
         'filterPartyId' => ['except' => ''],
         'filterSubConsiteId' => ['except' => ''],
+        'filterNoTaskOnly' => ['except' => false],
     ];
 
     public function mount()
@@ -60,12 +65,14 @@ class TaskAssignment extends Component
         $this->directorySearchDraft = $this->directorySearch;
         $this->filterPartyIdDraft = $this->filterPartyId;
         $this->filterSubConsiteIdDraft = $this->filterSubConsiteId;
+        $this->filterNoTaskOnlyDraft = $this->filterNoTaskOnly;
         $this->recalculateSelectionCount();
     }
 
     public function updatingDirectorySearch(){ $this->resetPage($this->pageName); }
     public function updatingFilterPartyId(){ $this->resetPage($this->pageName); }
     public function updatingFilterSubConsiteId(){ $this->resetPage($this->pageName); }
+    public function updatingFilterNoTaskOnly(){ $this->resetPage($this->pageName); }
 
     public function applyFilters()
     {
@@ -73,6 +80,7 @@ class TaskAssignment extends Component
         if($this->directorySearch !== $this->directorySearchDraft){ $this->directorySearch = $this->directorySearchDraft; $changed = true; }
         if($this->filterPartyId !== $this->filterPartyIdDraft){ $this->filterPartyId = $this->filterPartyIdDraft; $changed = true; }
         if($this->filterSubConsiteId !== $this->filterSubConsiteIdDraft){ $this->filterSubConsiteId = $this->filterSubConsiteIdDraft; $changed = true; }
+        if($this->filterNoTaskOnly !== (bool)$this->filterNoTaskOnlyDraft){ $this->filterNoTaskOnly = (bool)$this->filterNoTaskOnlyDraft; $changed = true; }
         if($changed){
             $this->resetPage($this->pageName);
             if($this->selectMode === 'filtered'){
@@ -94,7 +102,7 @@ class TaskAssignment extends Component
 
     public function clearFilters()
     {
-        $this->reset(['filterPartyId','filterSubConsiteId','directorySearch','filterPartyIdDraft','filterSubConsiteIdDraft','directorySearchDraft']);
+        $this->reset(['filterPartyId','filterSubConsiteId','directorySearch','filterPartyIdDraft','filterSubConsiteIdDraft','directorySearchDraft','filterNoTaskOnly','filterNoTaskOnlyDraft']);
         $this->resetPage($this->pageName);
         $this->exitSelectMode();
         $this->recalculateSelectionCount();
@@ -170,7 +178,15 @@ class TaskAssignment extends Component
                 });
             })
             ->when($this->filterPartyId, fn($q)=>$q->where('party_id',$this->filterPartyId))
-            ->when($this->filterSubConsiteId, fn($q)=>$q->where('sub_consite_id',$this->filterSubConsiteId));
+            ->when($this->filterSubConsiteId, fn($q)=>$q->where('sub_consite_id',$this->filterSubConsiteId))
+            ->when($this->filterNoTaskOnly, function($q){
+                $q->whereNotExists(function($sub){
+                    $sub->selectRaw(1)
+                        ->from('tasks')
+                        ->whereColumn('tasks.directory_id','directories.id')
+                        ->where('tasks.deleted',false);
+                });
+            });
     }
 
     private function recalculateSelectionCount()
@@ -356,6 +372,7 @@ class TaskAssignment extends Component
             'parties' => $parties,
             'subConsites' => $subConsites,
             'activeCount' => $activeCount,
+            'filterNoTaskOnly' => $this->filterNoTaskOnly,
         ])->layout('layouts.master');
     }
 }

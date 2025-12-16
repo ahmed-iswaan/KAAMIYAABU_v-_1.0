@@ -60,6 +60,13 @@ window.addEventListener('swal', e => { const d=e.detail||{}; Swal.fire({icon:d.t
                                                     @endforeach
                                                 </select>
                                             </div>
+                                            <div>
+                                                <label class="form-label fs-7 fw-semibold">Only voters with no tasks</label>
+                                                <div class="form-check form-check-sm form-check-custom form-check-solid">
+                                                    <input type="checkbox" class="form-check-input" wire:model.defer="filterNoTaskOnlyDraft" id="noTaskOnlyCheck">
+                                                    <label class="form-check-label" for="noTaskOnlyCheck">No Task Only</label>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="separator my-0"></div>
                                         <div class="card-footer d-flex justify-content-between align-items-center p-4">
