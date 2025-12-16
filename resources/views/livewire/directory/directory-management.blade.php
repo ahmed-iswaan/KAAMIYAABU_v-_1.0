@@ -52,7 +52,31 @@
                             </div>
                             <!--begin::Card title-->
                             <!--begin::Card toolbar-->
-                            <div class="card-toolbar">
+                            <div class="card-toolbar d-flex align-items-center gap-3">
+                                <!-- SubConsite Filter -->
+                                <div class="w-250px">
+                                    <select class="form-select form-select-solid" wire:model.live="filter_sub_consite_id">
+                                        <option value="">All SubConsite</option>
+                                        @foreach($consites as $c)
+                                            @if($c->subConsites && $c->subConsites->count())
+                                                <optgroup label="{{ $c->name }}">
+                                                    @foreach($c->subConsites as $sub)
+                                                        <option value="{{ $sub->id }}">{{ $sub->code }} - {{ $sub->name }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <!-- Gender Filter -->
+                                <div class="w-200px">
+                                    <select class="form-select form-select-solid" wire:model.live="filter_gender">
+                                        <option value="">All Genders</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other / Unspecified</option>
+                                    </select>
+                                </div>
                                 <!--begin::Toolbar-->
                                 <div class="d-flex justify-content-end" data-kt-user-table-toolbar="base">
                                     <!--begin::Export-->
@@ -75,9 +99,6 @@
                                     <button type="button" class="btn btn-danger" data-kt-user-table-select="delete_selected">Delete Selected</button>
                                 </div>
                                 <!--end::Group actions-->
-
-      
-
                             </div>
                             <!--end::Card toolbar-->
                         </div>

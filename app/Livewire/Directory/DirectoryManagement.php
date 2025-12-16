@@ -31,6 +31,10 @@ class DirectoryManagement extends Component
     public $perPage = 10;
     public $pageTitle = 'Directory';
 
+    // SubConsite filter
+    public $filter_sub_consite_id = null;
+    public $filter_gender = null; // 'male' | 'female' | 'other'
+
     public $editingDirectoryId;
 
     // New schema fields (Add Form)
@@ -364,6 +368,19 @@ class DirectoryManagement extends Component
                        ->orWhere('id_card_number','like',$term);
                 });
             })
+            ->when($this->filter_sub_consite_id, function($q){
+                $q->where('sub_consite_id', $this->filter_sub_consite_id);
+            })
+            // Gender filter: other => NULL or not in male/female; male/female direct match
+            ->when($this->filter_gender === 'other', function($q){
+                $q->where(function($qq){
+                    $qq->whereNull('gender')
+                       ->orWhereNotIn('gender', ['male','female']);
+                });
+            })
+            ->when(in_array($this->filter_gender, ['male','female'], true), function($q){
+                $q->where('gender', $this->filter_gender);
+            })
             ->latest()
             ->paginate($this->perPage);
 
@@ -382,6 +399,8 @@ class DirectoryManagement extends Component
             'contacts' => $this->contacts,
             'totalActive' => $totalActive,
             'totalInactive' => $totalInactive,
+            'filter_sub_consite_id' => $this->filter_sub_consite_id,
+            'filter_gender' => $this->filter_gender,
         ])->layout('layouts.master');
     }
 
