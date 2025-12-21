@@ -65,6 +65,22 @@
             <canvas id="dirBySubConsiteGender"></canvas>
         </div>
     </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Provisional Pledges by SubConsite</div>
+            <div class="fs-7 text-muted">Yes / No / Undecided / Pending</div>
+        </div>
+        <div style="height: 360px;"><canvas id="provBySubConsite"></canvas></div>
+    </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Final Pledges by SubConsite</div>
+            <div class="fs-7 text-muted">Yes / No / Undecided / Pending</div>
+        </div>
+        <div style="height: 360px;"><canvas id="finalBySubConsite"></canvas></div>
+    </div>
 </div>
 
 <!-- Load Chart.js first -->
@@ -194,5 +210,58 @@ const TotalsAboveBarsPlugin = {
         },
         plugins: [TotalsAboveBarsPlugin]
     });
+})();
+</script>
+
+<!-- Provisional and Final Pledges by SubConsite charts -->
+<script>
+(function(){
+    const labels = @json($pledgeLabels ?? []);
+    if(!labels.length) return;
+    const prov = {
+        yes: @json($provYes ?? []),
+        no: @json($provNo ?? []),
+        undecided: @json($provUndecided ?? []),
+        pending: @json($provPending ?? []),
+    };
+    const elProv = document.getElementById('provBySubConsite');
+    if(elProv){
+        new Chart(elProv, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Yes', data: prov.yes, backgroundColor: '#3e97ff' },
+                    { label: 'No', data: prov.no, backgroundColor: '#f6c000' },
+                    { label: 'Undecided', data: prov.undecided, backgroundColor: '#a1a5b7' },
+                    { label: 'Pending', data: prov.pending, backgroundColor: '#e4e6ef' },
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+        });
+    }
+
+    const final = {
+        yes: @json($finalYes ?? []),
+        no: @json($finalNo ?? []),
+        undecided: @json($finalUndecided ?? []),
+        pending: @json($finalPending ?? []),
+    };
+    const elFinal = document.getElementById('finalBySubConsite');
+    if(elFinal){
+        new Chart(elFinal, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Yes', data: final.yes, backgroundColor: '#3e97ff' },
+                    { label: 'No', data: final.no, backgroundColor: '#f6c000' },
+                    { label: 'Undecided', data: final.undecided, backgroundColor: '#a1a5b7' },
+                    { label: 'Pending', data: final.pending, backgroundColor: '#e4e6ef' },
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+        });
+    }
 })();
 </script>

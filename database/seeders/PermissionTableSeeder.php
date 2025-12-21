@@ -58,7 +58,15 @@ class PermissionTableSeeder extends Seeder
         //    'task-bulk-unassign',
         //    'task-bulk-unassign-selected',
         //    'task-bulk-unassign-filtered',
-        'admin-dashboard-render',
+        // 'admin-dashboard-render',
+
+        'user-openSubconsiteModal',
+        'user-saveUserSubconsites',
+
+        'voters-viewVoter',
+        'voters-openProvisionalPledge',
+        'voters-openFinalPledge',
+
         ];
         
         foreach ($permissions as $permission) {

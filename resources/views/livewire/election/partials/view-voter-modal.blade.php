@@ -164,7 +164,7 @@
                                         <div class="col-lg-8 d-flex align-items-center flex-wrap gap-3">
                                             @php $p = $provisional_status; $pLabel = $p ? strtoupper(str_replace('_',' ',$p)) : 'PENDING'; $colorMap=['strong_yes'=>'success','yes'=>'primary','neutral'=>'secondary','no'=>'warning','strong_no'=>'danger']; $pColor = $p? ($colorMap[$p]??'secondary') : 'light'; @endphp
                                             <span class="badge badge-{{ $pColor }} fw-bold px-4 py-2">{{ $pLabel }}</span>
-                                            <button type="button" class="btn btn-sm btn-light-primary" wire:click="openPledgeModal">Change</button>
+                                            <button type="button" class="btn btn-sm btn-light-primary" wire:click="openProvisionalPledgeModal">Change Provisional</button>
                                         </div>
                                     </div>
                                     <div class="row mb-7">
@@ -172,7 +172,7 @@
                                         <div class="col-lg-8 d-flex align-items-center flex-wrap gap-3">
                                             @php $f = $final_status; $fLabel = $f ? strtoupper(str_replace('_',' ',$f)) : 'PENDING'; $fColor = $f? ($colorMap[$f]??'secondary') : 'light'; @endphp
                                             <span class="badge badge-{{ $fColor }} fw-bold px-4 py-2">{{ $fLabel }}</span>
-                                            <button type="button" class="btn btn-sm btn-light-success" wire:click="openPledgeModal">Change</button>
+                                            <button type="button" class="btn btn-sm btn-light-success" wire:click="openFinalPledgeModal">Change Final</button>
                                         </div>
                                     </div>
                                     <!-- End Pledges -->

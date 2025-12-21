@@ -72,6 +72,7 @@
                                 @include('livewire.user.user-form')
                                 @include('livewire.user.user-view-form')
                                 @include('livewire.user.user-role-remove')
+                                @include('livewire.user.user-subconsites-modal')
 
                             </div>
                             <!--end::Card toolbar-->
@@ -170,6 +171,11 @@
                                                         </div>
                                                    <!--end::Menu item-->
                                                 @endif
+                                                <!--begin::Menu item-->
+                                                <div class="menu-item px-3">
+                                                    <a href="#" class="menu-link px-3" wire:click="openSubconsiteModal({{ $user->id }})">Manage Sub Consites</a>
+                                                </div>
+                                                <!--end::Menu item-->
 
                                             </div>
                                             <!--end::Menu-->
@@ -197,3 +203,13 @@
             </div>
 
    </div>
+
+@push('styles')
+<style>
+  /* Remove stray vertical line near avatars in the users table */
+  #kt_table_users_wrapper .table-responsive { border-left: 0 !important; }
+  #kt_table_users_wrapper table#kt_table_users tr td:first-child { border-left: 0 !important; }
+  /* Keep avatar circles crisp */
+  .symbol.symbol-circle { overflow: hidden; }
+</style>
+@endpush

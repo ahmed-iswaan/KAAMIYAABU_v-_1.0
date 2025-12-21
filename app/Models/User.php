@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -49,5 +50,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Sub consites assigned to the user.
+     */
+    public function subConsites(): BelongsToMany
+    {
+        return $this->belongsToMany(SubConsite::class, 'users_sub_consites', 'user_id', 'sub_consite_id')
+            ->withTimestamps();
     }
 }

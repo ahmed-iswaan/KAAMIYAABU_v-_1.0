@@ -5,6 +5,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads; 
 use App\Models\User;
+use App\Models\SubConsite;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Arr;
@@ -532,6 +533,74 @@ public function createUser()
         }
     }
 
+    public $showSubconsitesModal = false;
+    public $manageSubconsitesUserId = null;
+    public $subconsiteOptions = [];
+    public $selectedSubconsiteIds = [];
 
+    public function openSubconsiteModal(int $userId): void
+    {
+        $this->authorize('user-openSubconsiteModal');
 
+        $user = User::find($userId);
+        if (! $user) {
+            session()->flash('error', 'User not found.');
+            return;
+        }
+
+        $this->manageSubconsitesUserId = $userId;
+
+        // Load active sub consites
+        $this->subconsiteOptions = SubConsite::where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name'])
+            ->map(function ($s) {
+                return [
+                    'id' => $s->id,
+                    'code' => $s->code,
+                    'name' => $s->name,
+                ];
+            })->toArray();
+
+        // Preselect currently attached sub consites
+        $this->selectedSubconsiteIds = $user->subConsites()->pluck('sub_consites.id')->toArray();
+
+        $this->showSubconsitesModal = true;
+        $this->dispatch('showSubconsitesModal');
+    }
+
+    public function saveUserSubconsites(): void
+    {
+        $this->authorize('user-saveUserSubconsites');
+
+        if (! $this->manageSubconsitesUserId) {
+            session()->flash('error', 'No user selected.');
+            return;
+        }
+
+        $user = User::find($this->manageSubconsitesUserId);
+        if (! $user) {
+            session()->flash('error', 'User not found.');
+            return;
+        }
+
+        // Sync selections
+        $ids = is_array($this->selectedSubconsiteIds) ? array_values($this->selectedSubconsiteIds) : [];
+        $user->subConsites()->sync($ids);
+
+        $this->dispatch('swal', [
+            'title' => 'Saved',
+            'text' => 'Sub consites updated.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Ok',
+            'confirmButton' => 'btn btn-primary',
+        ]);
+
+        $this->showSubconsitesModal = false;
+        $this->manageSubconsitesUserId = null;
+        $this->subconsiteOptions = [];
+        $this->selectedSubconsiteIds = [];
+        $this->dispatch('closeSubconsitesModal');
+    }
 }

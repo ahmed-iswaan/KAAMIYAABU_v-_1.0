@@ -13,6 +13,44 @@
         </div>
         <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
             <div class="container-xxl">
+                <div class="row g-6 mb-6">
+                        @can('voters-openProvisionalPledge')
+                    <div class="col-md-6">
+                        <div class="card card-bordered shadow-sm">
+                            <div class="card-body py-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="ki-duotone ki-flag fs-2 text-primary me-2"><span class="path1"></span><span class="path2"></span></i>
+                                    <h6 class="mb-0">Provisional Pledges</h6>
+                                </div>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <span class="badge badge-light-primary">Yes: {{ $totalsProv['yes'] ?? 0 }}</span>
+                                    <span class="badge badge-light-warning">No: {{ $totalsProv['no'] ?? 0 }}</span>
+                                    <span class="badge badge-light-secondary">Undecided: {{ $totalsProv['neutral'] ?? 0 }}</span>
+                                    <span class="badge badge-light">Pending: {{ $totalsProv['pending'] ?? 0 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endcan
+                    @can('voters-openFinalPledge')
+                    <div class="col-md-6">
+                        <div class="card card-bordered shadow-sm">
+                            <div class="card-body py-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="ki-duotone ki-flag fs-2 text-success me-2"><span class="path1"></span><span class="path2"></span></i>
+                                    <h6 class="mb-0">Final Pledges</h6>
+                                </div>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <span class="badge badge-light-primary">Yes: {{ $totalsFinal['yes'] ?? 0 }}</span>
+                                    <span class="badge badge-light-warning">No: {{ $totalsFinal['no'] ?? 0 }}</span>
+                                    <span class="badge badge-light-secondary">Undecided: {{ $totalsFinal['neutral'] ?? 0 }}</span>
+                                    <span class="badge badge-light">Pending: {{ $totalsFinal['pending'] ?? 0 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endcan
+                </div>
                 <div class="card">
                     <div class="card-header border-0 pt-6">
                         <div class="card-title d-flex flex-wrap align-items-center gap-3 w-100">
@@ -133,6 +171,7 @@
                                         <th class="min-w-200px">Stats</th>
                                         <th class="min-w-120px">Prov. Pledge</th>
                                         <th class="min-w-120px">Final Pledge</th>
+                                        <th class="min-w-120px text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-gray-600 fw-semibold">
@@ -140,13 +179,26 @@
                                         @php
                                             $pledgeFinal = $entry->final_pledge_status;
                                             $pledgeProv = $entry->provisional_pledge_status;
+                                            // Map to labels for table display
                                             $labelFinal = $pledgeFinal ? strtoupper(str_replace('_',' ', $pledgeFinal)) : 'PENDING';
-                                            $labelProv = $pledgeProv ? strtoupper(str_replace('_',' ', $pledgeProv)) : 'PENDING';
-                                            $colorMap = [
-                                                'strong_yes'=>'success','yes'=>'primary','neutral'=>'secondary','no'=>'warning','strong_no'=>'danger'
-                                            ];
-                                            $colorFinal = $pledgeFinal ? ($colorMap[$pledgeFinal] ?? 'secondary') : 'light';
-                                            $colorProv = $pledgeProv ? ($colorMap[$pledgeProv] ?? 'secondary') : 'light';
+                                            // Restrict provisional labels to YES / NO / UNDECIDED
+                                            $labelProv = match($pledgeProv){
+                                                'yes' => 'YES',
+                                                'no' => 'NO',
+                                                'neutral' => 'UNDECIDED',
+                                                null => 'PENDING',
+                                                default => strtoupper(str_replace('_',' ', $pledgeProv))
+                                            };
+                                            // Colors
+                                            $colorMapFinal = ['strong_yes'=>'success','yes'=>'primary','neutral'=>'secondary','no'=>'warning','strong_no'=>'danger'];
+                                            $colorFinal = $pledgeFinal ? ($colorMapFinal[$pledgeFinal] ?? 'secondary') : 'light';
+                                            $colorProv = match($pledgeProv){
+                                                'yes' => 'primary',
+                                                'no' => 'warning',
+                                                'neutral' => 'secondary',
+                                                null => 'light',
+                                                default => 'secondary'
+                                            };
                                         @endphp
                                         <tr>
                                             <td class="d-flex align-items-center cursor-pointer" wire:click="viewVoter('{{ $entry->id }}')" style="user-select:none;">
@@ -218,6 +270,28 @@
                                             </td>
                                             <td><span class="badge badge-{{ $colorProv }} fw-bold">{{ $labelProv }}</span></td>
                                             <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
+                                            <td class="text-end">
+                                                <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
+                                                    <i class="ki-duotone ki-down fs-5 ms-1"></i>
+                                                </a>
+                                                <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-175px py-4" data-kt-menu="true">
+                                                    @can('voters-viewVoter')
+                                                    <div class="menu-item px-3">
+                                                        <a href="#" class="menu-link px-3" wire:click="viewVoter('{{ $entry->id }}')">View</a>
+                                                    </div>
+                                                    @endcan
+                                                    @can('voters-openProvisionalPledge')
+                                                    <div class="menu-item px-3">
+                                                        <a href="#" class="menu-link px-3" wire:click="openProvisionalPledgeModal('{{ $entry->id }}')">Provisional Pledge</a>
+                                                    </div>
+                                                    @endcan
+                                                    @can('voters-openFinalPledge')
+                                                    <div class="menu-item px-3">
+                                                        <a href="#" class="menu-link px-3" wire:click="openFinalPledgeModal('{{ $entry->id }}')">Final Pledge</a>
+                                                    </div>
+                                                    @endcan
+                                                </div>
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr><td colspan="8" class="text-center text-muted">No voters found.</td></tr>
@@ -233,6 +307,8 @@
     </div>
 
     @include('livewire.election.partials.view-voter-modal')
+    @include('livewire.election.partials.pledge-provisional-modal')
+    @include('livewire.election.partials.pledge-final-modal')
 
     @push('scripts')
     <script>

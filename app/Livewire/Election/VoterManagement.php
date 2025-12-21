@@ -16,6 +16,9 @@ use App\Models\VoterNote; // added for saving notes
 use App\Models\VoterPledge; // added
 use App\Events\VoterDataChanged; // new event
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Models\EventLog;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; // NEW logging
 
 class VoterManagement extends Component
 {
@@ -138,6 +141,7 @@ class VoterManagement extends Component
 
     public function viewVoter($id)
     {
+        $this->authorize('voters-viewVoter');
         $this->viewingVoter = Directory::with([
             'party:id,short_name,logo,name',
             'subConsite:id,code,name',
@@ -471,9 +475,11 @@ class VoterManagement extends Component
                     ->limit(1),
             ]);
 
-        $directoryQuery->whereIn('sub_consite_id', function($q) use ($electionId){
-            $q->select('sub_consite_id')->from('participants')->where('election_id', $electionId);
-        });
+        // Limit to sub consites that the current user has access to
+        $user = Auth::user();
+        if ($user) {
+            $directoryQuery->whereIn('sub_consite_id', $user->subConsites()->select('sub_consites.id'));
+        }
 
         if($this->search){
             $term = '%'.$this->search.'%';
@@ -537,13 +543,93 @@ class VoterManagement extends Component
                 })
                 ->count();
         }
-
+        $this->calculatePledgeTotals();
         return view('livewire.election.voter-management', [
             'voters' => $voters,
             'pageTitle' => $this->pageTitle,
             'elections' => $this->elections,
             'totalVoters' => $totalVoters,
+            'totalsProv' => $this->totalsProv,
+            'totalsFinal' => $this->totalsFinal,
         ])->layout('layouts.master');
+    }
+
+    private function calculatePledgeTotals(): void
+    {
+        Log::info('PledgeTotals: start', ['electionId'=>$this->electionId]);
+        if (! $this->electionId) {
+            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            Log::info('PledgeTotals: no electionId');
+            return;
+        }
+
+        $user = Auth::user();
+        $allowedSubconsiteIds = $user ? $user->subConsites()->pluck('sub_consites.id')->all() : [];
+        Log::info('PledgeTotals: allowed subconsite ids', ['count'=>count($allowedSubconsiteIds),'ids'=>$allowedSubconsiteIds]);
+        if (empty($allowedSubconsiteIds)) {
+            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            Log::warning('PledgeTotals: user has no assigned sub consites');
+            return;
+        }
+
+        $dirIds = Directory::query()
+            ->select('directories.id')
+            ->where('status','Active')
+            ->whereIn('sub_consite_id', $allowedSubconsiteIds)
+            ->whereIn('sub_consite_id', function($q){
+                $q->select('sub_consite_id')->from('participants')->where('election_id', $this->electionId);
+            })
+            ->pluck('id')
+            ->all();
+        Log::info('PledgeTotals: filtered directory ids', ['count'=>count($dirIds),'sample'=>array_slice($dirIds,0,10)]);
+
+        if (empty($dirIds)) {
+            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            Log::warning('PledgeTotals: no directories matched filters');
+            return;
+        }
+
+        // Provisional totals over filtered directories
+        $provRows = DB::table('voter_pledges')
+            ->where('election_id', $this->electionId)
+            ->where('type', \App\Models\VoterPledge::TYPE_PROVISIONAL)
+            ->whereIn('directory_id', $dirIds)
+            ->selectRaw('LOWER(COALESCE(status, "pending")) as s, COUNT(*) as c')
+            ->groupBy('s')
+            ->get();
+        $tp = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+        $countWithProvPledge = 0;
+        foreach ($provRows as $r) {
+            $key = in_array($r->s, ['yes','no','neutral','pending'], true) ? $r->s : 'pending';
+            $tp[$key] = ($tp[$key] ?? 0) + (int)$r->c;
+            $countWithProvPledge += (int)$r->c; // counts rows that have a pledge (including null)
+        }
+        // Pending = directories without any provisional pledge row
+        $tp['pending'] = max(0, count($dirIds) - $countWithProvPledge);
+
+        // Final totals over filtered directories (Yes/No/Neutral, Pending = no row)
+        $finalRows = DB::table('voter_pledges')
+            ->where('election_id', $this->electionId)
+            ->where('type', \App\Models\VoterPledge::TYPE_FINAL)
+            ->whereIn('directory_id', $dirIds)
+            ->selectRaw('LOWER(COALESCE(status, "pending")) as s, COUNT(*) as c')
+            ->groupBy('s')
+            ->get();
+        $tf = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+        $countWithFinalPledge = 0;
+        foreach ($finalRows as $r) {
+            $key = in_array($r->s, ['yes','no','neutral','pending'], true) ? $r->s : 'pending';
+            $tf[$key] = ($tf[$key] ?? 0) + (int)$r->c;
+            $countWithFinalPledge += (int)$r->c;
+        }
+        $tf['pending'] = max(0, count($dirIds) - $countWithFinalPledge);
+        $this->totalsFinal = $tf;
+
+        $this->totalsProv = $tp;
+        Log::info('PledgeTotals: computed', ['prov'=>$tp,'final'=>$tf]);
     }
 
     public function setProvisionalPledge($status)
@@ -645,5 +731,148 @@ class VoterManagement extends Component
             $this->dispatch('voter-modal-refreshed');
         }
         // Removed $this->dispatch('$refresh'); to avoid full component remount which interrupted open modal state.
+    }
+
+    public function openPledgeFor($directoryId, $type = null)
+    {
+        if ($type === 'provisional') {
+            $this->authorize('voters-openProvisionalPledge');
+        } elseif ($type === 'final') {
+            $this->authorize('voters-openFinalPledge');
+        }
+        $this->viewingVoter = \App\Models\Directory::with(['party:id,short_name,logo,name','subConsite:id,code,name'])
+            ->find($directoryId);
+        if (! $this->viewingVoter) { return; }
+        $t = in_array($type, ['provisional','final']) ? $type : null;
+        $this->pledgeType = $t;
+        if ($t === 'provisional') {
+            $this->dispatch('show-provisional-pledge-modal');
+        } elseif ($t === 'final') {
+            $this->dispatch('show-final-pledge-modal');
+        }
+    }
+
+    public function openProvisionalPledgeModal($directoryId = null)
+    {
+        $this->authorize('voters-openProvisionalPledge');
+        if ($directoryId) {
+            $this->viewingVoter = \App\Models\Directory::find($directoryId);
+        }
+        if (! $this->viewingVoter) { return; }
+        $this->pledgeType = 'provisional';
+        $this->dispatch('show-provisional-pledge-modal');
+    }
+
+    public function openFinalPledgeModal($directoryId = null)
+    {
+        $this->authorize('voters-openFinalPledge');
+        if ($directoryId) {
+            $this->viewingVoter = \App\Models\Directory::find($directoryId);
+        }
+        if (! $this->viewingVoter) { return; }
+        $this->pledgeType = 'final';
+        $this->dispatch('show-final-pledge-modal');
+    }
+
+    public function saveProvisionalPledge(): void
+    {
+        if (! $this->viewingVoter || ! $this->electionId) return;
+        $dirId = $this->viewingVoter->id;
+        $status = $this->provisional_status ?: null;
+
+        // Read previous
+        $prev = \App\Models\VoterPledge::where('directory_id',$dirId)
+            ->where('election_id',$this->electionId)
+            ->where('type', \App\Models\VoterPledge::TYPE_PROVISIONAL)
+            ->value('status');
+
+        $pledge = \App\Models\VoterPledge::firstOrNew([
+            'directory_id' => $dirId,
+            'election_id' => $this->electionId,
+            'type' => \App\Models\VoterPledge::TYPE_PROVISIONAL,
+        ]);
+        $pledge->status = $status;
+        if (! $pledge->exists) {
+            $pledge->created_by = auth()->id();
+        }
+        $pledge->save();
+
+        // Event log
+        EventLog::create([
+            'user_id' => auth()->id(),
+            'event_tab' => 'Election',
+            'event_entry_id' => $dirId,
+            'event_type' => 'Provisional Pledge Updated',
+            'description' => 'Provisional pledge changed for voter',
+            'event_data' => [
+                'election_id' => $this->electionId,
+                'directory_id' => $dirId,
+                'previous_status' => $prev,
+                'new_status' => $status,
+            ],
+            'ip_address' => request()->ip(),
+        ]);
+
+        $this->loadVoterRelations();
+        $this->dispatch('swal', [
+            'title' => 'Saved',
+            'text' => 'Provisional pledge updated.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Ok',
+            'confirmButton' => 'btn btn-primary',
+        ]);
+        $this->dispatch('hide-provisional-pledge-modal');
+    }
+
+    public function saveFinalPledge(): void
+    {
+        if (! $this->viewingVoter || ! $this->electionId) return;
+        $dirId = $this->viewingVoter->id;
+        $status = $this->final_status ?: null;
+
+        // Read previous
+        $prev = \App\Models\VoterPledge::where('directory_id',$dirId)
+            ->where('election_id',$this->electionId)
+            ->where('type', \App\Models\VoterPledge::TYPE_FINAL)
+            ->value('status');
+
+        $pledge = \App\Models\VoterPledge::firstOrNew([
+            'directory_id' => $dirId,
+            'election_id' => $this->electionId,
+            'type' => \App\Models\VoterPledge::TYPE_FINAL,
+        ]);
+        $pledge->status = $status;
+        if (! $pledge->exists) {
+            $pledge->created_by = auth()->id();
+        }
+        $pledge->save();
+
+        // Event log
+        EventLog::create([
+            'user_id' => auth()->id(),
+            'event_tab' => 'Election',
+            'event_entry_id' => $dirId,
+            'event_type' => 'Final Pledge Updated',
+            'description' => 'Final pledge changed for voter',
+            'event_data' => [
+                'election_id' => $this->electionId,
+                'directory_id' => $dirId,
+                'previous_status' => $prev,
+                'new_status' => $status,
+            ],
+            'ip_address' => request()->ip(),
+        ]);
+
+        $this->loadVoterRelations();
+        $this->dispatch('swal', [
+            'title' => 'Saved',
+            'text' => 'Final pledge updated.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Ok',
+            'confirmButton' => 'btn btn-success',
+        ]);
+        $this->dispatch('hide-final-pledge-modal');
     }
 }

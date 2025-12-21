@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use App\Models\Directory;
+use App\Models\Election;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class AdminDashboard extends Component
@@ -32,10 +33,17 @@ class AdminDashboard extends Component
     public $dirFemaleCounts = [];
     public $dirOtherCounts = [];
 
+    public $pledgeLabels = [];
+    public $provYes = []; public $provNo = []; public $provUndecided = []; public $provPending = [];
+    public $finalYes = []; public $finalNo = []; public $finalUndecided = []; public $finalPending = [];
+    public $pledgeElectionId = null;
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
         $this->computeStats();
+        $this->pledgeElectionId = Election::orderBy('start_date','desc')->value('id');
+        $this->computePledgeBySubConsite();
     }
 
     private function computeStats(): void
@@ -120,6 +128,56 @@ class AdminDashboard extends Component
         $this->dirOtherCounts = $dirRows->pluck('other')->map(fn($v)=> (int) ($v ?? 0))->toArray();
     }
 
+    private function computePledgeBySubConsite(): void
+    {
+        $eId = $this->pledgeElectionId;
+        $rowsProv = DB::table('sub_consites as s')
+            ->leftJoin('directories as d','d.sub_consite_id','=','s.id')
+            ->leftJoin('voter_pledges as vp', function($join) use ($eId){
+                $join->on('vp.directory_id','=','d.id')
+                     ->where('vp.type','provisional');
+                if ($eId) { $join->where('vp.election_id',$eId); }
+            })
+            ->select('s.code')
+            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='yes' THEN 1 ELSE 0 END) as yes")
+            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='no' THEN 1 ELSE 0 END) as no")
+            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='neutral' THEN 1 ELSE 0 END) as undecided")
+            ->selectRaw("SUM(CASE WHEN vp.status IS NULL THEN 0 ELSE 0 END) as pending_rows")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN d.status='Active' THEN d.id END) as active_dirs")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN vp.id IS NOT NULL THEN d.id END) as pledged_dirs")
+            ->groupBy('s.code')
+            ->orderBy('s.code')
+            ->get();
+        $this->pledgeLabels = $rowsProv->pluck('code')->toArray();
+        $this->provYes = $rowsProv->pluck('yes')->map(fn($v)=> (int)$v)->toArray();
+        $this->provNo = $rowsProv->pluck('no')->map(fn($v)=> (int)$v)->toArray();
+        $this->provUndecided = $rowsProv->pluck('undecided')->map(fn($v)=> (int)$v)->toArray();
+        // Pending = Active dirs in sub - pledged_dirs
+        $this->provPending = $rowsProv->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
+
+        // Final simplified
+        $rowsFinal = DB::table('sub_consites as s')
+            ->leftJoin('directories as d','d.sub_consite_id','=','s.id')
+            ->leftJoin('voter_pledges as vp', function($join){
+                $join->on('vp.directory_id','=','d.id')
+                     ->where('vp.type','final');
+                if ($this->pledgeElectionId) { $join->where('vp.election_id',$this->pledgeElectionId); }
+            })
+            ->select('s.code')
+            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='yes' THEN 1 ELSE 0 END) as yes")
+            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='no' THEN 1 ELSE 0 END) as no")
+            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='neutral' THEN 1 ELSE 0 END) as undecided")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN d.status='Active' THEN d.id END) as active_dirs")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN vp.id IS NOT NULL THEN d.id END) as pledged_dirs")
+            ->groupBy('s.code')
+            ->orderBy('s.code')
+            ->get();
+        $this->finalYes = $rowsFinal->pluck('yes')->map(fn($v)=> (int)$v)->toArray();
+        $this->finalNo = $rowsFinal->pluck('no')->map(fn($v)=> (int)$v)->toArray();
+        $this->finalUndecided = $rowsFinal->pluck('undecided')->map(fn($v)=> (int)$v)->toArray();
+        $this->finalPending = $rowsFinal->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
+    }
+
     public function render()
     {
         return view('livewire.admin.admin-dashboard',[
@@ -141,6 +199,15 @@ class AdminDashboard extends Component
             'dirMaleCounts' => $this->dirMaleCounts,
             'dirFemaleCounts' => $this->dirFemaleCounts,
             'dirOtherCounts' => $this->dirOtherCounts,
+            'pledgeLabels' => $this->pledgeLabels,
+            'provYes' => $this->provYes,
+            'provNo' => $this->provNo,
+            'provUndecided' => $this->provUndecided,
+            'provPending' => $this->provPending,
+            'finalYes' => $this->finalYes,
+            'finalNo' => $this->finalNo,
+            'finalUndecided' => $this->finalUndecided,
+            'finalPending' => $this->finalPending,
         ])->layout('layouts.master');
     }
 }
