@@ -3,7 +3,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Set Final Pledge</h5>
-                <button type="button" class="btn btn-sm btn-icon btn-active-light-primary" data-bs-dismiss="modal" aria-label="Close">
+                <button type="button" class="btn btn-sm btn-icon btn-active-light-success" data-bs-dismiss="modal" aria-label="Close">
                     <i class="ki-duotone ki-cross fs-2"><span class="path1"></span><span class="path2"></span></i>
                 </button>
             </div>
@@ -28,10 +28,23 @@
 
 @push('scripts')
 <script>
+    function cleanupBootstrapBackdrop() {
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+    }
+
+    function attachCleanupOnHidden(id){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.addEventListener('hidden.bs.modal', cleanupBootstrapBackdrop, { once: false });
+    }
+
     window.addEventListener('show-final-pledge-modal', ()=>{
         const el = document.getElementById('finalPledgeModal');
         if(!el || typeof bootstrap==='undefined') return;
-        const modal = new bootstrap.Modal(el);
+        const modal = new bootstrap.Modal(el, { backdrop: true });
+        attachCleanupOnHidden('finalPledgeModal');
         modal.show();
     });
     window.addEventListener('hide-final-pledge-modal', ()=>{
@@ -39,10 +52,7 @@
         if(!el || typeof bootstrap==='undefined') return;
         const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
         modal.hide();
-        // cleanup backdrop if needed
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-        document.body.classList.remove('modal-open');
-        document.body.style.removeProperty('padding-right');
+        setTimeout(cleanupBootstrapBackdrop, 150);
     });
 </script>
 @endpush

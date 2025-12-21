@@ -58,16 +58,6 @@
 
     <div class="card card-flush p-6 shadow-sm mt-6">
         <div class="d-flex align-items-center justify-content-between mb-4">
-            <div class="fs-5 fw-bold">Active Directories by SubConsite & Gender</div>
-            <div class="fs-7 text-muted">Male / Female / Other</div>
-        </div>
-        <div style="height: 360px;">
-            <canvas id="dirBySubConsiteGender"></canvas>
-        </div>
-    </div>
-
-    <div class="card card-flush p-6 shadow-sm mt-6">
-        <div class="d-flex align-items-center justify-content-between mb-4">
             <div class="fs-5 fw-bold">Provisional Pledges by SubConsite</div>
             <div class="fs-7 text-muted">Yes / No / Undecided / Pending</div>
         </div>
@@ -86,12 +76,12 @@
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div class="fs-5 fw-bold">Form Submissions by SubConsite</div>
             <div class="d-flex gap-3">
-                <select class="form-select form-select-sm" style="min-width:220px" wire:model="selectedFormId">
+                <select class="form-select form-select-sm" style="min-width:220px" wire:model.live="selectedFormId">
                     @foreach($forms as $f)
                         <option value="{{ $f->id }}">{{ $f->title }}</option>
                     @endforeach
                 </select>
-                <select class="form-select form-select-sm" style="min-width:220px" wire:model="selectedQuestionId">
+                <select class="form-select form-select-sm" style="min-width:220px" wire:model.live="selectedQuestionId">
                     @php $questions = \App\Models\FormQuestion::where('form_id',$selectedFormId)->whereIn('type',["dropdown","radio"])->orderBy('position')->get(['id','question_text']); @endphp
                     @foreach($questions as $q)
                         <option value="{{ $q->id }}">{{ $q->question_text }}</option>
@@ -199,37 +189,6 @@ const TotalsAboveBarsPlugin = {
                 { label: 'Follow-up', data: followUp, backgroundColor: '#3e97ff' },
                 { label: 'Completed', data: completed, backgroundColor: '#50cd89' },
                 { label: 'No Task', data: noTask, backgroundColor: '#f1416c' },
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-            plugins: { legend: { position: 'bottom' } }
-        },
-        plugins: [TotalsAboveBarsPlugin]
-    });
-})();
-</script>
-
-<!-- Directories by subConsite & gender chart -->
-<script>
-(function(){
-    const el = document.getElementById('dirBySubConsiteGender');
-    if(!el) return;
-    const labels = @json($dirSubConsiteLabels ?? []);
-    const male = @json($dirMaleCounts ?? []);
-    const female = @json($dirFemaleCounts ?? []);
-    const other = @json($dirOtherCounts ?? []);
-    if (!labels.length) return;
-    new Chart(el, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Male', data: male, backgroundColor: '#3e97ff' },
-                { label: 'Female', data: female, backgroundColor: '#f1416c' },
-                { label: 'Other', data: other, backgroundColor: '#a1a5b7' },
             ]
         },
         options: {

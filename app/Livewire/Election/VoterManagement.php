@@ -19,6 +19,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Models\EventLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; // NEW logging
+use App\Models\VoterProvisionalUserPledge; // NEW per-user provisional pledge
+use App\Models\User; // NEW: User model for history
 
 class VoterManagement extends Component
 {
@@ -463,10 +465,10 @@ class VoterManagement extends Component
                     ->where('election_id',$electionId)
                     ->where('type', \App\Models\VoterPledge::TYPE_FINAL)
                     ->limit(1),
-                'provisional_pledge_status' => \App\Models\VoterPledge::select('status')
+                'provisional_pledge_status' => VoterProvisionalUserPledge::select('status')
                     ->whereColumn('directory_id','directories.id')
                     ->where('election_id',$electionId)
-                    ->where('type', \App\Models\VoterPledge::TYPE_PROVISIONAL)
+                    ->where('user_id', Auth::id())
                     ->limit(1),
                 'latest_opinion_status' => \App\Models\VoterOpinion::select('status')
                     ->whereColumn('directory_id','directories.id')
@@ -592,10 +594,10 @@ class VoterManagement extends Component
             return;
         }
 
-        // Provisional totals over filtered directories
-        $provRows = DB::table('voter_pledges')
+        // Provisional totals are now per-user (pending means no row by current user)
+        $provRows = DB::table('voter_provisional_user_pledges')
             ->where('election_id', $this->electionId)
-            ->where('type', \App\Models\VoterPledge::TYPE_PROVISIONAL)
+            ->where('user_id', Auth::id())
             ->whereIn('directory_id', $dirIds)
             ->selectRaw('LOWER(COALESCE(status, "pending")) as s, COUNT(*) as c')
             ->groupBy('s')
@@ -605,9 +607,8 @@ class VoterManagement extends Component
         foreach ($provRows as $r) {
             $key = in_array($r->s, ['yes','no','neutral','pending'], true) ? $r->s : 'pending';
             $tp[$key] = ($tp[$key] ?? 0) + (int)$r->c;
-            $countWithProvPledge += (int)$r->c; // counts rows that have a pledge (including null)
+            $countWithProvPledge += (int)$r->c;
         }
-        // Pending = directories without any provisional pledge row
         $tp['pending'] = max(0, count($dirIds) - $countWithProvPledge);
 
         // Final totals over filtered directories (Yes/No/Neutral, Pending = no row)
@@ -780,21 +781,18 @@ class VoterManagement extends Component
         $dirId = $this->viewingVoter->id;
         $status = $this->provisional_status ?: null;
 
-        // Read previous
-        $prev = \App\Models\VoterPledge::where('directory_id',$dirId)
+        // Read previous for this user
+        $prev = VoterProvisionalUserPledge::where('directory_id',$dirId)
             ->where('election_id',$this->electionId)
-            ->where('type', \App\Models\VoterPledge::TYPE_PROVISIONAL)
+            ->where('user_id', Auth::id())
             ->value('status');
 
-        $pledge = \App\Models\VoterPledge::firstOrNew([
+        $pledge = VoterProvisionalUserPledge::firstOrNew([
             'directory_id' => $dirId,
             'election_id' => $this->electionId,
-            'type' => \App\Models\VoterPledge::TYPE_PROVISIONAL,
+            'user_id' => Auth::id(),
         ]);
-        $pledge->status = $status;
-        if (! $pledge->exists) {
-            $pledge->created_by = auth()->id();
-        }
+        $pledge->status = $status; // null means no explicit status; row will exist though
         $pledge->save();
 
         // Event log
@@ -802,8 +800,8 @@ class VoterManagement extends Component
             'user_id' => auth()->id(),
             'event_tab' => 'Election',
             'event_entry_id' => $dirId,
-            'event_type' => 'Provisional Pledge Updated',
-            'description' => 'Provisional pledge changed for voter',
+            'event_type' => 'Provisional Pledge Updated (Per-User)',
+            'description' => 'User-specific provisional pledge changed for voter',
             'event_data' => [
                 'election_id' => $this->electionId,
                 'directory_id' => $dirId,
@@ -816,7 +814,7 @@ class VoterManagement extends Component
         $this->loadVoterRelations();
         $this->dispatch('swal', [
             'title' => 'Saved',
-            'text' => 'Provisional pledge updated.',
+            'text' => 'Your provisional pledge updated.',
             'icon' => 'success',
             'buttonsStyling' => false,
             'confirmButtonText' => 'Ok',
@@ -874,5 +872,28 @@ class VoterManagement extends Component
             'confirmButton' => 'btn btn-success',
         ]);
         $this->dispatch('hide-final-pledge-modal');
+    }
+
+    // NEW: provisional pledge history
+    public $provisionalHistory = []; // NEW history list
+
+    public function openProvisionalHistory($directoryId)
+    {
+        $this->authorize('voters-openProvisionalPledge');
+        $this->viewingVoter = \App\Models\Directory::find($directoryId);
+        if (! $this->viewingVoter || ! $this->electionId) return;
+        $this->provisionalHistory = VoterProvisionalUserPledge::with('user:id,name')
+            ->where('election_id', $this->electionId)
+            ->where('directory_id', $this->viewingVoter->id)
+            ->orderByDesc('updated_at')
+            ->get(['id','user_id','status','created_at','updated_at'])
+            ->map(function($r){
+                return [
+                    'user' => optional($r->user)->name,
+                    'status' => $r->status ?? 'pending',
+                    'updated_at' => optional($r->updated_at)->format('Y-m-d H:i'),
+                ];
+            })->all();
+        $this->dispatch('show-provisional-history-modal');
     }
 }

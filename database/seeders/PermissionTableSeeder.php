@@ -60,12 +60,13 @@ class PermissionTableSeeder extends Seeder
         //    'task-bulk-unassign-filtered',
         // 'admin-dashboard-render',
 
-        'user-openSubconsiteModal',
-        'user-saveUserSubconsites',
+        // 'user-openSubconsiteModal',
+        // 'user-saveUserSubconsites',
 
-        'voters-viewVoter',
-        'voters-openProvisionalPledge',
-        'voters-openFinalPledge',
+        // 'voters-viewVoter',
+        // 'voters-openProvisionalPledge',
+        // 'voters-openFinalPledge',
+        'voters-viewProvisionalHistory',
 
         ];
         

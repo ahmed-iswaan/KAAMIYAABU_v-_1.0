@@ -9,6 +9,7 @@ use App\Models\Election;
 use App\Models\Form;
 use App\Models\FormQuestion;
 use App\Models\FormSubmissionAnswer;
+use App\Models\FormQuestionOption;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Arr;
 
@@ -31,11 +32,6 @@ class AdminDashboard extends Component
     public $subConsiteFollowUp = [];
     public $subConsiteCompleted = [];
     public $subConsiteNoTask = [];
-
-    public $dirSubConsiteLabels = [];
-    public $dirMaleCounts = [];
-    public $dirFemaleCounts = [];
-    public $dirOtherCounts = [];
 
     public $pledgeLabels = [];
     public $provYes = []; public $provNo = []; public $provUndecided = []; public $provPending = [];
@@ -135,40 +131,24 @@ class AdminDashboard extends Component
         $this->subConsiteFollowUp = $rows->pluck('follow_up')->map(fn($v)=> (int) $v)->toArray();
         $this->subConsiteCompleted = $rows->pluck('completed')->map(fn($v)=> (int) $v)->toArray();
         $this->subConsiteNoTask = $rows->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->task_dirs ?? 0)))->toArray();
-
-        // Active directories by gender grouped by sub_consite (LEFT JOIN to include subs with zero)
-        $dirRows = DB::table('sub_consites')
-            ->leftJoin('directories','directories.sub_consite_id','=','sub_consites.id')
-            ->select('sub_consites.code as code')
-            ->selectRaw("SUM(CASE WHEN directories.status='Active' AND directories.gender='male' THEN 1 ELSE 0 END) as male")
-            ->selectRaw("SUM(CASE WHEN directories.status='Active' AND directories.gender='female' THEN 1 ELSE 0 END) as female")
-            ->selectRaw("SUM(CASE WHEN directories.status='Active' AND (directories.gender IS NULL OR directories.gender NOT IN ('male','female')) THEN 1 ELSE 0 END) as other")
-            ->groupBy('sub_consites.code')
-            ->orderBy('sub_consites.code')
-            ->get();
-        $this->dirSubConsiteLabels = $dirRows->pluck('code')->toArray();
-        $this->dirMaleCounts = $dirRows->pluck('male')->map(fn($v)=> (int) ($v ?? 0))->toArray();
-        $this->dirFemaleCounts = $dirRows->pluck('female')->map(fn($v)=> (int) ($v ?? 0))->toArray();
-        $this->dirOtherCounts = $dirRows->pluck('other')->map(fn($v)=> (int) ($v ?? 0))->toArray();
     }
 
     private function computePledgeBySubConsite(): void
     {
         $eId = $this->pledgeElectionId;
+        // Provisional per-user: join voter_provisional_user_pledges
         $rowsProv = DB::table('sub_consites as s')
             ->leftJoin('directories as d','d.sub_consite_id','=','s.id')
-            ->leftJoin('voter_pledges as vp', function($join) use ($eId){
-                $join->on('vp.directory_id','=','d.id')
-                     ->where('vp.type','provisional');
-                if ($eId) { $join->where('vp.election_id',$eId); }
+            ->leftJoin('voter_provisional_user_pledges as vpup', function($join) use ($eId){
+                $join->on('vpup.directory_id','=','d.id');
+                if ($eId) { $join->where('vpup.election_id',$eId); }
             })
             ->select('s.code')
-            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='yes' THEN 1 ELSE 0 END) as yes")
-            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='no' THEN 1 ELSE 0 END) as no")
-            ->selectRaw("SUM(CASE WHEN LOWER(vp.status)='neutral' THEN 1 ELSE 0 END) as undecided")
-            ->selectRaw("SUM(CASE WHEN vp.status IS NULL THEN 0 ELSE 0 END) as pending_rows")
+            ->selectRaw("SUM(CASE WHEN LOWER(vpup.status)='yes' THEN 1 ELSE 0 END) as yes")
+            ->selectRaw("SUM(CASE WHEN LOWER(vpup.status)='no' THEN 1 ELSE 0 END) as no")
+            ->selectRaw("SUM(CASE WHEN LOWER(vpup.status)='neutral' THEN 1 ELSE 0 END) as undecided")
             ->selectRaw("COUNT(DISTINCT CASE WHEN d.status='Active' THEN d.id END) as active_dirs")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN vp.id IS NOT NULL THEN d.id END) as pledged_dirs")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN vpup.id IS NOT NULL THEN d.id END) as pledged_dirs")
             ->groupBy('s.code')
             ->orderBy('s.code')
             ->get();
@@ -176,10 +156,10 @@ class AdminDashboard extends Component
         $this->provYes = $rowsProv->pluck('yes')->map(fn($v)=> (int)$v)->toArray();
         $this->provNo = $rowsProv->pluck('no')->map(fn($v)=> (int)$v)->toArray();
         $this->provUndecided = $rowsProv->pluck('undecided')->map(fn($v)=> (int)$v)->toArray();
-        // Pending = Active dirs in sub - pledged_dirs
+        // Pending = Active dirs in sub - pledged_dirs (any user)
         $this->provPending = $rowsProv->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
 
-        // Final simplified
+        // Final simplified (unchanged)
         $rowsFinal = DB::table('sub_consites as s')
             ->leftJoin('directories as d','d.sub_consite_id','=','s.id')
             ->leftJoin('voter_pledges as vp', function($join){
@@ -226,6 +206,10 @@ class AdminDashboard extends Component
         $this->fsLabels = $subs->pluck('code')->toArray();
         $indexById = $subs->pluck('code','id');
 
+        // Map option values to labels for the selected question
+        $optMap = FormQuestionOption::where('form_question_id', $this->selectedQuestionId)
+            ->pluck('label','value');
+
         $answers = \DB::table('form_submission_answers as fsa')
             ->join('form_submissions as fs', 'fs.id','=','fsa.form_submission_id')
             ->join('directories as d','d.id','=','fs.directory_id')
@@ -234,11 +218,12 @@ class AdminDashboard extends Component
             ->select('d.sub_consite_id','fsa.value_text')
             ->get();
 
-        // Aggregate counts per answer text per sub_consite
-        $matrix = []; // answer => subCode => count
+        // Aggregate counts per option label per sub_consite
+        $matrix = []; // label => subCode => count
         foreach ($answers as $row) {
             $subId = $row->sub_consite_id; $subCode = $indexById[$subId] ?? null; if (! $subCode) continue;
-            $label = $row->value_text ?: 'Other';
+            $value = $row->value_text ?: '';
+            $label = (string)($optMap[$value] ?? $value ?: 'Other');
             if (! isset($matrix[$label])) { $matrix[$label] = array_fill(0, count($this->fsLabels), 0); }
             $pos = array_search($subCode, $this->fsLabels, true);
             if ($pos !== false) { $matrix[$label][$pos]++; }
@@ -270,10 +255,6 @@ class AdminDashboard extends Component
             'subConsiteFollowUp' => $this->subConsiteFollowUp,
             'subConsiteCompleted' => $this->subConsiteCompleted,
             'subConsiteNoTask' => $this->subConsiteNoTask,
-            'dirSubConsiteLabels' => $this->dirSubConsiteLabels,
-            'dirMaleCounts' => $this->dirMaleCounts,
-            'dirFemaleCounts' => $this->dirFemaleCounts,
-            'dirOtherCounts' => $this->dirOtherCounts,
             'pledgeLabels' => $this->pledgeLabels,
             'provYes' => $this->provYes,
             'provNo' => $this->provNo,

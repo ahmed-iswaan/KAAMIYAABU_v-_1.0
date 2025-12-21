@@ -273,6 +273,11 @@
                                                         <a href="#" class="menu-link px-3" wire:click="openProvisionalPledgeModal('{{ $entry->id }}')">Provisional Pledge</a>
                                                     </div>
                                                     @endcan
+                                                    @can('voters-viewProvisionalHistory')
+                                                    <div class="menu-item px-3">
+                                                        <a href="#" class="menu-link px-3" wire:click="openProvisionalHistory('{{ $entry->id }}')">Provisional History</a>
+                                                    </div>
+                                                    @endcan
                                                     @can('voters-openFinalPledge')
                                                     <div class="menu-item px-3">
                                                         <a href="#" class="menu-link px-3" wire:click="openFinalPledgeModal('{{ $entry->id }}')">Final Pledge</a>
@@ -297,6 +302,7 @@
     @include('livewire.election.partials.view-voter-modal')
     @include('livewire.election.partials.pledge-provisional-modal')
     @include('livewire.election.partials.pledge-final-modal')
+    @include('livewire.election.partials.provisional-history-modal')
 
     @push('scripts')
     <script>

@@ -34,10 +34,17 @@
         document.body.style.removeProperty('padding-right');
     }
 
+    function attachCleanupOnHidden(id){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.addEventListener('hidden.bs.modal', cleanupBootstrapBackdrop, { once: false });
+    }
+
     window.addEventListener('show-provisional-pledge-modal', ()=>{
         const el = document.getElementById('provisionalPledgeModal');
         if(!el || typeof bootstrap==='undefined') return;
         const modal = new bootstrap.Modal(el, { backdrop: true });
+        attachCleanupOnHidden('provisionalPledgeModal');
         modal.show();
     });
     window.addEventListener('hide-provisional-pledge-modal', ()=>{
