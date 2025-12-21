@@ -1,4 +1,7 @@
 <div class="container-xxl py-6">
+    <style>
+        .faruma { font-family: 'Faruma', system-ui, 'Segoe UI', Arial, sans-serif; }
+    </style>
     <div class="row g-6 mb-6">
         <div class="col-md-3">
             <div class="card card-flush h-100 p-6 shadow-sm">
@@ -32,7 +35,7 @@
             <div class="fs-7 text-muted">{{ number_format($directoriesWithNoTasks) }} Active directories have no tasks</div>
         </div>
         <div class="position-relative" style="height: 360px;">
-            <canvas id="noTaskPie" class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+            <canvas id="noTaskPie" wire:ignore class="position-absolute top-0 start-0 w-100 h-100"></canvas>
             <div id="noTaskCenter" class="position-absolute top-50 start-50 translate-middle text-center">
                 <div class="fs-1 fw-bold" id="noTaskTotal">0</div>
                 <div class="fs-7 text-muted">Total Active</div>
@@ -52,7 +55,7 @@
             <div class="fs-7 text-muted">Pending / Follow-up / Completed</div>
         </div>
         <div style="height: 360px;">
-            <canvas id="subConsiteStatusChart"></canvas>
+            <canvas id="subConsiteStatusChart" wire:ignore></canvas>
         </div>
     </div>
 
@@ -61,7 +64,7 @@
             <div class="fs-5 fw-bold">Provisional Pledges by SubConsite</div>
             <div class="fs-7 text-muted">Yes / No / Undecided / Pending</div>
         </div>
-        <div style="height: 360px;"><canvas id="provBySubConsite"></canvas></div>
+        <div style="height: 360px;"><canvas id="provBySubConsite" wire:ignore></canvas></div>
     </div>
 
     <div class="card card-flush p-6 shadow-sm mt-6">
@@ -69,38 +72,29 @@
             <div class="fs-5 fw-bold">Final Pledges by SubConsite</div>
             <div class="fs-7 text-muted">Yes / No / Undecided / Pending</div>
         </div>
-        <div style="height: 360px;"><canvas id="finalBySubConsite"></canvas></div>
+        <div style="height: 360px;"><canvas id="finalBySubConsite" wire:ignore></canvas></div>
     </div>
 
+    <!-- Additional charts per question -->
+    @foreach($fsAllCharts as $chart)
     <div class="card card-flush p-6 shadow-sm mt-6">
         <div class="d-flex align-items-center justify-content-between mb-4">
-            <div class="fs-5 fw-bold">Form Submissions by SubConsite</div>
-            <div class="d-flex gap-3">
-                <select class="form-select form-select-sm" style="min-width:220px" wire:model.live="selectedFormId">
-                    @foreach($forms as $f)
-                        <option value="{{ $f->id }}">{{ $f->title }}</option>
-                    @endforeach
-                </select>
-                <select class="form-select form-select-sm" style="min-width:220px" wire:model.live="selectedQuestionId">
-                    @php $questions = \App\Models\FormQuestion::where('form_id',$selectedFormId)->whereIn('type',["dropdown","radio"])->orderBy('position')->get(['id','question_text']); @endphp
-                    @foreach($questions as $q)
-                        <option value="{{ $q->id }}">{{ $q->question_text }}</option>
-                    @endforeach
-                </select>
-            </div>
+            <div class="fs-5 fw-bold faruma">{{ $chart['text'] }}</div>
+            <div class="fs-7 text-muted faruma">Options by SubConsite</div>
         </div>
         <div style="height: 360px">
-            <canvas id="formSubmissionsBySub"></canvas>
+            <canvas id="chart_q_{{ $chart['questionId'] }}" wire:ignore></canvas>
         </div>
         <div class="d-flex flex-wrap gap-3 mt-3">
-            @foreach($fsSeries as $s)
+            @foreach($chart['series'] as $s)
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge" style="width:12px;height:12px;background: {{ $s['color'] }}"></span>
-                    <span class="fs-7 text-muted">{{ $s['label'] }}</span>
+                    <span class="fs-7 text-muted faruma">{{ $s['label'] }}</span>
                 </div>
             @endforeach
         </div>
     </div>
+    @endforeach
 </div>
 
 <!-- Load Chart.js first -->
@@ -255,21 +249,22 @@ const TotalsAboveBarsPlugin = {
 })();
 </script>
 
-<!-- Form Submissions by SubConsite chart -->
+<!-- Per-question charts init -->
 <script>
 (function(){
-    const el = document.getElementById('formSubmissionsBySub');
-    if(!el) return;
-    const labels = @json($fsLabels ?? []);
-    const series = @json($fsSeries ?? []);
-    if (!labels.length || !series.length) return;
-    new Chart(el, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: series.map(s => ({ label: s.label, data: s.data, backgroundColor: s.color }))
-        },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+    function buildChart(elId, labels, series){
+        const el = document.getElementById(elId);
+        if(!el) return;
+        if (!labels || !labels.length || !series || !series.length) return;
+        new Chart(el, {
+            type: 'bar',
+            data: { labels, datasets: series.map(s => ({ label: s.label, data: s.data, backgroundColor: s.color })) },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+        });
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        const charts = @json($fsAllCharts ?? []);
+        charts.forEach(c => { buildChart('chart_q_' + c.questionId, c.labels || [], c.series || []); });
     });
 })();
 </script>

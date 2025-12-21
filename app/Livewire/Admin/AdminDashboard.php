@@ -44,6 +44,8 @@ class AdminDashboard extends Component
 
     public $fsLabels = []; // sub consite codes
     public $fsSeries = []; // [{label:'Option A', data:[...]}]
+    public $fsAllCharts = []; // NEW: [{questionId,text,labels,series}]
+    public $fsBySubCharts = []; // NEW: [{subCode, questions:[{text, labels(options), data(counts)}]}]
 
     public function mount(): void
     {
@@ -64,6 +66,15 @@ class AdminDashboard extends Component
             if ($firstQuestion) { $this->selectedQuestionId = $firstQuestion->id; }
         }
         $this->computeFormSubmissionChart();
+        // Dispatch initial chart data to ensure JS initializes
+        $this->dispatch('admin-form-chart-update', ['labels'=>$this->fsLabels, 'series'=>$this->fsSeries]);
+    }
+
+    // Explicit refresh method to recompute and dispatch
+    public function refreshFormChart(): void
+    {
+        $this->computeFormSubmissionChart();
+        $this->dispatch('admin-form-chart-update', ['labels'=>$this->fsLabels, 'series'=>$this->fsSeries]);
     }
 
     private function computeStats(): void
@@ -199,43 +210,65 @@ class AdminDashboard extends Component
 
     private function computeFormSubmissionChart(): void
     {
-        $this->fsLabels = []; $this->fsSeries = [];
-        if (! $this->selectedFormId || ! $this->selectedQuestionId) return;
+        $this->fsLabels = []; $this->fsSeries = []; $this->fsAllCharts = []; $this->fsBySubCharts = [];
+        if (! $this->selectedFormId) { $this->dispatch('admin-form-chart-update', ['labels'=>[], 'series'=>[]]); return; }
 
         $subs = \DB::table('sub_consites')->select('id','code')->orderBy('code')->get();
-        $this->fsLabels = $subs->pluck('code')->toArray();
+        $labelsBySub = $subs->pluck('code')->toArray();
         $indexById = $subs->pluck('code','id');
+        $this->fsLabels = $labelsBySub;
 
-        // Map option values to labels for the selected question
-        $optMap = FormQuestionOption::where('form_question_id', $this->selectedQuestionId)
-            ->pluck('label','value');
+        $questions = FormQuestion::where('form_id',$this->selectedFormId)
+            ->whereIn('type', ['dropdown','radio','select'])
+            ->orderBy('position')
+            ->get(['id','question_text']);
 
-        $answers = \DB::table('form_submission_answers as fsa')
-            ->join('form_submissions as fs', 'fs.id','=','fsa.form_submission_id')
-            ->join('directories as d','d.id','=','fs.directory_id')
-            ->where('fs.form_id', $this->selectedFormId)
-            ->where('fsa.form_question_id', $this->selectedQuestionId)
-            ->select('d.sub_consite_id','fsa.value_text')
-            ->get();
+        $subInit = [];
+        foreach ($labelsBySub as $code) { $subInit[$code] = ['subCode'=>$code, 'questions'=>[]]; }
 
-        // Aggregate counts per option label per sub_consite
-        $matrix = []; // label => subCode => count
-        foreach ($answers as $row) {
-            $subId = $row->sub_consite_id; $subCode = $indexById[$subId] ?? null; if (! $subCode) continue;
-            $value = $row->value_text ?: '';
-            $label = (string)($optMap[$value] ?? $value ?: 'Other');
-            if (! isset($matrix[$label])) { $matrix[$label] = array_fill(0, count($this->fsLabels), 0); }
-            $pos = array_search($subCode, $this->fsLabels, true);
-            if ($pos !== false) { $matrix[$label][$pos]++; }
+        foreach ($questions as $q) {
+            $optMap = \App\Models\FormQuestionOption::where('form_question_id', $q->id)->pluck('label','value');
+            $answers = \DB::table('form_submission_answers as fsa')
+                ->join('form_submissions as fs', 'fs.id','=','fsa.form_submission_id')
+                ->join('directories as d','d.id','=','fs.directory_id')
+                ->where('fs.form_id', $this->selectedFormId)
+                ->where('fsa.form_question_id', $q->id)
+                ->select('d.sub_consite_id','fsa.value_text','fsa.value_text_dv')
+                ->get();
+            $matrix = []; // label => subCode => count
+            foreach ($answers as $row) {
+                $subId = $row->sub_consite_id; $subCode = $indexById[$subId] ?? null; if (! $subCode) continue;
+                // Prefer Faruma (Dhivehi) label if present
+                $labelDv = trim((string)($row->value_text_dv ?? ''));
+                $value = trim((string)($row->value_text ?? ''));
+                $label = $labelDv !== '' ? $labelDv : ((string)($optMap[$value] ?? $value ?: 'Other'));
+                if (! isset($matrix[$label])) { $matrix[$label] = array_fill(0, count($labelsBySub), 0); }
+                $pos = array_search($subCode, $labelsBySub, true);
+                if ($pos !== false) { $matrix[$label][$pos]++; }
+            }
+            $colors = ['#3e97ff','#f6c000','#50cd89','#f1416c','#a1a5b7','#7239ea','#00a3ef','#ff6b6b'];
+            $i = 0; $series = [];
+            foreach ($matrix as $label => $data) { $series[] = [ 'label' => $label, 'data' => array_map(fn($v)=> (int)$v, $data), 'color' => $colors[$i % count($colors)] ]; $i++; }
+            $this->fsAllCharts[] = [ 'questionId' => $q->id, 'text' => $q->question_text, 'labels' => $labelsBySub, 'series' => $series ];
+
+            foreach ($labelsBySub as $idx => $subCode) {
+                $optLabels = array_keys($matrix);
+                $optCounts = [];
+                foreach ($optLabels as $optLabel) { $optCounts[] = (int)($matrix[$optLabel][$idx] ?? 0); }
+                $subInit[$subCode]['questions'][] = [ 'text' => $q->question_text, 'labels' => $optLabels, 'data' => $optCounts ];
+            }
         }
 
-        // Build series for chart
-        $colors = ['#3e97ff','#f6c000','#50cd89','#f1416c','#a1a5b7','#7239ea'];
-        $i = 0;
-        foreach ($matrix as $label => $data) {
-            $this->fsSeries[] = [ 'label' => $label, 'data' => array_map(fn($v)=> (int)$v, $data), 'color' => $colors[$i % count($colors)] ];
-            $i++;
+        $this->fsBySubCharts = array_values($subInit);
+
+        // Maintain backward-compat for single selection
+        if ($this->selectedQuestionId) {
+            $one = collect($this->fsAllCharts)->firstWhere('questionId', $this->selectedQuestionId);
+            if ($one) { $this->fsSeries = $one['series']; $this->fsLabels = $one['labels']; }
         }
+
+        // Dispatch update for current selection chart
+        $this->dispatch('admin-form-chart-update', ['labels'=>$this->fsLabels, 'series'=>$this->fsSeries]);
     }
 
     public function render()
@@ -269,6 +302,8 @@ class AdminDashboard extends Component
             'selectedQuestionId' => $this->selectedQuestionId,
             'fsLabels' => $this->fsLabels,
             'fsSeries' => $this->fsSeries,
+            'fsAllCharts' => $this->fsAllCharts, // NEW
+            'fsBySubCharts' => $this->fsBySubCharts, // NEW
         ])->layout('layouts.master');
     }
 }
