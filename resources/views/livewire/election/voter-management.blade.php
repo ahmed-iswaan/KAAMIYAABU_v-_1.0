@@ -167,10 +167,11 @@
                                         <th class="min-w-200px">Name</th>
                                         <th class="min-w-150px">Phones / Email</th>
                                         <th class="min-w-150px">Party / SubConsite</th>
-                                        <th class="min-w-150px">Attempt</th>
-                                        <th class="min-w-200px">Stats</th>
+                                        <th class="min-w-200px">Permanent Address</th>
                                         <th class="min-w-120px">Prov. Pledge</th>
+                                           @can('voters-openFinalPledge')
                                         <th class="min-w-120px">Final Pledge</th>
+                                        @endcan
                                         <th class="min-w-120px text-end">Actions</th>
                                     </tr>
                                 </thead>
@@ -251,25 +252,12 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                @php
-                                                    $ls = $entry->latest_opinion_status;
-                                                    $attemptColor = match($ls){'success'=>'success','failed_attempt'=>'danger','follow_up'=>'warning', default=>'secondary'};
-                                                @endphp
-                                                @if($ls)
-                                                    <span class="badge badge-light-{{ $attemptColor }} text-capitalize fw-bold">{{ str_replace('_',' ',$ls) }}</span>
-                                                @else
-                                                    <span class="text-muted">—</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <span class="badge badge-light-primary" title="Opinions">O: {{ $entry->opinions_count ?? 0 }}</span>
-                                                    <span class="badge badge-light-info" title="Requests">R: {{ $entry->voter_requests_count ?? 0 }}</span>
-                                                    <span class="badge badge-light-warning" title="Notes">N: {{ $entry->voter_notes_count ?? 0 }}</span>
-                                                </div>
+                                                <div class="text-gray-700 small">{{ $entry->permanentLocationString() }}</div>
                                             </td>
                                             <td><span class="badge badge-{{ $colorProv }} fw-bold">{{ $labelProv }}</span></td>
+                                               @can('voters-openFinalPledge')
                                             <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
+                                            @endcan
                                             <td class="text-end">
                                                 <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                                     <i class="ki-duotone ki-down fs-5 ms-1"></i>
@@ -294,7 +282,7 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="8" class="text-center text-muted">No voters found.</td></tr>
+                                        <tr><td colspan="7" class="text-center text-muted">No voters found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>

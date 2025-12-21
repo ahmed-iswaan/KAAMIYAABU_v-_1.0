@@ -6,7 +6,11 @@ use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use App\Models\Directory;
 use App\Models\Election;
+use App\Models\Form;
+use App\Models\FormQuestion;
+use App\Models\FormSubmissionAnswer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Arr;
 
 class AdminDashboard extends Component
 {
@@ -38,12 +42,32 @@ class AdminDashboard extends Component
     public $finalYes = []; public $finalNo = []; public $finalUndecided = []; public $finalPending = [];
     public $pledgeElectionId = null;
 
+    public $forms = [];
+    public $selectedFormId = null;
+    public $selectedQuestionId = null;
+
+    public $fsLabels = []; // sub consite codes
+    public $fsSeries = []; // [{label:'Option A', data:[...]}]
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
         $this->computeStats();
         $this->pledgeElectionId = Election::orderBy('start_date','desc')->value('id');
         $this->computePledgeBySubConsite();
+
+        $this->forms = Form::orderBy('title')->get(['id','title']);
+        // Preselect first form/question
+        $firstForm = $this->forms->first();
+        if ($firstForm) {
+            $this->selectedFormId = $firstForm->id;
+            $firstQuestion = FormQuestion::where('form_id',$firstForm->id)
+                ->whereIn('type', ['dropdown','radio'])
+                ->orderBy('position')
+                ->first(['id','question_text']);
+            if ($firstQuestion) { $this->selectedQuestionId = $firstQuestion->id; }
+        }
+        $this->computeFormSubmissionChart();
     }
 
     private function computeStats(): void
@@ -178,6 +202,57 @@ class AdminDashboard extends Component
         $this->finalPending = $rowsFinal->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
     }
 
+    public function updatedSelectedFormId(): void
+    {
+        $q = FormQuestion::where('form_id',$this->selectedFormId)
+            ->whereIn('type', ['dropdown','radio'])
+            ->orderBy('position')
+            ->first(['id']);
+        $this->selectedQuestionId = optional($q)->id;
+        $this->computeFormSubmissionChart();
+    }
+
+    public function updatedSelectedQuestionId(): void
+    {
+        $this->computeFormSubmissionChart();
+    }
+
+    private function computeFormSubmissionChart(): void
+    {
+        $this->fsLabels = []; $this->fsSeries = [];
+        if (! $this->selectedFormId || ! $this->selectedQuestionId) return;
+
+        $subs = \DB::table('sub_consites')->select('id','code')->orderBy('code')->get();
+        $this->fsLabels = $subs->pluck('code')->toArray();
+        $indexById = $subs->pluck('code','id');
+
+        $answers = \DB::table('form_submission_answers as fsa')
+            ->join('form_submissions as fs', 'fs.id','=','fsa.form_submission_id')
+            ->join('directories as d','d.id','=','fs.directory_id')
+            ->where('fs.form_id', $this->selectedFormId)
+            ->where('fsa.form_question_id', $this->selectedQuestionId)
+            ->select('d.sub_consite_id','fsa.value_text')
+            ->get();
+
+        // Aggregate counts per answer text per sub_consite
+        $matrix = []; // answer => subCode => count
+        foreach ($answers as $row) {
+            $subId = $row->sub_consite_id; $subCode = $indexById[$subId] ?? null; if (! $subCode) continue;
+            $label = $row->value_text ?: 'Other';
+            if (! isset($matrix[$label])) { $matrix[$label] = array_fill(0, count($this->fsLabels), 0); }
+            $pos = array_search($subCode, $this->fsLabels, true);
+            if ($pos !== false) { $matrix[$label][$pos]++; }
+        }
+
+        // Build series for chart
+        $colors = ['#3e97ff','#f6c000','#50cd89','#f1416c','#a1a5b7','#7239ea'];
+        $i = 0;
+        foreach ($matrix as $label => $data) {
+            $this->fsSeries[] = [ 'label' => $label, 'data' => array_map(fn($v)=> (int)$v, $data), 'color' => $colors[$i % count($colors)] ];
+            $i++;
+        }
+    }
+
     public function render()
     {
         return view('livewire.admin.admin-dashboard',[
@@ -208,6 +283,11 @@ class AdminDashboard extends Component
             'finalNo' => $this->finalNo,
             'finalUndecided' => $this->finalUndecided,
             'finalPending' => $this->finalPending,
+            'forms' => $this->forms,
+            'selectedFormId' => $this->selectedFormId,
+            'selectedQuestionId' => $this->selectedQuestionId,
+            'fsLabels' => $this->fsLabels,
+            'fsSeries' => $this->fsSeries,
         ])->layout('layouts.master');
     }
 }

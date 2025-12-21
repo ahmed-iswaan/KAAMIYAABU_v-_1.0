@@ -81,6 +81,36 @@
         </div>
         <div style="height: 360px;"><canvas id="finalBySubConsite"></canvas></div>
     </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Form Submissions by SubConsite</div>
+            <div class="d-flex gap-3">
+                <select class="form-select form-select-sm" style="min-width:220px" wire:model="selectedFormId">
+                    @foreach($forms as $f)
+                        <option value="{{ $f->id }}">{{ $f->title }}</option>
+                    @endforeach
+                </select>
+                <select class="form-select form-select-sm" style="min-width:220px" wire:model="selectedQuestionId">
+                    @php $questions = \App\Models\FormQuestion::where('form_id',$selectedFormId)->whereIn('type',["dropdown","radio"])->orderBy('position')->get(['id','question_text']); @endphp
+                    @foreach($questions as $q)
+                        <option value="{{ $q->id }}">{{ $q->question_text }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div style="height: 360px">
+            <canvas id="formSubmissionsBySub"></canvas>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mt-3">
+            @foreach($fsSeries as $s)
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="width:12px;height:12px;background: {{ $s['color'] }}"></span>
+                    <span class="fs-7 text-muted">{{ $s['label'] }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
 </div>
 
 <!-- Load Chart.js first -->
@@ -263,5 +293,24 @@ const TotalsAboveBarsPlugin = {
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
         });
     }
+})();
+</script>
+
+<!-- Form Submissions by SubConsite chart -->
+<script>
+(function(){
+    const el = document.getElementById('formSubmissionsBySub');
+    if(!el) return;
+    const labels = @json($fsLabels ?? []);
+    const series = @json($fsSeries ?? []);
+    if (!labels.length || !series.length) return;
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: series.map(s => ({ label: s.label, data: s.data, backgroundColor: s.color }))
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+    });
 })();
 </script>
