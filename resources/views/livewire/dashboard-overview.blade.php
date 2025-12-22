@@ -150,12 +150,8 @@
                                         <th class="ps-3">#</th>
                                         <th>User</th>
                                         <th class="text-center">Total Assigned</th>
-                                        <th class="text-center">Pending</th>
-                                        <th class="text-center">Follow Up</th>
-                                        <th class="text-center">Completed (Assigned)</th>
                                         <th class="text-center">Completed By User</th>
                                         <th class="text-center">Daily By User</th>
-                                        <th class="text-center">Daily Assigned</th>
                                         <th class="text-center">Follow Up By User</th>
                                         <th class="text-center">Daily Follow Up By User</th>
                                         <th class="text-end pe-3" style="min-width:160px;">Completion %</th>
@@ -174,12 +170,8 @@
                                                 </div>
                                             </td>
                                             <td class="text-center fw-bold">{{ $row['total'] }}</td>
-                                            <td class="text-center"><span class="badge badge-light-warning fw-semibold">{{ $row['pending'] }}</span></td>
-                                            <td class="text-center"><span class="badge badge-light-info fw-semibold">{{ $row['follow_up'] }}</span></td>
-                                            <td class="text-center"><span class="badge badge-light-success fw-semibold" title="Completed among assigned tasks">{{ $row['completed'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-primary fw-semibold" title="All tasks user completed (completed_by)">{{ $row['completed_by_user'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-dark fw-semibold" title="Tasks user completed today (completed_by)">{{ $row['completed_by_user_today'] }}</span></td>
-                                            <td class="text-center"><span class="badge badge-light-secondary fw-semibold" title="Assigned tasks completed today">{{ $row['completed_today'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-info fw-semibold" title="All tasks user placed in follow up (follow_up_by)">{{ $row['follow_up_by_user'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-warning fw-semibold" title="Tasks user set to follow up today (follow_up_by)">{{ $row['follow_up_by_user_today'] }}</span></td>
                                             <td class="text-end pe-3">
@@ -192,7 +184,7 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="12" class="text-muted fst-italic py-10 text-center">No task assignments found.</td></tr>
+                                        <tr><td colspan="8" class="text-muted fst-italic py-10 text-center">No task assignments found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
