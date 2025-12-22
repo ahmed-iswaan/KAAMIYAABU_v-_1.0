@@ -227,7 +227,9 @@ class AdminDashboard extends Component
         foreach ($labelsBySub as $code) { $subInit[$code] = ['subCode'=>$code, 'questions'=>[]]; }
 
         foreach ($questions as $q) {
+            // Map option values to labels (set of valid values)
             $optMap = \App\Models\FormQuestionOption::where('form_question_id', $q->id)->pluck('label','value');
+            $validValues = array_keys($optMap->toArray());
             $answers = \DB::table('form_submission_answers as fsa')
                 ->join('form_submissions as fs', 'fs.id','=','fsa.form_submission_id')
                 ->join('directories as d','d.id','=','fs.directory_id')
@@ -238,10 +240,12 @@ class AdminDashboard extends Component
             $matrix = []; // label => subCode => count
             foreach ($answers as $row) {
                 $subId = $row->sub_consite_id; $subCode = $indexById[$subId] ?? null; if (! $subCode) continue;
-                // Prefer Faruma (Dhivehi) label if present
-                $labelDv = trim((string)($row->value_text_dv ?? ''));
                 $value = trim((string)($row->value_text ?? ''));
-                $label = $labelDv !== '' ? $labelDv : ((string)($optMap[$value] ?? $value ?: 'Other'));
+                // Only count if the answer matches a defined option
+                if ($value === '' || ! in_array($value, $validValues, true)) { continue; }
+                // Prefer Faruma (Dhivehi) label if provided in value_text_dv, else mapped label
+                $labelDv = trim((string)($row->value_text_dv ?? ''));
+                $label = $labelDv !== '' ? $labelDv : (string)($optMap[$value] ?? $value);
                 if (! isset($matrix[$label])) { $matrix[$label] = array_fill(0, count($labelsBySub), 0); }
                 $pos = array_search($subCode, $labelsBySub, true);
                 if ($pos !== false) { $matrix[$label][$pos]++; }
