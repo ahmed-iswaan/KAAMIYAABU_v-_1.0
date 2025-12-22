@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\{Task, User, Party, SubConsite, SubStatus, EventLog};
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TaskList extends Component
 {
@@ -436,5 +437,90 @@ class TaskList extends Component
             'ip_address'=>request()->ip(),
         ]);
         $this->dispatch('hide-assign-all-modal');
+    }
+
+    /**
+     * Export the currently filtered tasks to CSV, including permanent/current addresses and notes.
+     */
+    public function exportFilteredCsv(): StreamedResponse
+    {
+        // Build dataset using the same filters
+        $tasks = $this->filteredBaseQuery()
+            ->with([
+                'directory.country:id,name',
+                'directory.property:id,name',
+                'directory.currentCountry:id,name',
+                'directory.currentProperty:id,name',
+                'directory.party:id,short_name,name',
+                'directory.subConsite:id,code',
+                'directory.voterNotes.author:id,name',
+                'assignees:id,name',
+                'subStatus:id,name'
+            ])
+            ->latest()
+            ->get();
+
+        $filename = 'tasks-export-'.now()->format('Ymd-His').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ];
+
+        return response()->streamDownload(function() use ($tasks) {
+            $out = fopen('php://output', 'w');
+            // BOM for Excel UTF-8
+            echo "\xEF\xBB\xBF";
+            // Header row
+            fputcsv($out, [
+                'Task ID','Task Number','Title','Status','Type','Priority','Sub Status','Assignees',
+                'Directory Name','Directory ID Card','Phones','Party','SubConsite',
+                'Permanent Address','Current Address',
+                'Created At','Due At','Follow Up Date','Completed At',
+                'Task Notes','Voter Notes'
+            ]);
+
+            foreach ($tasks as $t) {
+                $d = $t->directory;
+                $phones = $d && is_array($d->phones) ? implode(' / ', $d->phones) : (is_string($d->phones ?? null) ? $d->phones : '');
+                $assignees = $t->assignees ? $t->assignees->pluck('name')->join('; ') : '';
+                $permanent = $d ? $d->permanentLocationString() : 'N/A';
+                $current   = $d ? $d->currentLocationString() : 'N/A';
+                // Concatenate all voter notes for the directory (include date and author if present)
+                $voterNotes = '';
+                if ($d && $d->relationLoaded('voterNotes') && $d->voterNotes->isNotEmpty()) {
+                    $voterNotes = $d->voterNotes->map(function($n){
+                        $parts = [];
+                        if ($n->created_at) { $parts[] = $n->created_at->format('Y-m-d'); }
+                        if ($n->author?->name) { $parts[] = $n->author->name; }
+                        $meta = empty($parts) ? '' : ('['.implode(' | ', $parts).'] ');
+                        return $meta . str_replace(["\r","\n"], [' ',' '], (string)$n->note);
+                    })->join(' | ');
+                }
+                fputcsv($out, [
+                    $t->id,
+                    $t->number,
+                    $t->title,
+                    $t->status,
+                    $t->type,
+                    $t->priority,
+                    $t->subStatus->name ?? '',
+                    $assignees,
+                    $d->name ?? '',
+                    $d->id_card_number ?? '',
+                    $phones,
+                    $d?->party?->short_name ?? ($d?->party?->name ?? ''),
+                    $d?->subConsite?->code ?? '',
+                    $permanent,
+                    $current,
+                    optional($t->created_at)->toDateTimeString(),
+                    optional($t->due_at)->toDateTimeString(),
+                    optional($t->follow_up_date)->toDateTimeString(),
+                    optional($t->completed_at)->toDateTimeString(),
+                    str_replace(["\r","\n"], [' ',' '], (string)$t->notes),
+                    $voterNotes,
+                ]);
+            }
+            fclose($out);
+        }, $filename, $headers);
     }
 }

@@ -188,6 +188,9 @@
                             <button type="button" class="btn btn-sm btn-light-info" wire:click="openAssignAllModal" title="Assign/Unassign user to ALL not-deleted tasks">
                                 Bulk Assign/Unassign All
                             </button>
+                            <a href="#" wire:click.prevent="exportFilteredCsv" class="btn btn-sm btn-light-info" title="Export filtered tasks as CSV">
+                                Export CSV
+                            </a>
                         </div>
                     </div>
                 </div>
