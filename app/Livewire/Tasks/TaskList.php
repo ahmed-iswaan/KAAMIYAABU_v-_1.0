@@ -370,4 +370,71 @@ class TaskList extends Component
     {
         return count($this->selectedTasks);
     }
+
+    public function openAssignAllModal(): void
+    {
+        $this->authorize('task-bulk-assign');
+        $this->dispatch('show-assign-all-modal');
+    }
+
+    public function assignUserToAllNotDeleted(): void
+    {
+        $this->authorize('task-bulk-assign');
+        if (!$this->bulkAssignUserId) { session()->flash('bulk_message','Select a user.'); return; }
+        $userId = (int)$this->bulkAssignUserId;
+        // Get all not-deleted task IDs that do NOT already have this user
+        $ids = Task::query()
+            ->where('deleted', false)
+            ->whereDoesntHave('users', fn($q)=>$q->where('user_id',$userId))
+            ->pluck('id');
+        if($ids->isEmpty()){ session()->flash('bulk_message','No tasks eligible.'); return; }
+        $ids->chunk(200)->each(function($chunk) use ($userId){
+            Task::whereIn('id',$chunk)->get()->each(fn($task)=>$task->users()->syncWithoutDetaching([$userId]));
+        });
+        session()->flash('bulk_message', $ids->count().' task(s) assigned to user.');
+        EventLog::create([
+            'user_id'=>auth()->id(),
+            'event_type'=>'task_bulk_assign_all',
+            'event_tab'=>'tasks',
+            'event_entry_id'=>null,
+            'description'=>'Assign user to all not-deleted tasks (skip already assigned)',
+            'event_data'=>[
+                'assigned_user_id'=>$userId,
+                'count'=>$ids->count(),
+                'scope'=>'all_not_deleted'
+            ],
+            'ip_address'=>request()->ip(),
+        ]);
+        $this->dispatch('hide-assign-all-modal');
+    }
+
+    public function unassignUserFromAllNotDeleted(): void
+    {
+        $this->authorize('task-bulk-unassign');
+        if (!$this->bulkAssignUserId) { session()->flash('bulk_message','Select a user.'); return; }
+        $userId = (int)$this->bulkAssignUserId;
+        $ids = Task::query()
+            ->where('deleted', false)
+            ->whereHas('users', fn($q)=>$q->where('user_id',$userId))
+            ->pluck('id');
+        if($ids->isEmpty()){ session()->flash('bulk_message','No tasks to unassign.'); return; }
+        $ids->chunk(200)->each(function($chunk) use ($userId){
+            Task::whereIn('id',$chunk)->get()->each(fn($task)=>$task->users()->detach($userId));
+        });
+        session()->flash('bulk_message', $ids->count().' task(s) unassigned from user.');
+        EventLog::create([
+            'user_id'=>auth()->id(),
+            'event_type'=>'task_bulk_unassign_all',
+            'event_tab'=>'tasks',
+            'event_entry_id'=>null,
+            'description'=>'Unassign user from all not-deleted tasks',
+            'event_data'=>[
+                'unassigned_user_id'=>$userId,
+                'count'=>$ids->count(),
+                'scope'=>'all_not_deleted'
+            ],
+            'ip_address'=>request()->ip(),
+        ]);
+        $this->dispatch('hide-assign-all-modal');
+    }
 }

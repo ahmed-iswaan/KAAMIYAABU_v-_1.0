@@ -184,6 +184,10 @@
                                 <option value="50">50</option>
                                 <option value="100">100</option>
                             </select>
+                            <!-- Bulk assign to ALL not-deleted tasks trigger -->
+                            <button type="button" class="btn btn-sm btn-light-info" wire:click="openAssignAllModal" title="Assign/Unassign user to ALL not-deleted tasks">
+                                Bulk Assign/Unassign All
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -270,4 +274,55 @@
             </div>
         </div>
     </div>
+
+    <!-- Bulk Assign/Unassign All Modal moved inside the root -->
+    <div class="modal fade" tabindex="-1" id="assignAllModal" aria-hidden="true" wire:ignore.self>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Bulk Assign/Unassign to All Tasks</h5>
+                    <button type="button" class="btn btn-sm btn-icon" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ki-duotone ki-cross fs-2"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select User</label>
+                        <select class="form-select form-select-sm form-select-solid" wire:model="bulkAssignUserId">
+                            <option value="">User...</option>
+                            @foreach($assignees as $a)
+                                <option value="{{ $a->id }}">{{ $a->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="alert alert-warning">
+                        This will affect ALL not-deleted tasks in the system. Already assigned/unassigned entries are skipped.
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" wire:click="assignUserToAllNotDeleted" wire:loading.attr="disabled">Assign to All</button>
+                        <button type="button" class="btn btn-danger" wire:click="unassignUserFromAllNotDeleted" wire:loading.attr="disabled">Unassign from All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Livewire events to control modal moved inside the root -->
+    <script>
+        window.addEventListener('show-assign-all-modal', () => {
+            const el = document.getElementById('assignAllModal');
+            if (!el) return;
+            const modal = bootstrap.Modal.getOrCreateInstance(el);
+            modal.show();
+        });
+        window.addEventListener('hide-assign-all-modal', () => {
+            const el = document.getElementById('assignAllModal');
+            if (!el) return;
+            const modal = bootstrap.Modal.getOrCreateInstance(el);
+            modal.hide();
+        });
+    </script>
 </div>
