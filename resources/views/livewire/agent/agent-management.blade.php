@@ -305,6 +305,9 @@
                                     <div class="d-flex flex-column">
                                         <span class="fw-bold fs-5 text-gray-800">{{ $d->name }}</span>
                                         <span class="text-muted fs-8">Task: {{ $selectedTask->number }} | Status: {{ ucfirst(str_replace('_',' ',$selectedTask->status)) }}</span>
+                                        @if($d->date_of_birth)
+                                            <span class="badge badge-light-info mt-1" title="DOB: {{ $d->date_of_birth->format('Y-m-d') }}">Age: {{ $d->date_of_birth->age }}</span>
+                                        @endif
                                     </div>
                                 </div>
                                 {{-- Presence inline badge --}}
