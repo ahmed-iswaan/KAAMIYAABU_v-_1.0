@@ -389,8 +389,19 @@ class TaskList extends Component
             ->whereDoesntHave('users', fn($q)=>$q->where('user_id',$userId))
             ->pluck('id');
         if($ids->isEmpty()){ session()->flash('bulk_message','No tasks eligible.'); return; }
-        $ids->chunk(200)->each(function($chunk) use ($userId){
-            Task::whereIn('id',$chunk)->get()->each(fn($task)=>$task->users()->syncWithoutDetaching([$userId]));
+        // Insert pivot rows in bulk and ignore duplicates at the DB level to avoid race conditions
+        $ids->chunk(500)->each(function($chunk) use ($userId){
+            $rows = [];
+            $now = now();
+            foreach($chunk as $taskId){
+                $rows[] = [
+                    'task_id' => $taskId,
+                    'user_id' => $userId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+            \DB::table('task_user')->insertOrIgnore($rows);
         });
         session()->flash('bulk_message', $ids->count().' task(s) assigned to user.');
         EventLog::create([
