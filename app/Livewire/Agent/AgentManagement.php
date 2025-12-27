@@ -27,6 +27,7 @@ use App\Events\TaskStatsUpdated; // added
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
 use App\Models\SubStatus; // added
+use App\Models\EventLog; // added
 
 class AgentManagement extends Component
 {
@@ -42,6 +43,8 @@ class AgentManagement extends Component
     public $filterPartyId = '';
     public $filterSubConsiteId = '';
     public $filterSubStatusId = ''; // added missing property for sub status filter
+    public $currentAddressSearch = '';
+    public $permanentAddressSearch = '';
 
     public $directorySearch = '';
     public $selectedDirectoryIds = [];
@@ -98,6 +101,9 @@ class AgentManagement extends Component
     public $subStatusId = ''; // added selected sub status
     public $subStatuses = []; // list of active sub statuses
 
+    // Newly added phone numbers
+    public $newPhoneNumbers = []; // normalized digits-only list of newly added phones
+
     protected $queryString = [
         'search' => ['except' => ''],
         'taskStatus' => ['except' => ''],
@@ -107,6 +113,8 @@ class AgentManagement extends Component
         'filterPartyId' => ['except' => ''],
         'filterSubConsiteId' => ['except' => ''],
         'filterSubStatusId' => ['except' => ''], // added
+        'currentAddressSearch' => ['except' => ''],
+        'permanentAddressSearch' => ['except' => ''],
     ];
 
     /* Pagination resets */
@@ -119,10 +127,13 @@ class AgentManagement extends Component
     public function updatingFilterPartyId(){ $this->resetPage('tasks_page'); }
     public function updatingFilterSubConsiteId(){ $this->resetPage('tasks_page'); }
     public function updatingFilterSubStatusId(){ $this->resetPage('tasks_page'); } // added
+    public function updatingCurrentAddressSearch(){ $this->resetPage('tasks_page'); }
+    public function updatingPermanentAddressSearch(){ $this->resetPage('tasks_page'); }
 
     public function resetTaskFilters(): void
     {
-        $this->taskSearch = $this->taskStatus = $this->taskType = $this->filterPartyId = $this->filterSubConsiteId = $this->filterSubStatusId = ''; // added sub status
+        $this->taskSearch = $this->taskStatus = $this->taskType = $this->filterPartyId = $this->filterSubConsiteId = $this->filterSubStatusId = '';
+        $this->currentAddressSearch = $this->permanentAddressSearch = '';
         $this->tasksLimit = 12;
         $this->resetPage('tasks_page');
     }
@@ -143,8 +154,8 @@ class AgentManagement extends Component
             'directory.party',
             'directory.subConsite',
             'assignees',
-            'completedBy', // added
-            'followUpBy',  // added
+            'completedBy',
+            'followUpBy',
         ])
         ->where('id', $id)
         ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
@@ -155,9 +166,12 @@ class AgentManagement extends Component
             return;
         }
 
+        // compute newly added phones from last directory_updated log
+        $this->newPhoneNumbers = $this->getNewPhonesForDirectory($task->directory->id ?? null);
+
         $this->selectedTaskId = $task->id;
         $this->taskStatusEdit = $task->status;
-        $this->followUpDate = $task->follow_up_date?->format('Y-m-d\TH:i'); // preload
+        $this->followUpDate = $task->follow_up_date?->format('Y-m-d\\TH:i');
         $this->subStatusId = $task->sub_status_id ?? ''; // preload sub status
         $this->loadSubmissionStateFromTask($task);
         $this->loadDirectoryLocationFieldsFromTask($task);
@@ -179,6 +193,40 @@ class AgentManagement extends Component
         // mark presence in PHP + notify JS to join presence channel
         $this->userOpenedTask($task->id);
         $this->dispatch('task-selected', taskId: (string)$task->id);
+    }
+
+    // Return digits-only list of newly added phone numbers
+    protected function getNewPhonesForDirectory($directoryId): array
+    {
+        if(!$directoryId) return [];
+        $log = EventLog::where('event_type','directory_updated')
+            ->where('event_entry_id', (string)$directoryId)
+            ->orderByDesc('created_at')
+            ->first();
+        if(!$log) return [];
+        $phonesChange = $log->event_data['phones'] ?? null;
+        if(!$phonesChange) return [];
+        $to = $phonesChange['to'] ?? [];
+        $from = $phonesChange['from'] ?? [];
+        $toList = $this->normalizePhoneInput($to);
+        $fromList = $this->normalizePhoneInput($from);
+        return array_values(array_diff($toList, $fromList));
+    }
+
+    // Normalize phone input (string "a,b" or array) -> array of digits-only strings
+    protected function normalizePhoneInput($input): array
+    {
+        if (is_string($input)) {
+            $parts = preg_split('/[\s,;]+/', $input, -1, PREG_SPLIT_NO_EMPTY);
+        } elseif (is_array($input)) {
+            $parts = $input;
+        } else { $parts = []; }
+        $parts = array_map(function($p){
+            $p = trim((string)$p);
+            $digits = preg_replace('/\D+/', '', $p);
+            return $digits ?? '';
+        }, $parts);
+        return array_values(array_filter(array_unique($parts)));
     }
 
     protected function loadSubmissionStateFromTask($task): void
@@ -789,6 +837,24 @@ class AgentManagement extends Component
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
             ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
             ->when($this->filterSubStatusId, fn($q)=>$q->where('sub_status_id',$this->filterSubStatusId))
+            ->when($this->currentAddressSearch, function($q){
+                $term = trim($this->currentAddressSearch);
+                $q->whereHas('directory', function($dq) use ($term){
+                    $dq->where(function($w) use ($term){
+                        $w->where('current_address','like','%'.$term.'%')
+                          ->orWhere('current_street_address','like','%'.$term.'%');
+                    });
+                });
+            })
+            ->when($this->permanentAddressSearch, function($q){
+                $term = trim($this->permanentAddressSearch);
+                $q->whereHas('directory', function($dq) use ($term){
+                    $dq->where(function($w) use ($term){
+                        $w->where('permanent_address','like','%'.$term.'%')
+                          ->orWhere('permanent_street_address','like','%'.$term.'%');
+                    });
+                });
+            })
             ->when($this->taskSearch, function($q){
                 $term = trim($this->taskSearch);
                 $q->where(function($qq) use ($term){
@@ -823,12 +889,17 @@ class AgentManagement extends Component
                 'form.questions.options','submission.answers',
                 'completedBy','followUpBy',
             ])
-            ->where('deleted', false) // exclude deleted
+            ->where('deleted', false)
             ->whereHas('users', fn($q)=>$q->where('user_id', auth()->id()))
             ->find($this->selectedTaskId);
 
             if (!$selectedTask) {
                 $this->selectedTaskId = null;
+                $this->newPhoneNumbers = [];
+            } else {
+                // Recompute new phones on each render to ensure UI shows badges
+                $dirId = $selectedTask->directory->id ?? null;
+                $this->newPhoneNumbers = $this->getNewPhonesForDirectory($dirId);
             }
         }
 

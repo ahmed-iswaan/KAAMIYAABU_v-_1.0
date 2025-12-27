@@ -24,6 +24,9 @@ class TaskList extends Component
     public $filterSubStatusId='';
     public $perPage = 25; // ensure default
     protected array $perPageOptions = [5,10,25,50,100];
+    // Address filters
+    public $currentAddressSearch = '';
+    public $permanentAddressSearch = '';
 
     // draft copies for dropdown filtering (apply on click)
     public $searchDraft='';
@@ -50,6 +53,8 @@ class TaskList extends Component
         'filterAssigneeId'=>['except'=>''],
         'filterSubStatusId'=>['except'=>''],
         'perPage'=>['except'=>25],
+        'currentAddressSearch'=>['except'=>''],
+        'permanentAddressSearch'=>['except'=>''],
     ];
 
     public function mount()
@@ -174,6 +179,24 @@ class TaskList extends Component
             ->when($this->filterAssigneeId, fn($q)=>$q->whereHas('users', fn($uq)=>$uq->where('user_id',$this->filterAssigneeId)))
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
             ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
+            ->when($this->currentAddressSearch, function($q){
+                $term = trim($this->currentAddressSearch);
+                $q->whereHas('directory', function($dq) use ($term){
+                    $dq->where(function($w) use ($term){
+                        $w->where('current_address','like','%'.$term.'%')
+                          ->orWhere('current_street_address','like','%'.$term.'%');
+                    });
+                });
+            })
+            ->when($this->permanentAddressSearch, function($q){
+                $term = trim($this->permanentAddressSearch);
+                $q->whereHas('directory', function($dq) use ($term){
+                    $dq->where(function($w) use ($term){
+                        $w->where('permanent_address','like','%'.$term.'%')
+                          ->orWhere('permanent_street_address','like','%'.$term.'%');
+                    });
+                });
+            })
             ->latest()
             ->paginate((int)$this->perPage);
         // Track current page task IDs for selection toggling
@@ -228,7 +251,25 @@ class TaskList extends Component
             ->when($this->filterSubStatusId, fn($q)=>$q->where('sub_status_id',$this->filterSubStatusId))
             ->when($this->filterAssigneeId, fn($q)=>$q->whereHas('users', fn($uq)=>$uq->where('user_id',$this->filterAssigneeId)))
             ->when($this->filterPartyId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('party_id',$this->filterPartyId)))
-            ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)));
+            ->when($this->filterSubConsiteId, fn($q)=>$q->whereHas('directory', fn($dq)=>$dq->where('sub_consite_id',$this->filterSubConsiteId)))
+            ->when($this->currentAddressSearch, function($q){
+                $term = trim($this->currentAddressSearch);
+                $q->whereHas('directory', function($dq) use ($term){
+                    $dq->where(function($w) use ($term){
+                        $w->where('current_address','like','%'.$term.'%')
+                          ->orWhere('current_street_address','like','%'.$term.'%');
+                    });
+                });
+            })
+            ->when($this->permanentAddressSearch, function($q){
+                $term = trim($this->permanentAddressSearch);
+                $q->whereHas('directory', function($dq) use ($term){
+                    $dq->where(function($w) use ($term){
+                        $w->where('permanent_address','like','%'.$term.'%')
+                          ->orWhere('permanent_street_address','like','%'.$term.'%');
+                    });
+                });
+            });
     }
 
     public function assignUserToSelected(): void

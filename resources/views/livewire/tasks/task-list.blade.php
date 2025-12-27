@@ -168,6 +168,14 @@
                                                     @endforeach
                                                 </select>
                                             </div>
+                                            <div class="d-flex flex-column gap-2">
+                                                <label class="form-label fw-semibold mb-1">Current Address</label>
+                                                <input type="text" class="form-control form-control-sm form-control-solid" placeholder="House / Street / Area" wire:model.defer="currentAddressSearch">
+                                            </div>
+                                            <div class="d-flex flex-column gap-2">
+                                                <label class="form-label fw-semibold mb-1">Permanent Address</label>
+                                                <input type="text" class="form-control form-control-sm form-control-solid" placeholder="House / Street / Area" wire:model.defer="permanentAddressSearch">
+                                            </div>
                                         </div>
                                         <div class="px-4 py-3 border-top d-flex justify-content-between gap-3 bg-light-subtle">
                                             <button type="button" class="btn btn-light btn-sm" wire:click="resetFilters">Reset</button>

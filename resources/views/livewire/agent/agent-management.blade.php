@@ -143,6 +143,14 @@
                                                         @endforeach
                                                     </select>
                                                 </div>
+                                                <div class="d-flex flex-column gap-2">
+                                                    <label class="form-label fw-semibold mb-1">Current Address</label>
+                                                    <input type="text" class="form-control form-control-sm form-control-solid" placeholder="House / Street / Area" wire:model.debounce.500ms="currentAddressSearch">
+                                                </div>
+                                                <div class="d-flex flex-column gap-2">
+                                                    <label class="form-label fw-semibold mb-1">Permanent Address</label>
+                                                    <input type="text" class="form-control form-control-sm form-control-solid" placeholder="House / Street / Area" wire:model.debounce.500ms="permanentAddressSearch">
+                                                </div>
                                             </div>
                                             <div class="px-4 py-3 border-top d-flex justify-content-between gap-3">
                                                 <button type="button" class="btn btn-light btn-sm" wire:click="resetTaskFilters">Reset</button>
@@ -355,6 +363,13 @@
                                                 <span class="copy-to-clipboard" data-copy-text="{{ $phone }}">{{ $phone }}</span>{{ !$loop->last ? ',' : '' }}
                                             @endforeach
                                         </div>
+                                        @if(!empty($this->newPhoneNumbers))
+                                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                                @foreach($this->newPhoneNumbers as $np)
+                                                    <span class="badge badge-success" title="New number from latest update">NEW {{ $np }}</span>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
 
