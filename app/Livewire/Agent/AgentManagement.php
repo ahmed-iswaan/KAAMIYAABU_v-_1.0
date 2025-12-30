@@ -28,6 +28,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
 use App\Models\SubStatus; // added
 use App\Models\EventLog; // added
+use App\Models\DirectoryPhoneStatus;
 
 class AgentManagement extends Component
 {
@@ -104,6 +105,10 @@ class AgentManagement extends Component
     // Newly added phone numbers
     public $newPhoneNumbers = []; // normalized digits-only list of newly added phones
 
+    // Phone call statuses
+    public $phoneCallStatuses = []; // [normalizedPhone => status]
+    public $phoneCallNotes = [];    // [normalizedPhone => notes]
+
     protected $queryString = [
         'search' => ['except' => ''],
         'taskStatus' => ['except' => ''],
@@ -166,6 +171,9 @@ class AgentManagement extends Component
             return;
         }
 
+        // Keep blade-visible selectedTask in sync
+        $this->selectedTask = $task;
+
         // compute newly added phones from last directory_updated log
         $this->newPhoneNumbers = $this->getNewPhonesForDirectory($task->directory->id ?? null);
 
@@ -178,6 +186,9 @@ class AgentManagement extends Component
         $this->loadVoterNotes();
         $this->loadVoterOpinions();
         $this->loadVoterRequests();
+
+        // Load per-phone call statuses for this directory
+        $this->loadPhoneCallStatuses();
 
         // reset form inputs
         $this->newNote = '';
@@ -826,6 +837,8 @@ class AgentManagement extends Component
         ]);
     }
 
+    public $selectedTask = null; // used by blade for directory details
+
     public function render()
     {
         $this->authorize('agent-render');
@@ -1225,5 +1238,122 @@ public function userClosedTask(string $taskId): void
             'new_sub_status_id' => $task->sub_status_id,
         ], 'tasks', $task->id, 'Sub status updated');
         $this->dispatch('swal', icon:'success', title:'Updated', text:'Sub status updated.');
+    }
+
+    protected function loadPhoneCallStatuses(): void
+    {
+        $this->phoneCallStatuses = [];
+        $this->phoneCallNotes = [];
+
+        $dirId = $this->selectedTask?->directory?->id;
+        if (!$dirId) return;
+
+        $directory = Directory::with('phoneStatuses')->find($dirId);
+        if (!$directory) return;
+
+        foreach (($directory->phones ?? []) as $p) {
+            $norm = DirectoryPhoneStatus::normalizePhone($p);
+            if (!$norm) continue;
+            $this->phoneCallStatuses[$norm] = DirectoryPhoneStatus::STATUS_NOT_CALLED;
+            $this->phoneCallNotes[$norm] = '';
+        }
+
+        foreach ($directory->phoneStatuses as $row) {
+            $norm = DirectoryPhoneStatus::normalizePhone($row->phone);
+            if (!$norm) continue;
+            $this->phoneCallStatuses[$norm] = $row->status ?: DirectoryPhoneStatus::STATUS_NOT_CALLED;
+            $this->phoneCallNotes[$norm] = (string)($row->notes ?? '');
+        }
+    }
+
+    public function updatePhoneCallStatus(string $phone, string $status): void
+    {
+        $dirId = $this->selectedTask?->directory?->id;
+        if (!$dirId) return;
+
+        $norm = DirectoryPhoneStatus::normalizePhone($phone);
+        if (!$norm) return;
+
+        if (!in_array($status, DirectoryPhoneStatus::STATUSES, true)) {
+            $status = DirectoryPhoneStatus::STATUS_NOT_CALLED;
+        }
+
+        $notes = (string)($this->phoneCallNotes[$norm] ?? '');
+
+        $row = DirectoryPhoneStatus::firstOrNew([
+            'directory_id' => $dirId,
+            'phone' => $norm,
+        ]);
+
+        $row->status = $status;
+        $row->notes = $notes !== '' ? $notes : null;
+        $row->last_called_at = now();
+        $row->last_called_by = auth()->id();
+        $row->save();
+
+        $this->phoneCallStatuses[$norm] = $status;
+
+        \App\Models\EventLog::create([
+            'user_id' => auth()->id(),
+            'event_type' => 'directory_phone_status_updated',
+            'event_tab' => 'directories',
+            'event_entry_id' => $dirId,
+            'task_id' => $this->selectedTaskId,
+            'description' => 'Directory phone status updated',
+            'event_data' => [
+                'directory_id' => $dirId,
+                'phone' => $norm,
+                'status' => $status,
+                'notes' => $notes,
+            ],
+            'ip_address' => request()->ip(),
+        ]);
+
+        $this->dispatch('$refresh');
+    }
+
+    public function updatePhoneCallNotes(string $phone): void
+    {
+        $dirId = $this->selectedTask?->directory?->id;
+        if (!$dirId) return;
+
+        $norm = DirectoryPhoneStatus::normalizePhone($phone);
+        if (!$norm) return;
+
+        $status = (string)($this->phoneCallStatuses[$norm] ?? DirectoryPhoneStatus::STATUS_NOT_CALLED);
+        $this->updatePhoneCallStatus($norm, $status);
+    }
+
+    public function openTask(string $taskId): void
+    {
+        $task = Task::with(['directory','directory.country','directory.island','directory.property','directory.currentCountry','directory.currentIsland','directory.currentProperty'])->find($taskId);
+        if (!$task) {
+            $this->selectedTask = null;
+            return;
+        }
+
+        $this->selectedTask = $task;
+
+        // compute newly added phones from last directory_updated log
+        $this->newPhoneNumbers = $this->getNewPhonesForDirectory($task->directory->id ?? null);
+
+        $this->selectedTaskId = $task->id;
+        $this->taskStatusEdit = $task->status;
+        $this->followUpDate = $task->follow_up_date?->format('Y-m-d\\TH:i');
+        $this->subStatusId = $task->sub_status_id ?? ''; // preload sub status
+        $this->loadSubmissionStateFromTask($task);
+        $this->loadDirectoryLocationFieldsFromTask($task);
+        $this->loadVoterNotes();
+        $this->loadVoterOpinions();
+        $this->loadVoterRequests();
+    }
+
+    public function closeTask(): void
+    {
+        $this->selectedTask = null;
+        $this->selectedTaskId = null;
+        $this->newPhoneNumbers = [];
+        $this->phoneCallStatuses = [];
+        $this->phoneCallNotes = [];
     }
 }

@@ -105,6 +105,11 @@ class Directory extends Model
         return $this->hasMany(VoterOpinion::class, 'directory_id');
     }
 
+    public function phoneStatuses()
+    {
+        return $this->hasMany(DirectoryPhoneStatus::class, 'directory_id');
+    }
+
     public function voterNotes()
     {
         return $this->hasMany(VoterNote::class, 'directory_id');

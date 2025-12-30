@@ -786,6 +786,51 @@
                                         <div class="col-12">
                                             <label class="form-label fs-8 text-muted mb-1">Phones (comma separated)</label>
                                             <input type="text" class="form-control form-control-sm form-control-solid" placeholder="7xxxxxx, 9xxxxxx" wire:model.defer="contactPhones" />
+
+                                            @php
+                                                $phonesList = $selectedTask?->directory
+                                                    ? (is_array($selectedTask->directory->phones) ? $selectedTask->directory->phones : [])
+                                                    : [];
+                                            @endphp
+
+                                            @if(count($phonesList))
+                                                <div class="mt-3 p-3 rounded border border-dashed">
+                                                    <div class="fw-semibold mb-2">Call Status (per number)</div>
+
+                                                    @foreach($phonesList as $p)
+                                                        @php
+                                                            $norm = preg_replace('/\D+/', '', (string)$p);
+                                                            $currentStatus = $this->phoneCallStatuses[$norm] ?? 'not_called';
+                                                        @endphp
+
+                                                        <div class="row g-2 align-items-center mb-2">
+                                                            <div class="col-md-3">
+                                                                <span class="badge badge-light-dark">{{ $p }}</span>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <select class="form-select form-select-sm form-select-solid"
+                                                                        wire:change="updatePhoneCallStatus('{{ $norm }}', $event.target.value)">
+                                                                    <option value="not_called" @selected($currentStatus==='not_called')>Not called</option>
+                                                                    <option value="completed" @selected($currentStatus==='completed')>Completed</option>
+                                                                    <option value="wrong_number" @selected($currentStatus==='wrong_number')>Wrong number</option>
+                                                                    <option value="no_answer" @selected($currentStatus==='no_answer')>No answer</option>
+                                                                    <option value="busy" @selected($currentStatus==='busy')>Busy</option>
+                                                                    <option value="switched_off" @selected($currentStatus==='switched_off')>Switched off</option>
+                                                                    <option value="callback" @selected($currentStatus==='callback')>Call back</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <input type="text" class="form-control form-control-sm form-control-solid"
+                                                                       placeholder="Notes (optional)"
+                                                                       wire:model.lazy="phoneCallNotes.{{ $norm }}"
+                                                                       wire:change="updatePhoneCallNotes('{{ $norm }}')" />
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+
+                                                    <div class="fs-8 text-muted mt-2">Saved automatically when status/notes change.</div>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-end">
