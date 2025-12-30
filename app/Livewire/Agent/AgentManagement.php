@@ -199,18 +199,30 @@ class AgentManagement extends Component
     protected function getNewPhonesForDirectory($directoryId): array
     {
         if(!$directoryId) return [];
-        $log = EventLog::where('event_type','directory_updated')
+        $logs = EventLog::where('event_type','directory_updated')
             ->where('event_entry_id', (string)$directoryId)
+            ->where('description', 'Directory updated via UpdateVotersListSeeder')
             ->orderByDesc('created_at')
-            ->first();
-        if(!$log) return [];
-        $phonesChange = $log->event_data['phones'] ?? null;
-        if(!$phonesChange) return [];
-        $to = $phonesChange['to'] ?? [];
-        $from = $phonesChange['from'] ?? [];
-        $toList = $this->normalizePhoneInput($to);
-        $fromList = $this->normalizePhoneInput($from);
-        return array_values(array_diff($toList, $fromList));
+            ->limit(25)
+            ->get();
+
+        if($logs->isEmpty()) return [];
+
+        foreach ($logs as $log) {
+            $phonesChange = $log->event_data['phones'] ?? null;
+            if(!$phonesChange) continue;
+
+            $to = $phonesChange['to'] ?? [];
+            $from = $phonesChange['from'] ?? [];
+            $toList = $this->normalizePhoneInput($to);
+            $fromList = $this->normalizePhoneInput($from);
+            $diff = array_values(array_diff($toList, $fromList));
+            if (!empty($diff)) {
+                return $diff;
+            }
+        }
+
+        return [];
     }
 
     // Normalize phone input (string "a,b" or array) -> array of digits-only strings
