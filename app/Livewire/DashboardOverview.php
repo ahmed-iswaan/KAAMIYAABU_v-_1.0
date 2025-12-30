@@ -9,7 +9,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class DashboardOverview extends Component
 {
-     use AuthorizesRequests;
+    use AuthorizesRequests;
 
     public $totalPopulation = 0;
     public $maleCount = 0;
@@ -30,12 +30,26 @@ class DashboardOverview extends Component
     // Ranked task stats per user
     public $userTaskStats = [];
 
+    // New: same datasets as admin dashboard
+    public $activeDirectories = 0;
+    public $directoriesWithNoTasks = 0;
+    public $piePendingDirs = 0;
+    public $pieFollowUpDirs = 0;
+    public $pieCompletedDirs = 0;
+
+    public $subConsiteLabels = [];
+    public $subConsitePending = [];
+    public $subConsiteFollowUp = [];
+    public $subConsiteCompleted = [];
+    public $subConsiteNoTask = [];
+
     protected $listeners = ['taskChanged' => 'refreshStats'];
 
     public function mount()
     {
         $this->computeDirectoryStats();
         $this->computeTaskStats();
+        $this->computeDashboardTaskDirectoryCharts();
     }
 
     // Livewire listener triggered from JS websocket handler
@@ -134,6 +148,7 @@ class DashboardOverview extends Component
     public function refreshStats(): void
     {
         $this->computeTaskStats();
+        $this->computeDashboardTaskDirectoryCharts();
     }
     protected function refreshTaskStats(): void
     {
@@ -196,9 +211,67 @@ class DashboardOverview extends Component
         })->toArray();
     }
 
+    protected function computeDashboardTaskDirectoryCharts(): void
+    {
+        // Active directories
+        $this->activeDirectories = (int) Directory::where('status','Active')->count();
+
+        // Directories with no tasks
+        $this->directoriesWithNoTasks = (int) Directory::where('status','Active')
+            ->whereNotExists(function($q){
+                $q->selectRaw(1)
+                    ->from('tasks')
+                    ->whereColumn('tasks.directory_id','directories.id')
+                    ->where('tasks.deleted',false);
+            })->count();
+
+        // Latest task status per directory (mutually exclusive)
+        $latestTaskPerDir = DB::table('directories as d')
+            ->leftJoin(DB::raw('(SELECT directory_id, MAX(id) as last_task_id FROM tasks WHERE deleted = 0 GROUP BY directory_id) lt'), 'lt.directory_id', '=', 'd.id')
+            ->leftJoin('tasks as t', 't.id', '=', 'lt.last_task_id')
+            ->where('d.status', 'Active')
+            ->selectRaw(
+                "SUM(CASE WHEN lt.last_task_id IS NULL THEN 1 ELSE 0 END) as no_task, ".
+                "SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) as pending_dirs, ".
+                "SUM(CASE WHEN t.status = 'follow_up' THEN 1 ELSE 0 END) as follow_up_dirs, ".
+                "SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed_dirs"
+            )
+            ->first();
+
+        $this->directoriesWithNoTasks = (int)($latestTaskPerDir->no_task ?? $this->directoriesWithNoTasks);
+        $this->piePendingDirs = (int)($latestTaskPerDir->pending_dirs ?? 0);
+        $this->pieFollowUpDirs = (int)($latestTaskPerDir->follow_up_dirs ?? 0);
+        $this->pieCompletedDirs = (int)($latestTaskPerDir->completed_dirs ?? 0);
+
+        // SubConsite status including No Task
+        $rows = DB::table('sub_consites')
+            ->leftJoin('directories', function($join){
+                $join->on('directories.sub_consite_id','=','sub_consites.id');
+            })
+            ->leftJoin('tasks', function($join){
+                $join->on('tasks.directory_id','=','directories.id')
+                    ->where('tasks.deleted', false);
+            })
+            ->select('sub_consites.id','sub_consites.code')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END),0) as pending")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END),0) as follow_up")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END),0) as completed")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN directories.status='Active' THEN directories.id END) as active_dirs")
+            ->selectRaw("COUNT(DISTINCT tasks.directory_id) as task_dirs")
+            ->groupBy('sub_consites.id','sub_consites.code')
+            ->orderBy('sub_consites.code')
+            ->get();
+
+        $this->subConsiteLabels = $rows->pluck('code')->toArray();
+        $this->subConsitePending = $rows->pluck('pending')->map(fn($v)=> (int)$v)->toArray();
+        $this->subConsiteFollowUp = $rows->pluck('follow_up')->map(fn($v)=> (int)$v)->toArray();
+        $this->subConsiteCompleted = $rows->pluck('completed')->map(fn($v)=> (int)$v)->toArray();
+        $this->subConsiteNoTask = $rows->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->task_dirs ?? 0)))->toArray();
+    }
+
     public function render()
     {
-         $this->authorize('dashboard-render');
+        $this->authorize('dashboard-render');
         return view('livewire.dashboard-overview', [
             'totalPopulation'   => $this->totalPopulation,
             'maleCount'         => $this->maleCount,
@@ -212,6 +285,16 @@ class DashboardOverview extends Component
             'taskFollowUp'      => $this->taskFollowUp,
             'taskCompleted'     => $this->taskCompleted,
             'userTaskStats'     => $this->userTaskStats,
+            'activeDirectories' => $this->activeDirectories,
+            'directoriesWithNoTasks' => $this->directoriesWithNoTasks,
+            'piePendingDirs' => $this->piePendingDirs,
+            'pieFollowUpDirs' => $this->pieFollowUpDirs,
+            'pieCompletedDirs' => $this->pieCompletedDirs,
+            'subConsiteLabels' => $this->subConsiteLabels,
+            'subConsitePending' => $this->subConsitePending,
+            'subConsiteFollowUp' => $this->subConsiteFollowUp,
+            'subConsiteCompleted' => $this->subConsiteCompleted,
+            'subConsiteNoTask' => $this->subConsiteNoTask,
         ])->layout('layouts.master');
     }
 }

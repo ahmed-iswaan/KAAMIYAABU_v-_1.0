@@ -80,51 +80,45 @@
             </div>
         </div>
         @endcan
-       @can('directory-render')
-        <!-- Population by Island row (full width) -->
-        <div class="row gx-6 gx-xl-9 mt-6 align-items-stretch">
-            <div class="col-12">
-                <div class="card h-100 card-flush shadow-sm">
-                    <div class="card-body p-9">
-                        <div class="d-flex justify-content-between align-items-start mb-5">
-                            <div class="d-flex flex-column">
-                                <span class="fs-2 fw-bold">{{ $totalPopulation }}</span>
-                                <span class="text-gray-400 fw-semibold">Population by Island</span>
-                            </div>
+
+        {{-- Replace Population by Island with admin-style charts --}}
+        @can('directory-render')
+        <div class="row gx-6 gx-xl-9 mt-6">
+            <div class="col-xl-6">
+                <div class="card card-flush p-6 shadow-sm h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <div class="fs-5 fw-bold">Directories Without Tasks</div>
+                        <div class="fs-7 text-muted">{{ number_format($directoriesWithNoTasks) }} Active directories have no tasks</div>
+                    </div>
+                    <div class="position-relative" style="height: 320px;">
+                        <canvas id="dashNoTaskPie" wire:ignore class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+                        <div class="position-absolute top-50 start-50 translate-middle text-center">
+                            <div class="fs-1 fw-bold" id="dashNoTaskTotal">0</div>
+                            <div class="fs-7 text-muted">Total Active</div>
                         </div>
-                        <div class="d-flex flex-column">
-                            <div wire:ignore class="w-100 mb-5" style="height:420px;position:relative;">
-                                <canvas id="kt_island_population_chart" style="width:100%;height:100%;"></canvas>
-                            </div>
-                            <div id="island_population_payload" data-labels='@json($islandLabels)' data-males='@json($islandMaleCounts)' data-females='@json($islandFemaleCounts)'></div>
-                            <div class="d-flex flex-wrap justify-content-center mb-4">
-                                <div class="d-flex align-items-center me-6 mb-3">
-                                    <span class="bullet bg-primary me-2" style="width:12px;height:12px;border-radius:50%;"></span>
-                                    <span class="text-gray-600 me-1">Male</span>
-                                    <span class="fw-bold text-gray-800">{{ $maleCount }}</span>
-                                </div>
-                                <div class="d-flex align-items-center mb-3">
-                                    <span class="bullet me-2" style="width:12px;height:12px;border-radius:50%; background-color:#FF69B4;"></span>
-                                    <span class="text-gray-600 me-1">Female</span>
-                                    <span class="fw-bold text-gray-800">{{ $femaleCount }}</span>
-                                </div>
-                            </div>
-                            <div class="d-flex flex-wrap justify-content-center">
-                                @foreach($islandLabels as $idx => $label)
-                                    <div class="d-flex align-items-center me-6 mb-3" style="min-width:200px;">
-                                        <span class="badge bg-light text-dark fw-semibold me-2" style="min-width:90px;">{{ $label }}</span>
-                                        <span class="text-gray-600 me-1">M:</span><span class="fw-bold text-gray-800 me-3">{{ $islandMaleCounts[$idx] ?? 0 }}</span>
-                                        <span class="text-gray-600 me-1">F:</span><span class="fw-bold text-gray-800 me-3">{{ $islandFemaleCounts[$idx] ?? 0 }}</span>
-                                        <span class="text-gray-600 me-1">T:</span><span class="fw-bold text-gray-800">{{ $islandTotals[$idx] ?? 0 }}</span>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-6 mt-4">
+                        <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f1416c;"></span><span class="fs-7 text-muted">No Task</span></div>
+                        <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f6c000;"></span><span class="fs-7 text-muted">Pending</span></div>
+                        <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#3e97ff;"></span><span class="fs-7 text-muted">Follow-up</span></div>
+                        <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#50cd89;"></span><span class="fs-7 text-muted">Completed</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                <div class="card card-flush p-6 shadow-sm h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <div class="fs-5 fw-bold">Tasks by SubConsite</div>
+                        <div class="fs-7 text-muted">Pending / Follow-up / Completed / No Task</div>
+                    </div>
+                    <div style="height: 320px;">
+                        <canvas id="dashSubConsiteStatusChart" wire:ignore></canvas>
                     </div>
                 </div>
             </div>
         </div>
         @endcan
+
         @can('dashboard-task-performance')
         <!-- Users Task Performance separate row -->
         <div class="row gx-6 gx-xl-9 mt-6">
@@ -198,69 +192,127 @@
 </div>
 
 @push('scripts')
-<script>
-(function(){
-    function ensureChartJs(cb){ if(window.Chart){ return cb(); } const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/chart.js'; s.onload=cb; document.head.appendChild(s); }
-    function buildOrUpdate(){
-        const payloadEl=document.getElementById('island_population_payload');
-        const canvas=document.getElementById('kt_island_population_chart');
-        if(!payloadEl||!canvas){ return; }
-        let labels, males, females;
-        try{ labels=JSON.parse(payloadEl.getAttribute('data-labels')||'[]'); }catch{ labels=[]; }
-        try{ males=JSON.parse(payloadEl.getAttribute('data-males')||'[]'); }catch{ males=[]; }
-        try{ females=JSON.parse(payloadEl.getAttribute('data-females')||'[]'); }catch{ females=[]; }
-        // If Livewire update fires before data ready, keep existing chart
-        if(!Array.isArray(labels) || labels.length===0){ if(window.__islandChart){ console.log('[IslandChart] Skip update (empty labels)'); } return; }
-        const ctx=canvas.getContext('2d'); if(!ctx){ return; }
-        // Update existing chart without destroy to prevent flicker
-        if(window.__islandChart){
-            window.__islandChart.data.labels = labels;
-            window.__islandChart.data.datasets[0].data = males.map(n=>+n||0);
-            window.__islandChart.data.datasets[1].data = females.map(n=>+n||0);
-            window.__islandChart.update();
-            console.log('[IslandChart] Updated', labels.length);
-            return;
-        }
-        const h=canvas.clientHeight||420;
-        const maleGradient=ctx.createLinearGradient(0,0,0,h); maleGradient.addColorStop(0,'rgba(0,163,255,0.8)'); maleGradient.addColorStop(1,'rgba(0,163,255,0.2)');
-        const femaleGradient=ctx.createLinearGradient(0,0,0,h); femaleGradient.addColorStop(0,'rgba(255,105,180,0.8)'); femaleGradient.addColorStop(1,'rgba(255,105,180,0.2)');
-        window.__islandChart=new Chart(ctx,{ type:'bar', data:{ labels:labels, datasets:[
-            { label:'Male', data:males.map(n=>+n||0), backgroundColor:maleGradient, borderRadius:6, maxBarThickness:42, stack:'gender' },
-            { label:'Female', data:females.map(n=>+n||0), backgroundColor:femaleGradient, borderRadius:6, maxBarThickness:42, stack:'gender' }
-        ]}, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false }, animation:false, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ beginAtZero:true, stacked:true } }, plugins:{ legend:{ display:true, position:'top' } } } });
-        console.log('[IslandChart] Created', labels.length);
-    }
-    function init(){ ensureChartJs(()=> setTimeout(buildOrUpdate, 30)); }
-    window.addEventListener('load', init);
-    document.addEventListener('livewire:load', init);
-    if(window.Livewire){ Livewire.hook('message.processed', buildOrUpdate); }
-})();
-</script>
+    {{-- Remove island population chart scripts; add Chart.js for new charts if not already present --}}
+    <script>
+        (function(){
+            function ensureChartJs(cb){
+                if(window.Chart){ return cb(); }
+                const s=document.createElement('script');
+                s.src='https://cdn.jsdelivr.net/npm/chart.js';
+                s.onload=cb;
+                document.head.appendChild(s);
+            }
 
-<script>
-    // Real-time task status updates for dashboard stats
-    document.addEventListener('DOMContentLoaded', function() {
-        if (typeof Echo === 'undefined') { console.warn('Echo not available for dashboard task updates'); return; }
-        try {
-            const userId = '{{ auth()->id() }}';
-            // Listen on per-user private channel
-            Echo.private('agent.tasks.' + userId)
-                .listen('.TaskDataChanged', (e) => {
-                    if (!e || !e.change_type) return;
-                    if (['status_updated','submission_submitted'].includes(e.change_type)) {
-                        window.Livewire.dispatch('task-status-updated');
-                    }
-                });
-            // Listen on global tasks stats channel (ranked performance + summary updates)
-            Echo.private('tasks.global')
-                .listen('.TaskStatsUpdated', (e) => {
-                    if (!e || !e.change_type) return;
-                    // Any task status affecting stats triggers recompute
-                    if (['status_updated','submission_submitted'].includes(e.change_type)) {
-                        window.Livewire.dispatch('task-status-updated');
-                    }
-                });
-        } catch (err) { console.error('Echo channel bind failed', err); }
-    });
-</script>
+            const TotalsAboveBarsPlugin = {
+                id: 'totalsAboveBars',
+                afterDatasetsDraw(chart) {
+                    const {ctx, data} = chart;
+                    const meta = chart.getDatasetMeta(0);
+                    if (!meta || !meta.data) return;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillStyle = '#5e6278';
+                    ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+                    data.labels.forEach((label, index) => {
+                        let total = 0;
+                        data.datasets.forEach(ds => { total += (parseFloat(ds.data[index]) || 0); });
+                        const el = meta.data[index];
+                        if (!el) return;
+                        const x = el.x;
+                        const yTop = chart.scales.y.getPixelForValue(total);
+                        ctx.fillText(total.toLocaleString(), x, yTop - 6);
+                    });
+                    ctx.restore();
+                }
+            };
+
+            function buildDashboardCharts(){
+                // Pie
+                const pieEl = document.getElementById('dashNoTaskPie');
+                if(pieEl && window.Chart){
+                    const data = [
+                        parseInt(@json($directoriesWithNoTasks ?? 0), 10) || 0,
+                        parseInt(@json($piePendingDirs ?? 0), 10) || 0,
+                        parseInt(@json($pieFollowUpDirs ?? 0), 10) || 0,
+                        parseInt(@json($pieCompletedDirs ?? 0), 10) || 0,
+                    ];
+                    const labels = ['No Task','Pending','Follow-up','Completed'];
+                    const colors = ['#f1416c','#f6c000','#3e97ff','#50cd89'];
+                    if(window.__dashNoTaskPie){ window.__dashNoTaskPie.destroy(); }
+                    window.__dashNoTaskPie = new Chart(pieEl, {
+                        type: 'doughnut',
+                        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+                        options: { responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ position:'bottom' } } }
+                    });
+                    const totalEl = document.getElementById('dashNoTaskTotal');
+                    if(totalEl){ totalEl.textContent = (parseInt(@json($activeDirectories ?? 0),10)||0).toLocaleString(); }
+                }
+
+                // Stacked bar
+                const barEl = document.getElementById('dashSubConsiteStatusChart');
+                if(barEl && window.Chart){
+                    const labels = @json($subConsiteLabels ?? []);
+                    if(!labels.length) return;
+                    const pending = @json($subConsitePending ?? []);
+                    const followUp = @json($subConsiteFollowUp ?? []);
+                    const completed = @json($subConsiteCompleted ?? []);
+                    const noTask = @json($subConsiteNoTask ?? []);
+                    if(window.__dashSubChart){ window.__dashSubChart.destroy(); }
+                    window.__dashSubChart = new Chart(barEl, {
+                        type:'bar',
+                        data:{
+                            labels,
+                            datasets:[
+                                { label:'Pending', data:pending, backgroundColor:'#f6c000' },
+                                { label:'Follow-up', data:followUp, backgroundColor:'#3e97ff' },
+                                { label:'Completed', data:completed, backgroundColor:'#50cd89' },
+                                { label:'No Task', data:noTask, backgroundColor:'#f1416c' },
+                            ]
+                        },
+                        options:{
+                            responsive:true,
+                            maintainAspectRatio:false,
+                            scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } },
+                            plugins:{ legend:{ position:'bottom' } }
+                        },
+                        plugins:[TotalsAboveBarsPlugin]
+                    });
+                }
+            }
+
+            function init(){ ensureChartJs(()=> setTimeout(buildDashboardCharts, 50)); }
+            window.addEventListener('load', init);
+            document.addEventListener('livewire:load', init);
+            if(window.Livewire){ Livewire.hook('message.processed', buildDashboardCharts); }
+        })();
+    </script>
+
+    {{-- keep existing Echo scripts below --}}
+    <script>
+        // Real-time task status updates for dashboard stats
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof Echo === 'undefined') { console.warn('Echo not available for dashboard task updates'); return; }
+            try {
+                const userId = '{{ auth()->id() }}';
+                // Listen on per-user private channel
+                Echo.private('agent.tasks.' + userId)
+                    .listen('.TaskDataChanged', (e) => {
+                        if (!e || !e.change_type) return;
+                        if (['status_updated','submission_submitted'].includes(e.change_type)) {
+                            window.Livewire.dispatch('task-status-updated');
+                        }
+                    });
+                // Listen on global tasks stats channel (ranked performance + summary updates)
+                Echo.private('tasks.global')
+                    .listen('.TaskStatsUpdated', (e) => {
+                        if (!e || !e.change_type) return;
+                        // Any task status affecting stats triggers recompute
+                        if (['status_updated','submission_submitted'].includes(e.change_type)) {
+                            window.Livewire.dispatch('task-status-updated');
+                        }
+                    });
+            } catch (err) { console.error('Echo channel bind failed', err); }
+        });
+    </script>
 @endpush

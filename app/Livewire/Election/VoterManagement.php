@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; // NEW logging
 use App\Models\VoterProvisionalUserPledge; // NEW per-user provisional pledge
 use App\Models\User; // NEW: User model for history
+use App\Models\SubConsite;
 
 class VoterManagement extends Component
 {
@@ -29,6 +30,10 @@ class VoterManagement extends Component
     public $search='';
     public $perPage=10;
     public $electionId=null;
+    // SubConsite filter
+    public $filterSubConsiteId = '';
+    public $subConsites = [];
+
     public $pageTitle='Voters';
     public $elections=[]; // cached list
     public $viewingVoter = null; // selected voter for modal view
@@ -104,12 +109,17 @@ class VoterManagement extends Component
         'note_text' => 'required|string|max:4000'
     ];
 
-    protected $queryString=['electionId'=>['except'=>null],'search'=>['except'=>'']]; // removed single filter from query string
+    protected $queryString=[
+        'electionId'=>['except'=>null],
+        'search'=>['except'=>''],
+        'filterSubConsiteId'=>['except'=>''],
+    ]; // removed single filter from query string
 
     // Reset page when filters change
     public function updatingSearch(){ $this->resetPage(); }
     public function updatingPerPage(){ $this->resetPage(); }
     public function updatingFinalPledgeFilters(){ $this->resetPage(); }
+    public function updatingFilterSubConsiteId(){ $this->resetPage(); }
 
     // Add helper to clear all final pledge filters
     public function clearFinalPledgeFilters(){
@@ -133,6 +143,7 @@ class VoterManagement extends Component
         }
         $this->opinionTypes = OpinionType::where('active',true)->orderBy('name')->get(['id','name']);
         $this->requestTypes = RequestType::where('active',true)->orderBy('name')->get(['id','name']); // load request types
+        $this->subConsites = SubConsite::orderBy('code')->get(['id','code','name']);
         $saved = session('voter.finalPledgeFilters');
         if(is_array($saved)) { $this->finalPledgeFilters = $saved; }
     }
@@ -483,6 +494,11 @@ class VoterManagement extends Component
             $directoryQuery->whereIn('sub_consite_id', $user->subConsites()->select('sub_consites.id'));
         }
 
+        // Apply selected SubConsite filter (must also be within user's allowed list)
+        if($this->filterSubConsiteId){
+            $directoryQuery->where('sub_consite_id', $this->filterSubConsiteId);
+        }
+
         if($this->search){
             $term = '%'.$this->search.'%';
             $directoryQuery->where(function($qq) use ($term){
@@ -553,6 +569,7 @@ class VoterManagement extends Component
             'totalVoters' => $totalVoters,
             'totalsProv' => $this->totalsProv,
             'totalsFinal' => $this->totalsFinal,
+            'subConsites' => $this->subConsites,
         ])->layout('layouts.master');
     }
 

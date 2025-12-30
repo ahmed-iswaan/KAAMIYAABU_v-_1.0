@@ -65,6 +65,14 @@
                                     @endforeach
                                 </select>
                             </div>
+                            <div class="flex-grow-0" style="min-width:220px;">
+                                <select class="form-select form-select-solid w-100" wire:model.live="filterSubConsiteId">
+                                    <option value="">All SubConsites</option>
+                                    @foreach($subConsites as $sc)
+                                        <option value="{{ $sc->id }}">{{ $sc->code }}{{ $sc->name ? ' - '.$sc->name : '' }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                             <!-- Multi Final Pledge Filter Dropdown -->
                             <div class="position-relative" style="min-width:260px;" wire:ignore.self>
                                 <button type="button" class="btn btn-light btn-active-light-primary w-100 d-flex justify-content-between align-items-center px-4" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">
