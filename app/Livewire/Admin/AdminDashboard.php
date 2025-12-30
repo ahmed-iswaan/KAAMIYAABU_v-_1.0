@@ -47,6 +47,15 @@ class AdminDashboard extends Component
     public $fsAllCharts = []; // NEW: [{questionId,text,labels,series}]
     public $fsBySubCharts = []; // NEW: [{subCode, questions:[{text, labels(options), data(counts)}]}]
 
+    // Per-question totals pies: [{questionId, text, labels, counts}]
+    public $formTotalsPies = [];
+
+    public $q1PieLabels = [];
+    public $q1PieCounts = [];
+
+    public $q3PieLabels = [];
+    public $q3PieCounts = [];
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
@@ -66,6 +75,7 @@ class AdminDashboard extends Component
             if ($firstQuestion) { $this->selectedQuestionId = $firstQuestion->id; }
         }
         $this->computeFormSubmissionChart();
+        $this->computeFormTotalsPies();
         // Dispatch initial chart data to ensure JS initializes
         $this->dispatch('admin-form-chart-update', ['labels'=>$this->fsLabels, 'series'=>$this->fsSeries]);
     }
@@ -201,6 +211,7 @@ class AdminDashboard extends Component
             ->first(['id']);
         $this->selectedQuestionId = optional($q)->id;
         $this->computeFormSubmissionChart();
+        $this->computeFormTotalsPies();
     }
 
     public function updatedSelectedQuestionId(): void
@@ -275,6 +286,102 @@ class AdminDashboard extends Component
         $this->dispatch('admin-form-chart-update', ['labels'=>$this->fsLabels, 'series'=>$this->fsSeries]);
     }
 
+    private function computeFormTotalsPies(): void
+    {
+        $this->formTotalsPies = [];
+
+        $formId = $this->selectedFormId;
+        if (!$formId) return;
+
+        $questions = FormQuestion::where('form_id', $formId)
+            ->whereIn('type', ['dropdown','radio','select'])
+            ->orderBy('position')
+            ->get(['id','question_text']);
+
+        foreach ($questions as $q) {
+            $optMap = FormQuestionOption::where('form_question_id', $q->id)
+                ->pluck('label','value')
+                ->toArray();
+            $validValues = array_keys($optMap);
+
+            $rows = DB::table('form_submission_answers as a')
+                ->join('form_submissions as s', 's.id', '=', 'a.form_submission_id')
+                ->where('s.form_id', $formId)
+                ->where('a.form_question_id', $q->id)
+                ->select('a.value_text','a.value_text_dv')
+                ->get();
+
+            $counts = [];
+            foreach ($rows as $r) {
+                $value = trim((string)($r->value_text ?? ''));
+                if ($value === '') continue;
+
+                // Only count defined options if options exist
+                if (!empty($validValues) && !in_array($value, $validValues, true)) {
+                    continue;
+                }
+
+                $labelDv = trim((string)($r->value_text_dv ?? ''));
+                $label = $labelDv !== '' ? $labelDv : (string)($optMap[$value] ?? $value);
+                $counts[$label] = ($counts[$label] ?? 0) + 1;
+            }
+
+            if (empty($counts)) continue;
+
+            arsort($counts);
+            $this->formTotalsPies[] = [
+                'questionId' => (string)$q->id,
+                'text' => $q->question_text,
+                'labels' => array_keys($counts),
+                'counts' => array_values($counts),
+            ];
+        }
+    }
+
+    private function computeQ1Q3TotalsPies(): void
+    {
+        $this->q1PieLabels = $this->q1PieCounts = [];
+        $this->q3PieLabels = $this->q3PieCounts = [];
+
+        $formId = $this->selectedFormId ?: (Form::orderBy('title')->value('id'));
+        if (!$formId) return;
+
+        $q1 = FormQuestion::where('form_id', $formId)->where('position', 1)->first(['id']);
+        $q3 = FormQuestion::where('form_id', $formId)->where('position', 3)->first(['id']);
+        if (!$q1 && !$q3) return;
+
+        $build = function($questionId) use ($formId) {
+            if (!$questionId) return [[],[]];
+
+            $optMap = FormQuestionOption::where('form_question_id', $questionId)
+                ->pluck('label','value')
+                ->toArray();
+
+            $rows = DB::table('form_submission_answers as a')
+                ->join('form_submissions as s', 's.id', '=', 'a.form_submission_id')
+                ->where('s.form_id', $formId)
+                ->where('a.form_question_id', $questionId)
+                ->select('a.value_text','a.value_text_dv')
+                ->get();
+
+            $counts = [];
+            foreach ($rows as $r) {
+                $value = trim((string)($r->value_text ?? ''));
+                if ($value === '') continue;
+
+                $labelDv = trim((string)($r->value_text_dv ?? ''));
+                $label = $labelDv !== '' ? $labelDv : (string)($optMap[$value] ?? $value);
+                $counts[$label] = ($counts[$label] ?? 0) + 1;
+            }
+
+            arsort($counts);
+            return [array_keys($counts), array_values($counts)];
+        };
+
+        [$this->q1PieLabels, $this->q1PieCounts] = $build($q1?->id);
+        [$this->q3PieLabels, $this->q3PieCounts] = $build($q3?->id);
+    }
+
     public function render()
     {
         return view('livewire.admin.admin-dashboard',[
@@ -306,8 +413,9 @@ class AdminDashboard extends Component
             'selectedQuestionId' => $this->selectedQuestionId,
             'fsLabels' => $this->fsLabels,
             'fsSeries' => $this->fsSeries,
-            'fsAllCharts' => $this->fsAllCharts, // NEW
-            'fsBySubCharts' => $this->fsBySubCharts, // NEW
+            'fsAllCharts' => $this->fsAllCharts,
+            'fsBySubCharts' => $this->fsBySubCharts,
+            'formTotalsPies' => $this->formTotalsPies,
         ])->layout('layouts.master');
     }
 }

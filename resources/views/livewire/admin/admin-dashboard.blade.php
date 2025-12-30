@@ -75,6 +75,25 @@
         <div style="height: 360px;"><canvas id="finalBySubConsite" wire:ignore></canvas></div>
     </div>
 
+    <!-- Total pies per question (dropdown/radio/select) -->
+    @if(!empty($formTotalsPies) && count($formTotalsPies))
+        @foreach($formTotalsPies as $pie)
+            <div class="card card-flush p-6 shadow-sm mt-6">
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div class="fs-5 fw-bold faruma">{{ $pie['text'] }}</div>
+                    <div class="fs-7 text-muted">Total (All submissions)</div>
+                </div>
+                <div style="height: 340px;">
+                    <canvas id="pie_total_q_{{ $pie['questionId'] }}" wire:ignore></canvas>
+                </div>
+            </div>
+        @endforeach
+    @else
+        <div class="card card-flush p-6 shadow-sm mt-6">
+            <div class="fs-7 text-muted">No dropdown / radio / select questions with data found for this form.</div>
+        </div>
+    @endif
+
     <!-- Additional charts per question -->
     @foreach($fsAllCharts as $chart)
     <div class="card card-flush p-6 shadow-sm mt-6">
@@ -125,6 +144,79 @@ const TotalsAboveBarsPlugin = {
         ctx.restore();
     }
 };
+</script>
+
+<!-- Total pie charts init -->
+<script>
+(function(){
+    const palette = ['#3e97ff','#50cd89','#f6c000','#f1416c','#7239ea','#00a3ef','#a1a5b7','#e4e6ef','#ff6b6b','#2d3250'];
+
+    const DoughnutCenterTextPlugin = {
+        id: 'doughnutCenterText',
+        afterDraw(chart, args, options) {
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return;
+            const dataset = chart.data?.datasets?.[0];
+            if (!dataset) return;
+            const total = (dataset.data || []).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+            const text = (options && options.text) ? options.text : (total || 0).toLocaleString();
+
+            const x = (chartArea.left + chartArea.right) / 2;
+            const y = (chartArea.top + chartArea.bottom) / 2;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = (options && options.color) ? options.color : '#181c32';
+            ctx.font = (options && options.font) ? options.font : '600 20px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+            ctx.fillText(text, x, y);
+            if (options && options.subText) {
+                ctx.fillStyle = options.subColor || '#a1a5b7';
+                ctx.font = options.subFont || '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+                ctx.fillText(options.subText, x, y + 18);
+            }
+            ctx.restore();
+        }
+    };
+
+    function buildPie(elId, labels, data){
+        const el = document.getElementById(elId);
+        if(!el) return;
+        if(!labels || !labels.length) return;
+
+        if (el.__chart) {
+            try { el.__chart.destroy(); } catch(e) {}
+            el.__chart = null;
+        }
+
+        const vals = (data || []).map(v => parseInt(v, 10) || 0);
+        const colors = labels.map((_, i) => palette[i % palette.length]);
+        el.__chart = new Chart(el, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: { position: 'bottom' },
+                    doughnutCenterText: { subText: 'Total' }
+                }
+            },
+            plugins: [DoughnutCenterTextPlugin]
+        });
+    }
+
+    function init(){
+        const pies = @json($formTotalsPies ?? []);
+        pies.forEach(p => {
+            buildPie('pie_total_q_' + p.questionId, p.labels || [], p.counts || []);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('livewire:navigated', init);
+})();
 </script>
 
 <!-- No Task pie chart (4 segments) -->
