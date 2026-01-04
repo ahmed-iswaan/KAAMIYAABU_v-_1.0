@@ -11,11 +11,11 @@ use App\Models\EventLog;
 class MarkTasksDeletedFromNewUpdateSeeder extends Seeder
 {
     /**
-     * Mark tasks as deleted if their directory is not listed in seeders/data/newupdate.json.
+     * Mark tasks as deleted if their directory is not listed in seeders/data/electionmdplist.json.
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/newupdate.json');
+        $file = database_path('seeders/data/electionmdplist.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
@@ -23,7 +23,7 @@ class MarkTasksDeletedFromNewUpdateSeeder extends Seeder
 
         $rows = json_decode(File::get($file), true);
         if (!is_array($rows)) {
-            $this->command->error('newupdate.json not valid JSON array.');
+            $this->command->error('electionmdplist.json not valid JSON array.');
             return;
         }
 
@@ -37,18 +37,18 @@ class MarkTasksDeletedFromNewUpdateSeeder extends Seeder
             ->values();
 
         if ($validIdCards->isEmpty()) {
-            $this->command->warn('No valid Id # values found in newupdate.json; no tasks will be marked deleted.');
+            $this->command->warn('No valid Id # values found in electionmdplist.json; no tasks will be marked deleted.');
             return;
         }
 
         // Find directories NOT in the JSON list
         $directoriesToMark = Directory::whereNotIn('id_card_number', $validIdCards)->pluck('id');
         if ($directoriesToMark->isEmpty()) {
-            $this->command->info('No directories found outside newupdate.json; no tasks changed.');
+            $this->command->info('No directories found outside electionmdplist.json; no tasks changed.');
             return;
         }
 
-        $this->command->info('Found ' . $directoriesToMark->count() . ' directories not in newupdate.json. Marking related tasks as deleted...');
+        $this->command->info('Found ' . $directoriesToMark->count() . ' directories not in electionmdplist.json. Marking related tasks as deleted...');
 
         $totalTasks = 0;
         $updatedTasks = 0;
@@ -71,7 +71,7 @@ class MarkTasksDeletedFromNewUpdateSeeder extends Seeder
                         'event_type' => 'task_deleted',
                         'event_tab' => 'task',
                         'event_entry_id' => $task->id,
-                        'description' => 'Task soft-deleted via MarkTasksDeletedFromNewUpdateSeeder because directory is not in newupdate.json',
+                        'description' => 'Task soft-deleted via MarkTasksDeletedFromNewUpdateSeeder because directory is not in electionmdplist.json 03/01/2026',
                         'event_data' => [
                             'directory_id' => $task->directory_id,
                         ],

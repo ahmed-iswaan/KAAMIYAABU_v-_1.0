@@ -17,7 +17,7 @@ use Carbon\Carbon;
 class NewUpdateSeeder extends Seeder
 {
     /**
-     * Update directories from database/data/newupdate.json
+     * Update directories from database/data/electionmdplist.json
      * - Upsert by ID card number
      * - Overwrite fields when changed; log changes
      * - Merge phone numbers (keep old, add new unique)
@@ -25,14 +25,14 @@ class NewUpdateSeeder extends Seeder
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/newupdate.json');
+        $file = database_path('seeders/data/electionmdplist.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
         }
 
         $rows = json_decode(File::get($file), true);
-        if (!is_array($rows)) { $this->command->error('newupdate.json not valid JSON array.'); return; }
+        if (!is_array($rows)) { $this->command->error('electionmdplist.json not valid JSON array.'); return; }
 
         $maldivesId = Country::where('name', 'Maldives')->value('id');
         if (!$maldivesId) { $this->command->error('Country Maldives missing.'); return; }
@@ -163,7 +163,7 @@ class NewUpdateSeeder extends Seeder
                         'event_type' => 'directory_updated',
                         'event_tab' => 'directory',
                         'event_entry_id' => $existing->id,
-                        'description' => 'Directory updated via NewUpdateSeeder',
+                        'description' => 'Directory updated via NewUpdateSeeder 03/01/2026',
                         'event_data' => $changes,
                         'ip_address' => request()->ip() ?? null,
                     ]);
@@ -178,7 +178,7 @@ class NewUpdateSeeder extends Seeder
                     'event_type' => 'directory_created',
                     'event_tab' => 'directory',
                     'event_entry_id' => $dir->id,
-                    'description' => 'Directory created via NewUpdateSeeder',
+                    'description' => 'Directory created via NewUpdateSeeder 03/01/2026',
                     'event_data' => [
                         'id_card_number' => $nid,
                         'name' => $name,
