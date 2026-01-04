@@ -78,8 +78,31 @@
             box-shadow:0 30px 80px rgba(0,0,0,.45);
             overflow:hidden;
         }
-        .card-inner{padding:34px; display:grid; grid-template-columns: 1.1fr .9fr; gap:26px; align-items:center}
+        .card-inner{padding:34px; display:grid; grid-template-columns: 1.1fr .9fr; gap:26px; align-items:center;}
         @media(max-width:860px){.card-inner{grid-template-columns:1fr}}
+
+        /* Mobile optimizations */
+        @media (max-width: 520px){
+            body{padding:0}
+            .wrap{padding:16px}
+            .card{border-radius:18px}
+            .card-inner{padding:20px; gap:16px}
+            .title{font-size:22px}
+            .desc{font-size:14px}
+            .badge{font-size:11px; padding:7px 10px}
+            .btn{width:100%}
+            .btns{gap:10px}
+            .panel{min-height:200px; padding:16px}
+            .gear{width:50px;height:50px}
+            .spinner{width:24px;height:24px}
+            .progress{height:9px}
+        }
+
+        /* Slightly larger phones / small tablets */
+        @media (min-width: 521px) and (max-width: 860px){
+            .card-inner{padding:26px}
+            .panel{min-height:220px}
+        }
 
         .badge{
             display:inline-flex; align-items:center; gap:10px;
