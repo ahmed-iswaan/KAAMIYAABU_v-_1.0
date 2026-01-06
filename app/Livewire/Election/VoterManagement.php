@@ -504,7 +504,10 @@ class VoterManagement extends Component
             $directoryQuery->where(function($qq) use ($term){
                 $qq->where('name','like',$term)
                    ->orWhere('email','like',$term)
-                   ->orWhere('id_card_number','like',$term);
+                   ->orWhere('id_card_number','like',$term)
+                   // directory addresses
+                   ->orWhere('street_address','like',$term)
+                   ->orWhere('address','like',$term);
             });
         }
 
