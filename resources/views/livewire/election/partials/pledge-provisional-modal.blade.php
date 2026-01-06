@@ -32,27 +32,34 @@
         document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
         document.body.classList.remove('modal-open');
         document.body.style.removeProperty('padding-right');
+        document.body.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('overflow');
     }
 
     function attachCleanupOnHidden(id){
         const el = document.getElementById(id);
         if(!el) return;
-        el.addEventListener('hidden.bs.modal', cleanupBootstrapBackdrop, { once: false });
+        // Run cleanup on both events to be safe
+        el.addEventListener('hide.bs.modal', ()=>setTimeout(cleanupBootstrapBackdrop, 0), { once: false });
+        el.addEventListener('hidden.bs.modal', ()=>setTimeout(cleanupBootstrapBackdrop, 0), { once: false });
     }
 
     window.addEventListener('show-provisional-pledge-modal', ()=>{
         const el = document.getElementById('provisionalPledgeModal');
         if(!el || typeof bootstrap==='undefined') return;
-        const modal = new bootstrap.Modal(el, { backdrop: true });
+        const modal = bootstrap.Modal.getOrCreateInstance(el, { backdrop: true, keyboard: true, focus: true });
         attachCleanupOnHidden('provisionalPledgeModal');
         modal.show();
     });
     window.addEventListener('hide-provisional-pledge-modal', ()=>{
         const el = document.getElementById('provisionalPledgeModal');
-        if(!el || typeof bootstrap==='undefined') return;
-        const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+        if(!el || typeof bootstrap==='undefined') {
+            cleanupBootstrapBackdrop();
+            return;
+        }
+        const modal = bootstrap.Modal.getOrCreateInstance(el);
         modal.hide();
-        setTimeout(cleanupBootstrapBackdrop, 150);
+        setTimeout(cleanupBootstrapBackdrop, 250);
     });
 </script>
 @endpush

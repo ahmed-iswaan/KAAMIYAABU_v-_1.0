@@ -326,6 +326,20 @@
             const modal = bootstrap.Modal.getInstance(modalEl);
             if(modal){ modal.hide(); }
         });
+
+        // Global safety net: if any modal is closed but body is still locked, unlock it.
+        (function(){
+            function cleanupBootstrapBackdrop() {
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('padding-right');
+            }
+
+            document.addEventListener('hidden.bs.modal', function () {
+                // allow bootstrap to finish its own cleanup first
+                setTimeout(cleanupBootstrapBackdrop, 50);
+            });
+        })();
     </script>
     @endpush
 
