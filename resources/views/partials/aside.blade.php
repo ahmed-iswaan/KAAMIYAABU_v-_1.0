@@ -65,7 +65,7 @@
                                                 <span class="path3"></span>
                                             </i>
                                         </span>
-                                        <span class="menu-title">Agents</span>
+                                        <span class="menu-title">Call Agents</span>
                                     </a>
                                 </div>
                                 @endcan  
@@ -84,7 +84,7 @@
                                                 <span class="path5"></span>
                                                 </i>
                                             </span>
-                                            <span class="menu-title">Voters</span>
+                                            <span class="menu-title">Pledges</span>
                                         </a>
                                         <!--end:Menu link-->
                                     </div>
