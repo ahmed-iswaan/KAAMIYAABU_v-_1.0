@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log; // NEW logging
 use App\Models\VoterProvisionalUserPledge; // NEW per-user provisional pledge
 use App\Models\User; // NEW: User model for history
 use App\Models\SubConsite;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class VoterManagement extends Component
 {
@@ -915,5 +916,155 @@ class VoterManagement extends Component
                 ];
             })->all();
         $this->dispatch('show-provisional-history-modal');
+    }
+
+    public function exportProvisionalPledgesCsv(): StreamedResponse
+    {
+        $this->authorize('voters-exportProvisionalPledgesCsv');
+
+        if (! $this->electionId) {
+            abort(400, 'Election is required');
+        }
+
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $allowedSubconsiteIds = $user->subConsites()->pluck('sub_consites.id')->all();
+
+        $q = Directory::query()
+            ->where('directories.status', 'Active')
+            ->whereIn('directories.sub_consite_id', $allowedSubconsiteIds)
+            ->whereIn('directories.sub_consite_id', function ($sub) {
+                $sub->select('sub_consite_id')
+                    ->from('participants')
+                    ->where('election_id', $this->electionId);
+            })
+            ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
+            ->select([
+                'directories.id',
+                'directories.name',
+                'directories.id_card_number',
+                'directories.phones',
+                'directories.street_address',
+                'directories.address',
+                'sub_consites.code as sub_consite_code',
+                'sub_consites.name as sub_consite_name',
+            ]);
+
+        // Apply current filters
+        if ($this->filterSubConsiteId) {
+            $q->where('directories.sub_consite_id', $this->filterSubConsiteId);
+        }
+
+        if ($this->search) {
+            $term = '%'.$this->search.'%';
+            $q->where(function ($qq) use ($term) {
+                $qq->where('directories.name', 'like', $term)
+                    ->orWhere('directories.email', 'like', $term)
+                    ->orWhere('directories.id_card_number', 'like', $term)
+                    ->orWhere('directories.street_address', 'like', $term)
+                    ->orWhere('directories.address', 'like', $term);
+            });
+        }
+
+        // Determine max number of provisional pledges per directory within the current filters
+        $dirIdSub = (clone $q)->select('directories.id');
+
+        $maxPledges = (int) DB::query()
+            ->fromSub(
+                DB::table('voter_provisional_user_pledges as vpp2')
+                    ->joinSub($dirIdSub, 'd2', function ($join) {
+                        $join->on('d2.id', '=', 'vpp2.directory_id');
+                    })
+                    ->where('vpp2.election_id', $this->electionId)
+                    ->selectRaw('vpp2.directory_id, COUNT(*) as cnt')
+                    ->groupBy('vpp2.directory_id'),
+                'x'
+            )
+            ->selectRaw('COALESCE(MAX(cnt), 0) as max_cnt')
+            ->value('max_cnt');
+
+        // Safety cap so CSV doesn't explode
+        $maxPledges = max(0, min($maxPledges, 25));
+
+        $file = 'provisional-pledges-election-'.$this->electionId.'-pivot-'.$maxPledges.'-'.now()->format('Ymd_His').'.csv';
+
+        return response()->streamDownload(function () use ($q, $maxPledges) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            $header = [
+                'Name',
+                'ID Card',
+                'Phones',
+                'Permanent Address',
+                'SubConsite Code',
+                'SubConsite Name',
+            ];
+
+            for ($i = 1; $i <= $maxPledges; $i++) {
+                $header[] = "Provisional Pledge {$i}";
+                $header[] = "Provisional Pledge {$i} By";
+                $header[] = "Provisional Pledge {$i} Updated At";
+            }
+
+            fputcsv($out, $header);
+
+            $q->orderBy('sub_consites.code')
+                ->orderBy('directories.name')
+                ->chunk(1000, function ($rows) use ($out, $maxPledges) {
+                    $dirIds = $rows->pluck('id')->all();
+
+                    $pledges = DB::table('voter_provisional_user_pledges as vpp')
+                        ->leftJoin('users', 'users.id', '=', 'vpp.user_id')
+                        ->where('vpp.election_id', $this->electionId)
+                        ->whereIn('vpp.directory_id', $dirIds)
+                        ->orderBy('vpp.updated_at', 'desc')
+                        ->get([
+                            'vpp.directory_id',
+                            'vpp.status',
+                            'vpp.updated_at',
+                            'users.name as pledge_by',
+                        ])
+                        ->groupBy('directory_id');
+
+                    foreach ($rows as $r) {
+                        $phones = $r->phones;
+                        if (is_array($phones)) {
+                            $phones = implode(', ', array_filter($phones));
+                        } elseif (is_string($phones)) {
+                            $decoded = json_decode($phones, true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                $phones = implode(', ', array_filter($decoded));
+                            }
+                        }
+
+                        $p = ($pledges->get($r->id) ?? collect())->values();
+
+                        $cells = [];
+                        for ($i = 0; $i < $maxPledges; $i++) {
+                            $row = $p->get($i);
+                            $cells[] = $row ? (strtolower($row->status ?? '') ?: 'pending') : '';
+                            $cells[] = $row ? ($row->pledge_by ?? '') : '';
+                            $cells[] = $row ? ($row->updated_at ?? '') : '';
+                        }
+
+                        fputcsv($out, array_merge([
+                            $r->name,
+                            $r->id_card_number,
+                            $phones,
+                            $r->street_address,
+                            $r->sub_consite_code,
+                            $r->sub_consite_name,
+                        ], $cells));
+                    }
+                });
+
+            fclose($out);
+        }, $file, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 }

@@ -66,12 +66,14 @@ class PermissionTableSeeder extends Seeder
         // 'voters-viewVoter',
         // 'voters-openProvisionalPledge',
         // 'voters-openFinalPledge',
-        'voters-viewProvisionalHistory',
+        // 'voters-viewProvisionalHistory',
 
+            // Voters export
+            'voters-exportProvisionalPledgesCsv',
         ];
         
         foreach ($permissions as $permission) {
-             Permission::create(['name' => $permission]);
+             Permission::firstOrCreate(['name' => $permission]);
         }
     }
 }

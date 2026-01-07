@@ -58,6 +58,16 @@
                                 <i class="ki-duotone ki-magnifier fs-3 position-absolute ms-5"><span class="path1"></span><span class="path2"></span></i>
                                 <input type="text" wire:model.live.debounce.500ms="search" class="form-control form-control-solid w-100 ps-13" placeholder="Search by Name, Email or ID Card">
                             </div>
+
+                            {{-- Export button --}}
+                            @can('voters-exportProvisionalPledgesCsv')
+                                <div class="flex-grow-0" style="min-width:220px;">
+                                    <button type="button" class="btn btn-light-primary w-100" wire:click="exportProvisionalPledgesCsv">
+                                        Export Prov. Pledge CSV
+                                    </button>
+                                </div>
+                            @endcan
+
                             <div class="flex-grow-0" style="min-width:220px;">
                                 <select class="form-select form-select-solid w-100" wire:model="electionId">
                                     @foreach($elections as $el)
