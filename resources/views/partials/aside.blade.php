@@ -89,7 +89,24 @@
                                         <!--end:Menu link-->
                                     </div>
                                     @endcan
-                                    <!--end:Menu item-->
+
+                                    <!-- Representatives menu item -->
+                                    @can('votedRepresentative-render')
+                                    <div class="menu-item">
+                                        <a class="menu-link {{ request()->is('elections/representatives') ? 'active' : '' }}" href="{{ route('elections.representatives') }}">
+                                            <span class="menu-icon">
+                                               <i class="ki-duotone ki-directbox-default fs-2">
+                                                <span class="path1"></span>
+                                        <span class="path2"></span>
+                                        <span class="path3"></span>
+                                        <span class="path4"></span>
+                                               </i>
+                                            </span>
+                                            <span class="menu-title">Representatives</span>
+                                        </a>
+                                    </div>
+                                    @endcan
+                                <!--end:Menu item-->
                                  @can('requests-voters-render') 
                                     <!--begin:Menu item-->
                                     <div class="menu-item">

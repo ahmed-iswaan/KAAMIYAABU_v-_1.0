@@ -235,6 +235,19 @@
 <style>
 /* Ensure SweetAlert always appears above loaders/overlays and centered */
 .swal2-container{z-index:99999 !important;}
+
+/* Prevent footer/page from shifting when Swal toggles body scrollbar lock */
+body.swal2-shown{padding-right:0 !important;}
+
+/* Prevent SweetAlert2 from forcing page height/overflow changes that can move footer */
+html.swal2-shown,
+body.swal2-shown{
+    height:auto !important;
+}
+html.swal2-height-auto,
+body.swal2-height-auto{
+    height:auto !important;
+}
 </style>
 <script>
 // Craft / Keenthemes styled SweetAlert2 mixin (centered by default)
@@ -246,6 +259,12 @@ if(window.Swal && !window.SwalTheme){
         position: 'center'
     });
 }
+
+// Avoid page/footer shifting when Swal opens by disabling scroll-lock padding logic
+if(window.Swal){
+    try{ Swal.defaults = Swal.defaults || {}; Swal.defaults.scrollbarPadding = false; Swal.defaults.heightAuto = false; } catch(_){ }
+}
+
 if(!window.__swalBridge){
     document.addEventListener('livewire:init', () => {
         if(!window.Livewire || window.__swalBridgeAttached) return;
@@ -267,20 +286,31 @@ if(!window.__swalBridge){
                 reverseButtons: detail.reverseButtons || false,
                 toast: !!detail.toast,
                 timerProgressBar: detail.timer && detail.timer > 0 ? true : false,
-                allowOutsideClick: detail.allowOutsideClick ?? (!detail.showCancelButton && !detail.showDenyButton)
+                allowOutsideClick: detail.allowOutsideClick ?? (!detail.showCancelButton && !detail.showDenyButton),
+                scrollbarPadding: false,
+                heightAuto: false
             };
             // Only override position if explicitly passed
             if(detail.position){ opts.position = detail.position; }
             if(opts.toast){ // toast uses top-end by default unless overridden
                 if(!detail.position) opts.position = 'top-end';
             }
-            api.fire(opts).then(res => { if(detail.callbackEvent){ try { Livewire.dispatch(detail.callbackEvent, {isConfirmed:res.isConfirmed,isDenied:res.isDenied,isDismissed:res.isDismissed}); } catch(_){} } });
+            api.fire(opts).then((res) => {
+                if(detail.callbackEvent){
+                    try { Livewire.dispatch(detail.callbackEvent, {isConfirmed:res.isConfirmed,isDenied:res.isDenied,isDismissed:res.isDismissed}); } catch(_){}
+                }
+            });
             try { window.dispatchEvent(new CustomEvent('swal', { detail })); } catch(_){ }
         });
         window.Livewire.on('swal:confirm', (payload) => {
-            const d = Array.isArray(payload) ? (payload[0]||{}) : (payload||{}); const api = window.SwalTheme || window.Swal; if(!api) return;
+            const d = Array.isArray(payload) ? (payload[0]||{}) : (payload||{});
+            const api = window.SwalTheme || window.Swal; if(!api) return;
             api.fire({ icon: d.icon || 'question', title: d.title || 'Are you sure?', text: d.text || '', showCancelButton: true, confirmButtonText: d.confirmButtonText || 'Yes', cancelButtonText: d.cancelButtonText || 'No' })
-                .then(r => { if(r.isConfirmed && d.callbackEvent){ try { Livewire.dispatch(d.callbackEvent, d.callbackPayload||{}); } catch(_){} } });
+                .then((r) => {
+                    if(r.isConfirmed && d.callbackEvent){
+                        try { Livewire.dispatch(d.callbackEvent, d.callbackPayload||{}); } catch(_){}
+                    }
+                });
         });
         window.__swalBridgeAttached = true;
     });

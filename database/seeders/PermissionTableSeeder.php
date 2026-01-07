@@ -69,7 +69,8 @@ class PermissionTableSeeder extends Seeder
         // 'voters-viewProvisionalHistory',
 
             // Voters export
-            'voters-exportProvisionalPledgesCsv',
+            // 'voters-exportProvisionalPledgesCsv',
+            'votedRepresentative-render',
         ];
         
         foreach ($permissions as $permission) {
