@@ -62,7 +62,7 @@
     <div class="card card-flush p-6 shadow-sm mt-6">
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div class="fs-5 fw-bold">Provisional Pledges by SubConsite</div>
-            <div class="fs-7 text-muted">Yes / No / Undecided / Pending</div>
+            <div class="fs-7 text-muted">Pledged / Not Pledged</div>
         </div>
         <div style="height: 360px;"><canvas id="provBySubConsite" wire:ignore></canvas></div>
     </div>
@@ -293,12 +293,11 @@ const TotalsAboveBarsPlugin = {
 (function(){
     const labels = @json($pledgeLabels ?? []);
     if(!labels.length) return;
-    const prov = {
-        yes: @json($provYes ?? []),
-        no: @json($provNo ?? []),
-        undecided: @json($provUndecided ?? []),
-        pending: @json($provPending ?? []),
-    };
+
+    // Provisional pledged vs not pledged
+    const provPledged = @json($provPledged ?? []);
+    const provNotPledged = @json($provNotPledged ?? []);
+
     const elProv = document.getElementById('provBySubConsite');
     if(elProv){
         new Chart(elProv, {
@@ -306,16 +305,20 @@ const TotalsAboveBarsPlugin = {
             data: {
                 labels,
                 datasets: [
-                    { label: 'Yes', data: prov.yes, backgroundColor: '#3e97ff' },
-                    { label: 'No', data: prov.no, backgroundColor: '#f6c000' },
-                    { label: 'Undecided', data: prov.undecided, backgroundColor: '#a1a5b7' },
-                    { label: 'Pending', data: prov.pending, backgroundColor: '#e4e6ef' },
+                    { label: 'Not Pledged', data: provNotPledged, backgroundColor: '#1b84ff' },
+                    { label: 'Pledged', data: provPledged, backgroundColor: '#f6c000' },
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+                plugins: { legend: { position: 'bottom' } }
+            },
         });
     }
 
+    // Final chart remains Yes/No/Undecided/Pending
     const final = {
         yes: @json($finalYes ?? []),
         no: @json($finalNo ?? []),

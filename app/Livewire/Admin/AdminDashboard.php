@@ -56,6 +56,9 @@ class AdminDashboard extends Component
     public $q3PieLabels = [];
     public $q3PieCounts = [];
 
+    public $provPledged = [];
+    public $provNotPledged = [];
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
@@ -157,6 +160,7 @@ class AdminDashboard extends Component
     private function computePledgeBySubConsite(): void
     {
         $eId = $this->pledgeElectionId;
+
         // Provisional per-user: join voter_provisional_user_pledges
         $rowsProv = DB::table('sub_consites as s')
             ->leftJoin('directories as d','d.sub_consite_id','=','s.id')
@@ -173,12 +177,17 @@ class AdminDashboard extends Component
             ->groupBy('s.code')
             ->orderBy('s.code')
             ->get();
+
         $this->pledgeLabels = $rowsProv->pluck('code')->toArray();
         $this->provYes = $rowsProv->pluck('yes')->map(fn($v)=> (int)$v)->toArray();
         $this->provNo = $rowsProv->pluck('no')->map(fn($v)=> (int)$v)->toArray();
         $this->provUndecided = $rowsProv->pluck('undecided')->map(fn($v)=> (int)$v)->toArray();
+
+        $this->provPledged = $rowsProv->pluck('pledged_dirs')->map(fn($v)=> (int)$v)->toArray();
+        $this->provNotPledged = $rowsProv->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
+
         // Pending = Active dirs in sub - pledged_dirs (any user)
-        $this->provPending = $rowsProv->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
+        $this->provPending = $this->provNotPledged;
 
         // Final simplified (unchanged)
         $rowsFinal = DB::table('sub_consites as s')

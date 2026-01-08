@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\EventLog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Events\RepresentativeVotedChanged;
 
 class Representatives extends Component
 {
@@ -107,6 +108,7 @@ class Representatives extends Component
                 'currentIsland.atoll:id,code',
             ])
             ->where('id_card_number', $nid)
+            ->where('status', 'Active')
             ->first();
 
         if (!$user) {
@@ -127,9 +129,13 @@ class Representatives extends Component
         if ($this->alreadyVoted) {
             $this->swal('info', 'Already voted', 'This representative is already marked as voted.', ['showConfirmButton' => true]);
         }
+
+        // Reset search input fields after submit (keep results)
+        $this->reset('searchNid');
+        $this->dispatch('nid:reset');
     }
 
-    public function markAsVoted()
+    public function markAsVoted(): void
     {
         if(!$this->foundUser || !$this->electionId) {
             $this->swal('error', 'No selection', 'Search and select a representative first.');
@@ -149,27 +155,39 @@ class Representatives extends Component
             return;
         }
 
-        $vr = VotedRepresentative::create([
-            'election_id' => $this->electionId,
-            'directory_id' => $this->foundUser->id,
-            'user_id' => Auth::id(),
-            'voted_at' => now(),
-        ]);
-
-        // Create an event log entry
-        EventLog::create([
-            'user_id' => Auth::id(),
-            'event_tab' => 'Election',
-            'event_entry_id' => $this->foundUser->id,
-            'event_type' => 'Representative Marked Voted',
-            'description' => 'Marked representative as voted for election',
-            'event_data' => [
+        DB::transaction(function () {
+            $vr = VotedRepresentative::create([
                 'election_id' => $this->electionId,
                 'directory_id' => $this->foundUser->id,
-                'voted_representative_id' => $vr->id,
-            ],
-            'ip_address' => request()->ip(),
-        ]);
+                'user_id' => Auth::id(),
+                'voted_at' => now(),
+            ]);
+
+            EventLog::create([
+                'user_id' => Auth::id(),
+                'event_tab' => 'Election',
+                'event_entry_id' => $this->foundUser->id,
+                'event_type' => 'Representative Marked Voted',
+                'description' => 'Marked representative as voted for election',
+                'event_data' => [
+                    'election_id' => $this->electionId,
+                    'directory_id' => $this->foundUser->id,
+                    'voted_representative_id' => $vr->id,
+                ],
+                'ip_address' => request()->ip(),
+            ]);
+
+            DB::afterCommit(function () {
+                event(new \App\Events\RepresentativeVotedChanged(
+                    'marked_voted',
+                    $this->foundUser->id,
+                    $this->electionId,
+                    [
+                        'sub_consite_id' => (string) ($this->foundUser->sub_consite_id ?? ''),
+                    ]
+                ));
+            });
+        });
 
         $this->alreadyVoted = true;
         $this->swal('success', 'Saved', 'Marked as voted!', ['showConfirmButton' => false, 'timer' => 1500]);
@@ -207,26 +225,39 @@ class Representatives extends Component
         $vrId = $vr->id;
         $markedBy = $vr->user_id;
         $markedAt = $vr->voted_at;
+        $subConsiteId = (string) ($vr->directory?->sub_consite_id ?? '');
 
-        $vr->delete();
+        DB::transaction(function () use ($vr, $dirId, $subConsiteId, $vrId, $markedBy, $markedAt) {
+            $vr->delete();
 
-        EventLog::create([
-            'user_id' => Auth::id(),
-            'event_tab' => 'Election',
-            'event_entry_id' => $dirId,
-            'event_type' => 'Representative Undo Voted',
-            'description' => 'Undid representative voted mark for election',
-            'event_data' => [
-                'election_id' => $this->electionId,
-                'directory_id' => $dirId,
-                'voted_representative_id' => $vrId,
-                'previous_marked_by_user_id' => $markedBy,
-                'previous_marked_at' => (string) $markedAt,
-            ],
-            'ip_address' => request()->ip(),
-        ]);
+            DB::afterCommit(function () use ($dirId, $subConsiteId) {
+                event(new \App\Events\RepresentativeVotedChanged(
+                    'undo_voted',
+                    $dirId,
+                    $this->electionId,
+                    [
+                        'sub_consite_id' => $subConsiteId,
+                    ]
+                ));
+            });
 
-        // If currently-viewed user matches, update state.
+            EventLog::create([
+                'user_id' => Auth::id(),
+                'event_tab' => 'Election',
+                'event_entry_id' => $dirId,
+                'event_type' => 'Representative Undo Voted',
+                'description' => 'Undid representative voted mark for election',
+                'event_data' => [
+                    'election_id' => $this->electionId,
+                    'directory_id' => $dirId,
+                    'voted_representative_id' => $vrId,
+                    'previous_marked_by_user_id' => $markedBy,
+                    'previous_marked_at' => (string) $markedAt,
+                ],
+                'ip_address' => request()->ip(),
+            ]);
+        });
+
         if ($this->foundUser && $this->foundUser->id === $dirId) {
             $this->alreadyVoted = false;
         }
@@ -239,7 +270,11 @@ class Representatives extends Component
         $this->authorize('votedRepresentative-render');
 
         $history = collect();
+        $historyTotal = 0;
         if ($this->electionId) {
+            $baseQuery = VotedRepresentative::query()->where('election_id', $this->electionId);
+            $historyTotal = (clone $baseQuery)->count();
+
             $history = VotedRepresentative::with([
                     'directory:id,name,id_card_number,sub_consite_id',
                     'directory.subConsite:id,code,name',
@@ -253,6 +288,7 @@ class Representatives extends Component
 
         return view('livewire.election.representatives', [
             'history' => $history,
+            'historyTotal' => $historyTotal,
         ]);
     }
 }

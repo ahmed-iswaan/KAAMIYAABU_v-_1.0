@@ -516,138 +516,35 @@ if(typeof window.Echo === 'undefined') {
         if(typeof window.Echo === 'undefined' && typeof window.Echo === 'undefined' && typeof Echo !== 'undefined' && isConstructor(Echo)){
             try { window.Echo = new Echo(cfg); return true; } catch(e){ console.warn('Echo global ctor failed', e); }
         }
-        // If CDN iife exposed class as window.Echo and block above failed, try requiring from window.laravelEcho (unlikely)
         return false;
     }
 
-    let tries = 0; const max = 30;
-    function attemptSubscribe(){
-        if(!ensureInstance()){ tries++; if(tries<max) return setTimeout(attemptSubscribe, 300); console.warn('Echo instance not ready after retries'); return; }
-        if(!window.Laravel?.userId){ return; }
+    function relayToLivewire(event){
         try {
-            window.Echo.private('agent.tasks.'+window.Laravel.userId)
-                .listen('.TaskDataChanged', e => {
-                    const taskId = e.task_id;
-                    function updateComponents(){
-                        if(!window.Livewire) return false;
-                        let updated=false;
-                        // Prefer Livewire.all() -> component ids
-                        try {
-                            const list = (Livewire.all ? Livewire.all() : []) || [];
-                            list.forEach(c => {
-                                const id = c.id || c.__instance?.id;
-                                const name = c.name || c.__instance?.name;
-                                if(id && name === 'agent.agent-management'){
-                                    try { Livewire.find(id).call('handleExternalTaskUpdate', taskId); updated=true; } catch(err){ console.warn('find().call failed', err); }
-                                }
-                            });
-                        } catch(err){ console.warn('Livewire.all iteration failed', err); }
-                        // Fallback: DOM scan
-                        if(!updated){
-                            document.querySelectorAll('[wire\\:id]').forEach(el => {
-                                const id = el.getAttribute('wire:id');
-                                try {
-                                    const comp = Livewire.find(id);
-                                    if(comp && comp.name === 'agent.agent-management'){
-                                        comp.call('handleExternalTaskUpdate', taskId);
-                                        updated=true;
-                                    }
-                                } catch(_){}
-                            });
-                        }
-                        return updated;
-                    }
-                    if(!updateComponents()){
-                        // Retry shortly if components not yet booted
-                        setTimeout(updateComponents, 400);
-                    }
-                });
-            console.log('✅ Subscribed agent.tasks.'+window.Laravel.userId);
-        } catch(err){ console.warn('Private channel subscribe failed (retrying)', err); tries++; if(tries<max) setTimeout(attemptSubscribe, 500); }
-    }
-
-    attemptSubscribe();
-})();
-</script>
-<script>
-// Harden Echo init & subscription (prevents 'window.Echo.private is not a function')
-(function ensureEchoSubscription(){
-    const cfg = {
-        broadcaster: 'reverb',
-        key: @json(env('REVERB_APP_KEY')),
-        wsHost: @json(env('REVERB_HOST')),
-        wsPort: @json(env('REVERB_PORT',8080)),
-        wssPort: @json(env('REVERB_PORT',8080)),
-        forceTLS: @json(env('REVERB_SCHEME','https')) === 'https',
-        enabledTransports: ['ws','wss'],
-        auth: { headers: { 'X-CSRF-TOKEN': window.Laravel?.csrfToken || '' } }
-    };
-
-    function buildInstance(){
-        // If already an instance with .private use it
-        if(window.Echo && typeof window.Echo === 'object' && typeof window.Echo.private === 'function') {
-            window.EchoInstance = window.Echo; return true;
-        }
-        // If Echo is a function (constructor OR factory) try both invocation styles
-        if(typeof window.Echo === 'function'){
-            try { const inst = new window.Echo(cfg); if(inst && inst.private){ window.EchoInstance = inst; return true; } } catch(_){}
-            try { const inst2 = window.Echo(cfg); if(inst2 && inst2.private){ window.EchoInstance = inst2; return true; } } catch(_){}
-        }
-        // If global Echo class not set but Echo exported differently (laravel-echo iife sets window.Echo) do nothing and retry
-        return false;
+            // Debug: confirm event reaches browser
+            if(window.__debugVotingEvents){
+                console.debug('[Echo] RepresentativeVotedChanged', event);
+            }
+            if(window.Livewire){
+                window.Livewire.dispatch('representative-voted-changed', event);
+            }
+        } catch(e){ console.warn('Relay to Livewire failed', e); }
     }
 
     function subscribe(){
-        if(!window.Laravel?.userId) return;
-        const echo = window.EchoInstance;
-        if(!echo || typeof echo.private !== 'function'){ return false; }
+        if(!window.Echo || window.__echoRepresentativesAttached) return;
         try {
-            echo.private('agent.tasks.'+window.Laravel.userId)
-                .listen('.TaskDataChanged', e => {
-                    const taskId = e.task_id;
-                    function updateComponents(){
-                        if(!window.Livewire) return false;
-                        let updated=false;
-                        // Prefer Livewire.all() -> component ids
-                        try {
-                            const list = (Livewire.all ? Livewire.all() : []) || [];
-                            list.forEach(c => {
-                                const id = c.id || c.__instance?.id;
-                                const name = c.name || c.__instance?.name;
-                                if(id && name === 'agent.agent-management'){
-                                    try { Livewire.find(id).call('handleExternalTaskUpdate', taskId); updated=true; } catch(err){ console.warn('find().call failed', err); }
-                                }
-                            });
-                        } catch(err){ console.warn('Livewire.all iteration failed', err); }
-                        // Fallback: DOM scan
-                        if(!updated){
-                            document.querySelectorAll('[wire\\:id]').forEach(el => {
-                                const id = el.getAttribute('wire:id');
-                                try {
-                                    const comp = Livewire.find(id);
-                                    if(comp && comp.name === 'agent.agent-management'){
-                                        comp.call('handleExternalTaskUpdate', taskId);
-                                        updated=true;
-                                    }
-                                } catch(_){}
-                            });
-                        }
-                        return updated;
-                    }
-                    if(!updateComponents()){
-                        // Retry shortly if components not yet booted
-                        setTimeout(updateComponents, 400);
-                    }
-                });
-            console.log('✅ Realtime subscribed (agent.tasks.'+window.Laravel.userId+')');
-            return true;
-        } catch(err){ console.warn('Subscribe error', err); return false; }
+            window.Echo.channel('elections.representatives').listen('.RepresentativeVotedChanged', (e) => {
+                relayToLivewire(e);
+            });
+            window.__echoRepresentativesAttached = true;
+        } catch(e){ console.warn('Representatives subscribe failed', e); }
     }
 
     let tries=0; const max=40;
     (function loop(){
-        if(!window.EchoInstance && !buildInstance()){ tries++; if(tries<max) return setTimeout(loop,250); console.warn('Echo instance not ready.'); return; }
-        if(!subscribe()){ tries++; if(tries<max) return setTimeout(loop,500); }
+        if(ensureInstance()) { subscribe(); return; }
+        tries++; if(tries<max) return setTimeout(loop,100);
     })();
 })();
 </script>

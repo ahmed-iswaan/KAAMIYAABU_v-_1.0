@@ -68,4 +68,12 @@ Route::group(['middleware' => ['auth']], function() {
     // Admin dashboard
     Route::get('/admin/dashboard', \App\Livewire\Admin\AdminDashboard::class)->name('admin.dashboard');
     Route::get('/elections/representatives', \App\Livewire\Election\Representatives::class)->name('elections.representatives');
+
+    Route::get('/elections/consites-focals', \App\Livewire\Election\ConsiteFocals::class)
+        ->name('elections.consites-focals')
+        ->middleware('permission:consites-focals-render');
+
+    Route::get('/elections/voting-dashboard', \App\Livewire\Election\VotingDashboard::class)
+        ->name('elections.voting-dashboard')
+        ->middleware('permission:voting-dashboard-render');
 });

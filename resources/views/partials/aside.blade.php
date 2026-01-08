@@ -106,6 +106,40 @@
                                         </a>
                                     </div>
                                     @endcan
+
+                                    <!-- Consites Focals menu item -->
+                                    @can('consites-focals-render')
+                                    <div class="menu-item">
+                                        <a class="menu-link {{ request()->is('elections/consites-focals') ? 'active' : '' }}" href="{{ route('elections.consites-focals') }}">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-ranking fs-2">
+                                                    <span class="path1"></span>
+                                                    <span class="path2"></span>
+                                                    <span class="path3"></span>
+                                                    <span class="path4"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Consites Focals</span>
+                                        </a>
+                                    </div>
+                                    @endcan
+
+                                    <!-- Voting Dashboard menu item -->
+                                    @can('voting-dashboard-render')
+                                    <div class="menu-item">
+                                        <a class="menu-link {{ request()->is('elections/voting-dashboard') ? 'active' : '' }}" href="{{ route('elections.voting-dashboard') }}">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-chart-simple fs-2">
+                                                    <span class="path1"></span>
+                                                    <span class="path2"></span>
+                                                    <span class="path3"></span>
+                                                    <span class="path4"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Voting Dashboard</span>
+                                        </a>
+                                    </div>
+                                    @endcan
                                 <!--end:Menu item-->
                                  @can('requests-voters-render') 
                                     <!--begin:Menu item-->

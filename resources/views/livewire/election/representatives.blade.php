@@ -88,9 +88,11 @@
                         @endforeach
                     </div>
 
-                    <div class="mt-4">
-                        <button type="button" class="btn btn-light w-100" wire:click="loadMoreHistory">More</button>
-                    </div>
+                    @if(($historyTotal ?? 0) > ($history ?? collect())->count())
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-light w-100" wire:click="loadMoreHistory">More</button>
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>
@@ -313,6 +315,12 @@
             }
         }
 
+        function clearBoxes(){
+            inputs.forEach(i => i.value = '');
+            syncHidden();
+            if(inputs[0]) inputs[0].focus();
+        }
+
         inputs.forEach((input, idx) => {
             input.autocomplete = 'off';
 
@@ -348,6 +356,9 @@
                 if(next) next.focus();
             });
         });
+
+        // Reset handler from Livewire
+        window.addEventListener('nid:reset', clearBoxes);
 
         // Initial focus to first digit box
         if(inputs[0] && !inputs.some(i => i.value)) inputs[0].focus();

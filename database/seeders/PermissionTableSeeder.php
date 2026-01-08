@@ -71,6 +71,8 @@ class PermissionTableSeeder extends Seeder
             // Voters export
             // 'voters-exportProvisionalPledgesCsv',
             'votedRepresentative-render',
+            'consites-focals-render',
+            'voting-dashboard-render',
         ];
         
         foreach ($permissions as $permission) {
