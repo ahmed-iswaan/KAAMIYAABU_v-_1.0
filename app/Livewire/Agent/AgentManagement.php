@@ -718,12 +718,27 @@ class AgentManagement extends Component
 
             if ($task->type === 'form_fill') {
                 $task->status = 'completed';
-                $task->completed_at = now();
+                $task->completed_at = $task->completed_at ?: now();
+                $task->completed_by = auth()->id();
+                $task->follow_up_by = null;
+                $task->follow_up_date = null;
                 $task->save();
             }
         });
 
         $this->loadSubmissionState();
+
+        // Keep broadcasts consistent with manual status update flow
+        if ($task->type === 'form_fill') {
+            $this->broadcastTaskChange($task, 'status_updated', [
+                'status' => $task->status,
+                'completed_at' => $task->completed_at?->toISOString(),
+                'completed_by' => $task->completed_by,
+                'follow_up_by' => $task->follow_up_by,
+                'follow_up_date' => $task->follow_up_date?->toISOString(),
+            ]);
+        }
+
         $this->broadcastTaskChange($task,'submission_submitted',['status'=>$task->status]);
         $this->logTaskEvent('submission.submitted', $task, ['task_id' => $task->id]);
         $this->dispatch('swal', icon:'success', title:'Submitted', text:'Form submitted.');
