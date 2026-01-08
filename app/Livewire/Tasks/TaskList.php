@@ -575,4 +575,49 @@ class TaskList extends Component
             fclose($out);
         }, $filename, $headers);
     }
+
+    /**
+     * Export agent performance (from event_logs task.status_changed): totals per agent for completed/follow_up.
+     */
+    public function exportAgentPerformanceCsv(): StreamedResponse
+    {
+        $this->authorize('task-list-render');
+
+        $rows = EventLog::query()
+            ->where('event_type', 'task.status_changed')
+            ->selectRaw('user_id, SUM(CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(event_data, "$.status")) = "completed" THEN 1 ELSE 0 END) as completed_count')
+            ->selectRaw('SUM(CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(event_data, "$.status")) = "follow_up" THEN 1 ELSE 0 END) as follow_up_count')
+            ->groupBy('user_id')
+            ->get();
+
+        // Fetch user names
+        $userMap = User::whereIn('id', $rows->pluck('user_id')->filter()->unique())
+            ->pluck('name', 'id');
+
+        $filename = 'agent-performance-'.now()->format('Ymd-His').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ];
+
+        return response()->streamDownload(function () use ($rows, $userMap) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM for Excel
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, ['agent_id', 'agent_name', 'completed_total', 'follow_up_total']);
+
+            foreach ($rows as $r) {
+                $uid = $r->user_id;
+                fputcsv($out, [
+                    $uid,
+                    (string)($userMap[$uid] ?? ''),
+                    (int)($r->completed_count ?? 0),
+                    (int)($r->follow_up_count ?? 0),
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, $headers);
+    }
 }

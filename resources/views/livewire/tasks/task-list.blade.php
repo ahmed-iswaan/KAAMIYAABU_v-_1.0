@@ -199,6 +199,9 @@
                             <a href="#" wire:click.prevent="exportFilteredCsv" class="btn btn-sm btn-light-info" title="Export filtered tasks as CSV">
                                 Export CSV
                             </a>
+                            <a href="#" wire:click.prevent="exportAgentPerformanceCsv" class="btn btn-sm btn-light-primary" title="Export agent performance (completed/follow up) from logs">
+                                Export Agent Performance
+                            </a>
                         </div>
                     </div>
                 </div>
