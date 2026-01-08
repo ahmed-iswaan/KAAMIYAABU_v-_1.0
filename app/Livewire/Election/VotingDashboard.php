@@ -177,9 +177,9 @@ class VotingDashboard extends Component
             ->where('voted_representatives.election_id', $this->electionId)
             ->where('directories.status', 'Active')
             ->whereIn('directories.sub_consite_id', $allowed)
-            ->groupBy('sub_consites.id', 'sub_consites.code', 'sub_consites.name')
+            ->groupBy('sub_consites.id', 'sub_consites.code')
             ->orderBy('sub_consites.code')
-            ->selectRaw("CONCAT(sub_consites.code, ' - ', sub_consites.name) as label, COUNT(DISTINCT voted_representatives.directory_id) as cnt")
+            ->selectRaw("sub_consites.code as label, COUNT(DISTINCT voted_representatives.directory_id) as cnt")
             ->get();
 
         $subConsiteLabels = $subConsiteRows->pluck('label')->values()->all();
@@ -189,7 +189,7 @@ class VotingDashboard extends Component
         $subConsiteBase = DB::table('sub_consites')
             ->whereIn('sub_consites.id', $allowed)
             ->orderBy('sub_consites.code')
-            ->selectRaw("sub_consites.id, CONCAT(sub_consites.code, ' - ', sub_consites.name) as label")
+            ->selectRaw("sub_consites.id, sub_consites.code as label")
             ->get();
 
         $votedBySub = DB::table('voted_representatives')
