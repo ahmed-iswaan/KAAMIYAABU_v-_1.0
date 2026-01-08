@@ -182,15 +182,15 @@ class VotingDashboard extends Component
             ->selectRaw("sub_consites.code as label, COUNT(DISTINCT voted_representatives.directory_id) as cnt")
             ->get();
 
-        $subConsiteLabels = $subConsiteRows->pluck('label')->values()->all();
-        $subConsiteCounts = $subConsiteRows->pluck('cnt')->map(fn ($v) => (int) $v)->values()->all();
-
         // Voted by sub consite (include all allowed sub consites, even if counts are 0)
         $subConsiteBase = DB::table('sub_consites')
             ->whereIn('sub_consites.id', $allowed)
             ->orderBy('sub_consites.code')
             ->selectRaw("sub_consites.id, sub_consites.code as label")
             ->get();
+
+        // Use base list for x-axis categories (codes only, stable ordering)
+        $subConsiteLabels = $subConsiteBase->pluck('label')->values()->all();
 
         $votedBySub = DB::table('voted_representatives')
             ->join('directories', 'directories.id', '=', 'voted_representatives.directory_id')
