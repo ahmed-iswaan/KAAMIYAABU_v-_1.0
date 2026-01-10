@@ -129,17 +129,36 @@ const TotalsAboveBarsPlugin = {
         if (!meta || !meta.data) return;
         ctx.save();
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillStyle = '#5e6278';
-        ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+        ctx.textBaseline = 'middle';
+
+        const drawMode = chart?.options?.plugins?.totalsAboveBars?.mode || 'above';
+
         data.labels.forEach((label, index) => {
             let total = 0;
             data.datasets.forEach(ds => { total += (parseFloat(ds.data[index]) || 0); });
             const el = meta.data[index];
             if (!el) return;
             const x = el.x;
-            const yTop = chart.scales.y.getPixelForValue(total);
-            ctx.fillText(total.toLocaleString(), x, yTop - 6);
+
+            if (drawMode === 'inside') {
+                const yTop = chart.scales.y.getPixelForValue(total);
+                const yBase = chart.scales.y.getPixelForValue(0);
+                const y = (yTop + yBase) / 2;
+
+                const text = total.toLocaleString();
+                ctx.font = '700 12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+                ctx.strokeText(text, x, y);
+                ctx.fillStyle = '#111827';
+                ctx.fillText(text, x, y);
+            } else {
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#5e6278';
+                ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+                const yTop = chart.scales.y.getPixelForValue(total);
+                ctx.fillText(total.toLocaleString(), x, yTop - 6);
+            }
         });
         ctx.restore();
     }
@@ -298,6 +317,51 @@ const TotalsAboveBarsPlugin = {
     const provPledged = @json($provPledged ?? []);
     const provNotPledged = @json($provNotPledged ?? []);
 
+    // Draw segment values inside each stacked segment (centered per-segment)
+    const SegmentValuesPlugin = {
+        id: 'segmentValues',
+        afterDatasetsDraw(chart) {
+            const {ctx} = chart;
+            if (!chart?.data?.datasets?.length) return;
+
+            const minPx = chart?.options?.plugins?.segmentValues?.minSegmentPixelHeight ?? 18;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+
+            chart.data.datasets.forEach((ds, dsIndex) => {
+                const meta = chart.getDatasetMeta(dsIndex);
+                if (!meta || meta.hidden) return;
+
+                meta.data.forEach((bar, index) => {
+                    const v = parseFloat(ds.data?.[index]) || 0;
+                    if (v <= 0) return;
+
+                    // For stacked bars: each bar element has `y` (top) and `base` (bottom) for that segment
+                    const yTop = bar.y;
+                    const yBase = bar.base;
+                    if (!isFinite(yTop) || !isFinite(yBase)) return;
+
+                    // Skip very small segments to avoid clutter
+                    if (Math.abs(yBase - yTop) < minPx) return;
+
+                    const y = (yTop + yBase) / 2;
+                    const text = v.toLocaleString();
+
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+                    ctx.strokeText(text, bar.x, y);
+                    ctx.fillStyle = '#111827';
+                    ctx.fillText(text, bar.x, y);
+                });
+            });
+
+            ctx.restore();
+        }
+    };
+
     const elProv = document.getElementById('provBySubConsite');
     if(elProv){
         new Chart(elProv, {
@@ -313,8 +377,14 @@ const TotalsAboveBarsPlugin = {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    // Put the TOTAL above the bar to avoid overlapping the segment values
+                    totalsAboveBars: { mode: 'above' },
+                    segmentValues: { minSegmentPixelHeight: 18 }
+                }
             },
+            plugins: [TotalsAboveBarsPlugin, SegmentValuesPlugin]
         });
     }
 

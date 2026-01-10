@@ -72,6 +72,7 @@
                                                     @if($d->subConsite)
                                                         <span class="badge badge-light">{{ $d->subConsite->code }}</span>
                                                     @endif
+                                                     <span class="badge badge-light me-2">{{ !empty($phones) ? $phones : '—' }}</span>
                                                 </div>
                                             </div>
                                             <div class="text-end">
@@ -80,19 +81,19 @@
                                         </div>
 
                                         <div class="mt-3">
-                                            <div class="text-muted fw-semibold small">Permanent</div>
+                            
                                             <div class="text-muted small">{{ $perm !== '' ? $perm : '—' }}</div>
                                         </div>
 
-                                        <div class="mt-3">
+                                        <!-- <div class="mt-3">
                                             <div class="text-muted fw-semibold small">Current</div>
                                             <div class="text-muted small">{{ $cur !== '' ? $cur : '—' }}</div>
-                                        </div>
+                                        </div> -->
 
-                                        <div class="mt-3">
+                                        <!-- <div class="mt-3">
                                             <div class="text-muted fw-semibold small">Phones</div>
                                             <div class="text-muted small text-break">{{ !empty($phones) ? $phones : '—' }}</div>
-                                        </div>
+                                        </div> -->
                                     </div>
                                 </div>
                             </div>
