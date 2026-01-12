@@ -102,7 +102,7 @@
                                         <span class="path4"></span>
                                                </i>
                                             </span>
-                                            <span class="menu-title">Representatives</span>
+                                            <span class="menu-title">Mandhoob</span>
                                         </a>
                                     </div>
                                     @endcan

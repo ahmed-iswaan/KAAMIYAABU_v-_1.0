@@ -17,7 +17,7 @@ use Carbon\Carbon;
 class NewUpdateSeeder extends Seeder
 {
     /**
-     * Update directories from database/data/electionmdplist.json
+     * Update directories from database/data/finalmdplist.json
      * - Upsert by ID card number
      * - Overwrite fields when changed; log changes
      * - Merge phone numbers (keep old, add new unique)
@@ -25,14 +25,14 @@ class NewUpdateSeeder extends Seeder
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/electionmdplist.json');
+        $file = database_path('seeders/data/finalmdplist.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
         }
 
         $rows = json_decode(File::get($file), true);
-        if (!is_array($rows)) { $this->command->error('electionmdplist.json not valid JSON array.'); return; }
+        if (!is_array($rows)) { $this->command->error('finalmdplist.json not valid JSON array.'); return; }
 
         $maldivesId = Country::where('name', 'Maldives')->value('id');
         if (!$maldivesId) { $this->command->error('Country Maldives missing.'); return; }
@@ -75,6 +75,14 @@ class NewUpdateSeeder extends Seeder
             if ($nid === '') { $skipped++; continue; }
             $name = trim($r['Name'] ?? $r['name'] ?? '');
             if ($name === '') { $skipped++; continue; }
+
+            // SERIAL (nullable) - only update when JSON has a non-empty value
+            $serialRaw = $r['SERIAL'] ?? $r['serial'] ?? null;
+            $serial = null;
+            if ($serialRaw !== null) {
+                $serial = trim((string) $serialRaw);
+                if ($serial === '') { $serial = null; }
+            }
 
             // Gender
             $genderRaw = strtoupper(trim($r['GENDER'] ?? $r['gender'] ?? ''));
@@ -132,6 +140,8 @@ class NewUpdateSeeder extends Seeder
             $payload = [
                 'name' => $name,
                 'gender' => $gender,
+                // Set serial if provided, otherwise keep existing value
+                'serial' => $serial ?? ($existing?->serial),
                 'date_of_birth' => $dob ?: ($existing?->date_of_birth),
                 'phones' => $mergedPhones->values()->all(),
                 'country_id' => $maldivesId,

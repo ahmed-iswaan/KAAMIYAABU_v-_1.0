@@ -2,7 +2,7 @@
     <div class="card mb-6 rep-search-card">
         <div class="card-body rep-search-body">
             <!-- History button (top-right) -->
-            <button type="button" class="btn btn-icon btn-light rep-history-btn rep-history-btn--top" wire:click="openHistory" title="History">
+            <button type="button" class="btn btn-icon btn-primary  rep-history-btn rep-history-btn--top" wire:click="openHistory" title="History">
                 <i class="ki-duotone ki-watch">
                     <span class="path1"></span>
                     <span class="path2"></span>
@@ -12,24 +12,52 @@
             <div class="rep-search-header">
                 <div class="rep-search-title">
                     <h3 class="mb-1">Mark as Voted</h3>
-                    <div class="text-muted small">Enter the 6 digits of the NID (prefix <strong>A</strong> is fixed), then search.</div>
+                                    <div class="rep-search-modes">
+                        <label class="form-check form-check-inline form-check-solid mb-0">
+                            <input class="form-check-input" type="radio" wire:model.live="searchMode" value="nid">
+                            <span class="form-check-label">NID</span>
+                        </label>
+                        <label class="form-check form-check-inline form-check-solid mb-0">
+                            <input class="form-check-input" type="radio" wire:model.live="searchMode" value="serial">
+                            <span class="form-check-label">Serial</span>
+                        </label>
+                    </div>
+                    
                 </div>
 
                 <div class="rep-search-controls">
-                    <div class="nid-boxes" wire:ignore>
-                        <div class="nid-box nid-box--fixed">A</div>
-                        <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 1" />
-                        <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 2" />
-                        <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 3" />
-                        <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 4" />
-                        <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 5" />
-                        <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 6" />
+
+
+                    <!-- Keep both UIs in the DOM; just show/hide. This avoids losing JS listeners. -->
+                    <div class="rep-search-nid" @style([ 'display:none' => (($searchMode ?? 'nid') !== 'nid') ])>
+                        <div class="nid-boxes" wire:ignore>
+                            <div class="nid-box nid-box--fixed">A</div>
+                            <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 1" />
+                            <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 2" />
+                            <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 3" />
+                            <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 4" />
+                            <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 5" />
+                            <input class="nid-box" type="text" inputmode="numeric" maxlength="1" aria-label="NID digit 6" />
+                        </div>
+
+                        <input type="hidden" wire:model.defer="searchNid" />
+
+                        <!-- Hidden button to let JS reliably trigger Livewire action (mobile-safe) -->
+                        <button type="button" class="d-none" data-nid-submit wire:click="search">Search</button>
                     </div>
 
-                    <!-- Hidden Livewire-bound value (stores only the 6 digits) -->
-                    <input type="hidden" wire:model.defer="searchNid" />
+                    <div class="rep-search-serial" @style([ 'display:none' => (($searchMode ?? 'nid') !== 'serial') ])>
+                        <input
+                            type="text"
+                            class="form-control form-control-solid"
+                            style="max-width: 240px;"
+                            placeholder="Serial"
+                            wire:model.defer="searchSerial"
+                            wire:keydown.enter="search"
+                        />
+                    </div>
 
-                    <button class="btn btn-primary rep-search-btn" type="button" wire:click="searchByNid">Search</button>
+                    <button class="btn btn-primary rep-search-btn" type="button" wire:click="search">Search</button>
                 </div>
             </div>
         </div>
@@ -190,7 +218,10 @@
     .rep-search-title{min-width:260px;flex:1 1 320px;}
 
     /* Right side: inputs + button. Reserve space so the top-right history button never overlaps. */
-    .rep-search-controls{display:flex;align-items:center;gap:12px;margin-left:auto;flex:0 0 auto;padding-right:56px;}
+    .rep-search-controls{display:flex;align-items:center;gap:12px;margin-left:auto;flex:0 0 auto;padding-right:56px;flex-wrap:wrap;}
+
+    /* ensure the NID/Serial mode selector wraps nicely */
+    .rep-search-modes{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
 
     /* Desktop/tablet: keep history pinned top-right of the card */
     @media (min-width: 576px){
@@ -228,7 +259,10 @@
         .rep-search-title{width:100%; padding-right:48px; text-align:left;}
 
         /* Center only the inputs/button area */
-        .rep-search-controls{width:100%; flex-direction:column; align-items:center; margin-left:0; padding-right:0;}
+        .rep-search-controls{width:100%; flex-direction:column; align-items:center; margin-left:0; padding-right:0; gap:10px;}
+
+        /* keep the mode radios centered but inside the card */
+        .rep-search-modes{justify-content:center; width:100%;}
 
         /* Fix NID boxes layout on mobile */
         .nid-boxes{
@@ -302,6 +336,7 @@
     function initNidBoxes(root){
         if(!root) return;
 
+        // ONLY the digit inputs (exclude the fixed "A" box which is a div)
         const inputs = Array.from(root.querySelectorAll('input.nid-box'));
         const hidden = root.parentElement.querySelector('input[type="hidden"][wire\\:model\\.defer="searchNid"], input[type="hidden"][wire\\:model="searchNid"]')
             || root.parentElement.querySelector('input[type="hidden"]');
@@ -322,12 +357,28 @@
         }
 
         inputs.forEach((input, idx) => {
+            // avoid attaching duplicate listeners on re-init
+            if (input.dataset.nidInit === '1') return;
+            input.dataset.nidInit = '1';
+
             input.autocomplete = 'off';
+
+            function focusNextIfNeeded(){
+                if(input.value && inputs[idx+1]){
+                    // Some mobile keyboards need focus change to happen after the input event finishes.
+                    requestAnimationFrame(() => { inputs[idx+1]?.focus(); });
+                }
+            }
 
             input.addEventListener('input', () => {
                 input.value = (input.value || '').replace(/\D/g,'').slice(0,1);
                 syncHidden();
-                if(input.value && inputs[idx+1]) inputs[idx+1].focus();
+                focusNextIfNeeded();
+            });
+
+            // Fallback for some mobile browsers where input event focus is flaky
+            input.addEventListener('keyup', () => {
+                focusNextIfNeeded();
             });
 
             input.addEventListener('keydown', (e) => {
@@ -337,8 +388,9 @@
                 if(e.key === 'ArrowLeft' && inputs[idx-1]) inputs[idx-1].focus();
                 if(e.key === 'ArrowRight' && inputs[idx+1]) inputs[idx+1].focus();
                 if(e.key === 'Enter'){
-                    // allow enter-to-search from any box
-                    const btn = root.parentElement.querySelector('button[wire\\:click="searchByNid"]');
+                    e.preventDefault();
+                    const btn = root.parentElement.querySelector('[data-nid-submit]')
+                        || root.parentElement.querySelector('button[wire\\:click="search"]');
                     if(btn) btn.click();
                 }
             });
@@ -353,23 +405,34 @@
                 });
                 syncHidden();
                 const next = inputs[Math.min(digits.length, inputs.length-1)];
-                if(next) next.focus();
+                if(next) requestAnimationFrame(() => next.focus());
             });
         });
 
-        // Reset handler from Livewire
         window.addEventListener('nid:reset', clearBoxes);
 
-        // Initial focus to first digit box
         if(inputs[0] && !inputs.some(i => i.value)) inputs[0].focus();
     }
 
-    document.addEventListener('livewire:navigated', () => {
+    function boot(){
         initNidBoxes(document.querySelector('.nid-boxes'));
-    });
+    }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        initNidBoxes(document.querySelector('.nid-boxes'));
+    document.addEventListener('livewire:navigated', boot);
+    document.addEventListener('DOMContentLoaded', boot);
+
+    // Re-init after Livewire DOM patches (mode switch can replace the boxes)
+    document.addEventListener('livewire:updated', boot);
+
+    // Livewire v3: ensure we re-init after any message is processed (reliable for conditional rendering)
+    document.addEventListener('livewire:init', () => {
+        try {
+            Livewire.hook('message.processed', () => {
+                boot();
+            });
+        } catch (e) {
+            // ignore if hook API is not available
+        }
     });
 })();
 </script>

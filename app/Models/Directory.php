@@ -19,6 +19,7 @@ class Directory extends Model
     protected $fillable = [
         'name', 'description', 'profile_picture',
         'id_card_number',
+        'serial',
         'gender', 'date_of_birth', 'death_date',
         'phones', 'email', 'website',
         'country_id', 'island_id', 'address', 'street_address', 'properties_id',
