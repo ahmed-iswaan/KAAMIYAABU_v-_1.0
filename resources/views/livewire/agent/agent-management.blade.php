@@ -190,7 +190,19 @@
                                         @php
                                             $directory = $task->directory;
                                             $avatar = $directory?->profile_picture;
-                                            $initial = $directory? Str::upper(Str::substr($directory->name,0,1)) : 'T';
+
+                                            $avatarUrl = null;
+                                            if (!empty($avatar)) {
+                                                $avatarUrl = asset('storage/' . ltrim($avatar, '/'));
+                                            } elseif ($directory && !empty($directory->id_card_number)) {
+                                                $nid = trim((string) $directory->id_card_number);
+                                                foreach (['jpg','jpeg','png','webp'] as $__ext) {
+                                                    $__rel = "nid-images/{$nid}.{$__ext}";
+                                                    if (is_file(public_path($__rel))) { $avatarUrl = asset($__rel); break; }
+                                                }
+                                            }
+
+                                            $initial = $directory ? Str::upper(Str::substr($directory->name,0,1)) : 'T';
                                             $partyShort = $directory?->party?->short_name;
                                             $subCode = $directory?->subConsite?->code;
                                             $statusBadgeClass = match($task->status){
@@ -230,8 +242,8 @@
                                         @endphp
                                         <div class="task-item @if($selectedTask && $selectedTask->id === $task->id) active @endif" wire:click="selectTask('{{ $task->id }}')" data-task-id="{{ $task->id }}">
                                             <div class="avatar" data-bs-toggle="tooltip" title="{{ $tooltip }}">
-                                                @if($avatar)
-                                                    <img src="{{ asset('storage/' . $avatar) }}" alt="{{ $directory?->name }}">
+                                                @if($avatarUrl)
+                                                    <img src="{{ $avatarUrl }}" alt="{{ $directory?->name ?? 'Directory' }}" />
                                                 @else
                                                     {{ $initial }}
                                                 @endif

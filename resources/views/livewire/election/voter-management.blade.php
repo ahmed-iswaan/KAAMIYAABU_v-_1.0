@@ -224,12 +224,26 @@
                                                 @php
                                                     $g = strtolower($entry->gender ?? '');
                                                     $genderDot = ($g==='male' || $g==='m') ? 'primary' : (($g==='female' || $g==='f') ? 'pink' : 'secondary');
+
+                                                    $imgUrl = null;
+                                                    if (!empty($entry->profile_picture)) {
+                                                        $imgUrl = asset('storage/' . ltrim($entry->profile_picture, '/'));
+                                                    } else {
+                                                        $nid = trim((string) ($entry->id_card_number ?? ''));
+                                                        if ($nid !== '') {
+                                                            foreach (['jpg','jpeg','png','webp'] as $__ext) {
+                                                                $__rel = "nid-images/{$nid}.{$__ext}";
+                                                                if (is_file(public_path($__rel))) { $imgUrl = asset($__rel); break; }
+                                                            }
+                                                        }
+                                                    }
                                                 @endphp
-                                                @if($entry->profile_picture)
+
+                                                @if($imgUrl)
                                                     @php $avatarClass = $g==='male' || $g==='m' ? 'bg-light-primary border border-primary border-2' : ($g==='female' || $g==='f' ? 'bg-light-danger border border-danger border-2' : 'bg-light-primary border border-secondary border-2'); @endphp
                                                     <div class="symbol symbol-50px overflow-hidden me-3 position-relative">
                                                         <div class="symbol-label p-0 d-flex align-items-center justify-content-center {{ $avatarClass }}" style="border-radius:6px;">
-                                                            <img src="{{ asset('storage/' . $entry->profile_picture) }}" alt="{{ $entry->name }}" class="w-100 h-100 object-fit-cover" style="border-radius:6px;">
+                                                            <img src="{{ $imgUrl }}" alt="{{ $entry->name }}" class="w-100 h-100 object-fit-cover" style="border-radius:6px;">
                                                         </div>
                                                         <span class="status-dot bg-{{ $genderDot }}" title="Gender: {{ ucfirst($entry->gender ?? 'N/A') }}"></span>
                                                     </div>

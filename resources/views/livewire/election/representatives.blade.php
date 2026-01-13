@@ -140,9 +140,9 @@
             <div class="card-body rep-card-body">
                 <div class="rep-card-header">
                     <div class="rep-avatar">
-                        @if(!empty($foundUser->profile_picture))
+                        @if(!empty($representativeImageUrl))
                             <div class="symbol symbol-80px symbol-circle overflow-hidden">
-                                <img src="{{ asset('storage/'.$foundUser->profile_picture) }}" alt="{{ $foundUser->name }}" class="w-80px h-80px object-fit-cover" />
+                                <img src="{{ $representativeImageUrl }}" alt="{{ $foundUser->name }}" class="w-80px h-80px object-fit-cover" />
                             </div>
                         @else
                             <div class="rep-initials">{{ $initials }}</div>

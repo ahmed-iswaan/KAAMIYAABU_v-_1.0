@@ -39,25 +39,17 @@
                                 $initials = mb_strtoupper(mb_substr(implode('', $chars), 0, 2));
                             }
                             $perm = trim(($d->street_address ?? '') . (($d->street_address && $d->address) ? ' / ' : '') . ($d->address ?? ''));
-                            $cur = trim(($d->current_street_address ?? '') . (($d->current_street_address && $d->current_address) ? ' / ' : '') . ($d->current_address ?? ''));
                             $phones = $d->phones;
                             if (is_array($phones)) { $phones = implode(', ', array_filter($phones)); }
-                            $fp = $d->final_pledge_status ?? null;
-                            $fpLabel = $fp ? str_replace('_',' ', (string)$fp) : 'Pending';
-                            $fpClass = match($fp){
-                                'strong_yes','yes' => 'badge-light-success',
-                                'neutral' => 'badge-light-warning',
-                                'no','strong_no' => 'badge-light-danger',
-                                default => 'badge-light'
-                            };
+                            $imgUrl = $directoryImageUrls[$d->id] ?? null;
                         @endphp
 
                         <div class="card border-0 shadow-sm">
                             <div class="card-body p-4">
                                 <div class="d-flex align-items-start gap-3">
                                     <div class="symbol symbol-50px symbol-circle flex-shrink-0">
-                                        @if(!empty($d->profile_picture))
-                                            <img src="{{ asset('storage/'.$d->profile_picture) }}" alt="{{ $d->name }}" class="w-50px h-50px object-fit-cover" />
+                                        @if(!empty($imgUrl))
+                                            <img src="{{ $imgUrl }}" alt="{{ $d->name }}" class="w-50px h-50px object-fit-cover" />
                                         @else
                                             <span class="symbol-label bg-light-primary text-primary fw-bold">{{ $initials ?: '—' }}</span>
                                         @endif
@@ -69,31 +61,29 @@
                                                 <div class="fw-bold">{{ $d->name }}</div>
                                                 <div class="text-muted small mt-1">
                                                     <span class="badge badge-light me-2">{{ $d->id_card_number }}</span>
+                                                    @if(!empty($d->serial))
+                                                        <span class="badge badge-light me-2">S: {{ $d->serial }}</span>
+                                                    @endif
                                                     @if($d->subConsite)
                                                         <span class="badge badge-light">{{ $d->subConsite->code }}</span>
                                                     @endif
-                                                     <span class="badge badge-light me-2">{{ !empty($phones) ? $phones : '—' }}</span>
+                                                </div>
+                                                <div class="text-muted small mt-2">
+                                                    <span class="badge badge-light me-2">{{ !empty($phones) ? $phones : '—' }}</span>
                                                 </div>
                                             </div>
+                                            @can('votedRepresentative-markAsVoted')
                                             <div class="text-end">
-                                                <span class="badge {{ $fpClass }} text-capitalize">{{ $fpLabel }}</span>
+                                                <button type="button" class="btn btn-sm btn-success" wire:click="markAsVoted('{{ $d->id }}')">
+                                                    Vote
+                                                </button>
                                             </div>
+                                            @endcan
                                         </div>
 
                                         <div class="mt-3">
-                            
                                             <div class="text-muted small">{{ $perm !== '' ? $perm : '—' }}</div>
                                         </div>
-
-                                        <!-- <div class="mt-3">
-                                            <div class="text-muted fw-semibold small">Current</div>
-                                            <div class="text-muted small">{{ $cur !== '' ? $cur : '—' }}</div>
-                                        </div> -->
-
-                                        <!-- <div class="mt-3">
-                                            <div class="text-muted fw-semibold small">Phones</div>
-                                            <div class="text-muted small text-break">{{ !empty($phones) ? $phones : '—' }}</div>
-                                        </div> -->
                                     </div>
                                 </div>
                             </div>
@@ -112,11 +102,13 @@
                             <th class="ps-4">Profile</th>
                             <th>Name</th>
                             <th>NID</th>
+                            <th>Serial</th>
                             <th>Sub Consite</th>
-                            <th>Final Pledge</th>
                             <th>Permanent</th>
-                            <th>Current</th>
-                            <th class="pe-4">Phones</th>
+                            <th>Phones</th>
+                            @can('votedRepresentative-markAsVoted')
+                            <th class="pe-4 text-end">Action</th>
+                            @endcan
                         </tr>
                     </thead>
                     <tbody>
@@ -128,30 +120,26 @@
                                     $chars = array_map(fn($p) => mb_substr($p,0,1), $parts);
                                     $initials = mb_strtoupper(mb_substr(implode('', $chars), 0, 2));
                                 }
-                                $fp = $d->final_pledge_status ?? null;
-                                $fpLabel = $fp ? str_replace('_',' ', (string)$fp) : 'Pending';
-                                $fpClass = match($fp){
-                                    'strong_yes','yes' => 'badge-light-success',
-                                    'neutral' => 'badge-light-warning',
-                                    'no','strong_no' => 'badge-light-danger',
-                                    default => 'badge-light'
-                                };
+                                $imgUrl = $directoryImageUrls[$d->id] ?? null;
                             @endphp
                             <tr>
                                 <td class="ps-4">
                                     <div class="symbol symbol-40px symbol-circle">
-                                        @if(!empty($d->profile_picture))
-                                            <img src="{{ asset('storage/'.$d->profile_picture) }}" alt="{{ $d->name }}" class="w-40px h-40px object-fit-cover" />
+                                        @if(!empty($imgUrl))
+                                            <img src="{{ $imgUrl }}" alt="{{ $d->name }}" class="w-40px h-40px object-fit-cover" />
                                         @else
                                             <span class="symbol-label bg-light-primary text-primary fw-bold">{{ $initials ?: '—' }}</span>
                                         @endif
                                     </div>
                                 </td>
+                                <td><div class="fw-semibold">{{ $d->name }}</div></td>
+                                <td><span class="badge badge-light">{{ $d->id_card_number }}</span></td>
                                 <td>
-                                    <div class="fw-semibold">{{ $d->name }}</div>
-                                </td>
-                                <td>
-                                    <span class="badge badge-light">{{ $d->id_card_number }}</span>
+                                    @if(!empty($d->serial))
+                                        <span class="badge badge-light">{{ $d->serial }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @if($d->subConsite)
@@ -161,22 +149,11 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge {{ $fpClass }} text-capitalize">{{ $fpLabel }}</span>
-                                </td>
-                                <td>
                                     <div class="text-muted small">
                                         @php
                                             $perm = trim(($d->street_address ?? '') . (($d->street_address && $d->address) ? ' / ' : '') . ($d->address ?? ''));
                                         @endphp
                                         {{ $perm !== '' ? $perm : '—' }}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="text-muted small">
-                                        @php
-                                            $cur = trim(($d->current_street_address ?? '') . (($d->current_street_address && $d->current_address) ? ' / ' : '') . ($d->current_address ?? ''));
-                                        @endphp
-                                        {{ $cur !== '' ? $cur : '—' }}
                                     </div>
                                 </td>
                                 <td class="pe-4">
@@ -190,6 +167,11 @@
                                         {{ !empty($phones) ? $phones : '—' }}
                                     </div>
                                 </td>
+                                @can('votedRepresentative-markAsVoted')
+                                <td class="pe-4 text-end">
+                                    <button type="button" class="btn btn-sm btn-success" wire:click="markAsVoted('{{ $d->id }}')">Vote</button>
+                                </td>
+                                @endcan
                             </tr>
                         @empty
                             <tr>

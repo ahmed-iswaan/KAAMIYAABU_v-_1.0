@@ -125,12 +125,26 @@
                                   @foreach($directory as $entry)
                                     <tr>
                                       <td class="d-flex align-items-center">
-                                        @if($entry->profile_picture)
+                                        @php
+                                            $imgUrl = null;
+                                            if (!empty($entry->profile_picture)) {
+                                                $imgUrl = asset('storage/' . ltrim($entry->profile_picture, '/'));
+                                            } else {
+                                                $nid = trim((string) ($entry->id_card_number ?? ''));
+                                                if ($nid !== '') {
+                                                    foreach (['jpg','jpeg','png','webp'] as $__ext) {
+                                                        $__rel = "nid-images/{$nid}.{$__ext}";
+                                                        if (is_file(public_path($__rel))) { $imgUrl = asset($__rel); break; }
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+
+                                        @if($imgUrl)
                                           <div class="symbol symbol-circle symbol-50px overflow-hidden me-3">
                                             <a href="#">
                                               <div class="symbol-label">
-                                                <img src="{{ asset('storage/' . $entry->profile_picture) }}"
-                                                    alt="{{ $entry->name }}" class="w-100">
+                                                <img src="{{ $imgUrl }}" alt="{{ $entry->name }}" class="w-100">
                                               </div>
                                             </a>
                                           </div>

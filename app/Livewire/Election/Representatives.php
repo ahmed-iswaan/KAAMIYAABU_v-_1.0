@@ -340,6 +340,29 @@ class Representatives extends Component
         $this->swal('success', 'Undone', 'Voted record removed successfully.', ['showConfirmButton' => false, 'timer' => 1400]);
     }
 
+    private function representativeImageUrl(?Directory $dir): ?string
+    {
+        if (!$dir) return null;
+
+        // 1) Stored profile picture
+        if (!empty($dir->profile_picture)) {
+            return asset('storage/' . ltrim($dir->profile_picture, '/'));
+        }
+
+        // 2) Fallback: public/nid-images/{NID}.{ext}
+        $nid = trim((string) ($dir->id_card_number ?? ''));
+        if ($nid === '') return null;
+
+        foreach (['jpg','jpeg','png','webp'] as $ext) {
+            $relative = "nid-images/{$nid}.{$ext}";
+            if (is_file(public_path($relative))) {
+                return asset($relative);
+            }
+        }
+
+        return null;
+    }
+
     public function render()
     {
         $this->authorize('votedRepresentative-render');
@@ -347,7 +370,10 @@ class Representatives extends Component
         $history = collect();
         $historyTotal = 0;
         if ($this->electionId) {
-            $baseQuery = VotedRepresentative::query()->where('election_id', $this->electionId);
+            $baseQuery = VotedRepresentative::query()
+                ->where('election_id', $this->electionId)
+                ->where('user_id', Auth::id());
+
             $historyTotal = (clone $baseQuery)->count();
 
             $history = VotedRepresentative::with([
@@ -356,6 +382,7 @@ class Representatives extends Component
                     'user:id,name',
                 ])
                 ->where('election_id', $this->electionId)
+                ->where('user_id', Auth::id())
                 ->orderByDesc('voted_at')
                 ->limit($this->historyLimit)
                 ->get();
@@ -364,6 +391,7 @@ class Representatives extends Component
         return view('livewire.election.representatives', [
             'history' => $history,
             'historyTotal' => $historyTotal,
+            'representativeImageUrl' => $this->representativeImageUrl($this->foundUser),
         ]);
     }
 }
