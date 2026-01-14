@@ -147,18 +147,28 @@
                         </thead>
                         <tbody>
                             @foreach($searchResults as $r)
+                                @php
+                                    $subCode = '';
+                                    if (is_array($r)) {
+                                        $subCode = $r['sub_consite']['code'] ?? '';
+                                    } elseif (is_object($r)) {
+                                        $subCode = $r->subConsite->code ?? ($r->sub_consite->code ?? '');
+                                    }
+                                @endphp
                                 <tr>
-                                    <td class="fw-semibold">{{ $r['name'] ?? '' }}</td>
-                                    <td><span class="badge badge-light">{{ $r['id_card_number'] ?? '' }}</span></td>
+                                    <td class="fw-semibold">{{ is_array($r) ? ($r['name'] ?? '') : ($r->name ?? '') }}</td>
                                     <td>
-                                        @if(!empty($r['sub_consite']) && !empty($r['sub_consite']['code']))
-                                            <span class="badge badge-light">{{ $r['sub_consite']['code'] }}</span>
+                                        <span class="badge badge-light">{{ is_array($r) ? ($r['id_card_number'] ?? '') : ($r->id_card_number ?? '') }}</span>
+                                    </td>
+                                    <td>
+                                        @if(!empty($subCode))
+                                            <span class="badge badge-light">{{ $subCode }}</span>
                                         @else
                                             <span class="text-muted">—</span>
                                         @endif
                                     </td>
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-sm btn-primary" wire:click="selectSerialResult('{{ $r['id'] }}')">Select</button>
+                                        <button type="button" class="btn btn-sm btn-primary" wire:click="selectSerialResult('{{ is_array($r) ? ($r['id'] ?? '') : ($r->id ?? '') }}')">Select</button>
                                     </td>
                                 </tr>
                             @endforeach
