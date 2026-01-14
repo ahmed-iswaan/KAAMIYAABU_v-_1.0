@@ -187,9 +187,11 @@
                                         <th class="min-w-150px">Party / SubConsite</th>
                                         <th class="min-w-200px">Permanent Address</th>
                                         <th class="min-w-120px">Prov. Pledge</th>
-                                           @can('voters-openFinalPledge')
-                                        <th class="min-w-120px">Final Pledge</th>
+                                        @can('voters-openFinalPledge')
+                                            <th class="min-w-140px">Call Center</th>
+                                            <th class="min-w-120px">Final Pledge</th>
                                         @endcan
+                                        
                                         <th class="min-w-120px text-end">Actions</th>
                                     </tr>
                                 </thead>
@@ -217,6 +219,21 @@
                                                 'neutral' => 'secondary',
                                                 null => 'light',
                                                 default => 'secondary'
+                                            };
+                                            $mayorQ3 = $entry->mayor_q3_answer ?? null;
+                                            $mayorText = match($mayorQ3){
+                                                'yes' => 'YES',
+                                                'no' => 'NO',
+                                                'undecided' => 'UNDECIDED',
+                                                null => 'PENDING',
+                                                default => strtoupper((string) $mayorQ3),
+                                            };
+                                            $mayorColor = match($mayorQ3){
+                                                'yes' => 'success',
+                                                'no' => 'danger',
+                                                'undecided' => 'warning',
+                                                null => 'secondary',
+                                                default => 'secondary',
                                             };
                                         @endphp
                                         <tr>
@@ -288,8 +305,12 @@
                                             </td>
                                             <td><span class="badge badge-{{ $colorProv }} fw-bold">{{ $labelProv }}</span></td>
                                                @can('voters-openFinalPledge')
+                                                         <td>
+                                                <span class="badge badge-light-{{ $mayorColor }}">{{ $mayorText }}</span>
+                                            </td>
                                             <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
                                             @endcan
+                                  
                                             <td class="text-end">
                                                 <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                                     <i class="ki-duotone ki-down fs-5 ms-1"></i>
