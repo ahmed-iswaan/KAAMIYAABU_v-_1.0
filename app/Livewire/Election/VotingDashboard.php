@@ -70,6 +70,9 @@ class VotingDashboard extends Component
                 'subConsiteLabels' => [],
                 'subConsiteVotedCounts' => [],
                 'subConsiteNotVotedCounts' => [],
+                // NEW: Final pledge YES only (by sub consite)
+                'subConsitePledgeYesVotedCounts' => [],
+                'subConsitePledgeYesNotVotedCounts' => [],
             ];
         }
 
@@ -84,6 +87,9 @@ class VotingDashboard extends Component
                 'subConsiteLabels' => [],
                 'subConsiteVotedCounts' => [],
                 'subConsiteNotVotedCounts' => [],
+                // NEW: Final pledge YES only (by sub consite)
+                'subConsitePledgeYesVotedCounts' => [],
+                'subConsitePledgeYesNotVotedCounts' => [],
             ];
         }
 
@@ -220,6 +226,46 @@ class VotingDashboard extends Component
             $subConsiteNotVotedCounts[] = (int) ($notVotedBySub[$row->id] ?? 0);
         }
 
+        // NEW: Final pledge YES only by sub consite
+        $pledgeYesVotedBySub = DB::table('voted_representatives')
+            ->join('directories', 'directories.id', '=', 'voted_representatives.directory_id')
+            ->join('voter_pledges as vp', function ($join) {
+                $join->on('vp.directory_id', '=', 'directories.id')
+                    ->where('vp.election_id', '=', $this->electionId)
+                    ->where('vp.type', '=', VoterPledge::TYPE_FINAL);
+            })
+            ->where('voted_representatives.election_id', $this->electionId)
+            ->where('directories.status', 'Active')
+            ->whereIn('directories.sub_consite_id', $allowed)
+            ->whereIn('vp.status', ['yes', 'strong_yes'])
+            ->groupBy('directories.sub_consite_id')
+            ->pluck(DB::raw('COUNT(DISTINCT voted_representatives.directory_id) as cnt'), 'directories.sub_consite_id');
+
+        $pledgeYesNotVotedBySub = DB::table('directories')
+            ->join('voter_pledges as vp', function ($join) {
+                $join->on('vp.directory_id', '=', 'directories.id')
+                    ->where('vp.election_id', '=', $this->electionId)
+                    ->where('vp.type', '=', VoterPledge::TYPE_FINAL);
+            })
+            ->where('directories.status', 'Active')
+            ->whereIn('directories.sub_consite_id', $allowed)
+            ->whereIn('vp.status', ['yes', 'strong_yes'])
+            ->whereNotExists(function ($q) {
+                $q->selectRaw(1)
+                    ->from('voted_representatives')
+                    ->whereColumn('voted_representatives.directory_id', 'directories.id')
+                    ->where('voted_representatives.election_id', $this->electionId);
+            })
+            ->groupBy('directories.sub_consite_id')
+            ->pluck(DB::raw('COUNT(DISTINCT directories.id) as cnt'), 'directories.sub_consite_id');
+
+        $subConsitePledgeYesVotedCounts = [];
+        $subConsitePledgeYesNotVotedCounts = [];
+        foreach ($subConsiteBase as $row) {
+            $subConsitePledgeYesVotedCounts[] = (int) ($pledgeYesVotedBySub[$row->id] ?? 0);
+            $subConsitePledgeYesNotVotedCounts[] = (int) ($pledgeYesNotVotedBySub[$row->id] ?? 0);
+        }
+
         return [
             'totalVoted' => (int) $totalVoted,
             'totalNotVoted' => (int) $totalNotVoted,
@@ -229,6 +275,9 @@ class VotingDashboard extends Component
             'subConsiteLabels' => $subConsiteLabels,
             'subConsiteVotedCounts' => $subConsiteVotedCounts,
             'subConsiteNotVotedCounts' => $subConsiteNotVotedCounts,
+            // NEW: Final pledge YES only (by sub consite)
+            'subConsitePledgeYesVotedCounts' => $subConsitePledgeYesVotedCounts,
+            'subConsitePledgeYesNotVotedCounts' => $subConsitePledgeYesNotVotedCounts,
         ];
     }
 

@@ -66,6 +66,20 @@
                 </div>
             </div>
         </div>
+
+        {{-- NEW: Final pledge YES only (Voted vs Not Voted) by sub consite --}}
+        <div class="col-12">
+            <div class="card card-flush">
+                <div class="card-header pt-5">
+                    <div class="card-title">
+                        <h3 class="fw-bold">Final Pledge Yes (Voted vs Not Voted) by Sub Consite</h3>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="pledge_yes_by_subconsite" style="min-height: 420px;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     @push('scripts')
@@ -82,7 +96,7 @@
                 // Keep the latest stats in a global so JS always reads fresh values
                 window.__votingDashboardStats = @json($stats);
 
-                let charts = { pie: null, pledge: null, subconsite: null };
+                let charts = { pie: null, pledge: null, subconsite: null, pledgeYesBySub: null };
                 let __lastStatsUpdateAt = 0;
 
                 function getStats(){
@@ -136,6 +150,10 @@
                     const subConsiteVotedCounts = toNumberArray(stats.subConsiteVotedCounts);
                     const subConsiteNotVotedCounts = toNumberArray(stats.subConsiteNotVotedCounts);
 
+                    // NEW
+                    const subConsitePledgeYesVotedCounts = toNumberArray(stats.subConsitePledgeYesVotedCounts);
+                    const subConsitePledgeYesNotVotedCounts = toNumberArray(stats.subConsitePledgeYesNotVotedCounts);
+
                     const pieOptions = {
                         series: [voted, notVoted],
                         labels: ['Voted', 'Not Voted'],
@@ -187,23 +205,55 @@
                         colors: ['#ffc700', '#1b84ff']
                     };
 
+                    // NEW chart options
+                    const pledgeYesSubOptions = {
+                        series: [
+                            { name: 'Voted (Pledge Yes)', data: subConsitePledgeYesVotedCounts },
+                            { name: 'Not Voted (Pledge Yes)', data: subConsitePledgeYesNotVotedCounts },
+                        ],
+                        chart: {
+                            type: 'bar',
+                            height: 420,
+                            stacked: false,
+                            toolbar: { show: false },
+                            animations: { enabled: true }
+                        },
+                        plotOptions: {
+                            bar: {
+                                borderRadius: 6,
+                                horizontal: false,
+                                columnWidth: '55%'
+                            }
+                        },
+                        dataLabels: { enabled: true },
+                        xaxis: { categories: subConsiteLabels },
+                        yaxis: { labels: { formatter: (val) => Number(val).toLocaleString() } },
+                        tooltip: { y: { formatter: (val) => Number(val).toLocaleString() } },
+                        legend: { position: 'bottom' },
+                        colors: ['#50cd89', '#a1a5b7']
+                    };
+
                     try { charts.pie && charts.pie.destroy(); } catch(e){}
                     try { charts.pledge && charts.pledge.destroy(); } catch(e){}
                     try { charts.subconsite && charts.subconsite.destroy(); } catch(e){}
+                    try { charts.pledgeYesBySub && charts.pledgeYesBySub.destroy(); } catch(e){}
 
                     const pieEl = document.querySelector('#voting_pie');
                     const pledgeEl = document.querySelector('#voted_by_pledge');
                     const subEl = document.querySelector('#voted_by_subconsite');
+                    const pledgeYesSubEl = document.querySelector('#pledge_yes_by_subconsite');
 
                     if(pieEl){ charts.pie = new ApexCharts(pieEl, pieOptions); charts.pie.render(); }
                     if(pledgeEl){ charts.pledge = new ApexCharts(pledgeEl, pledgeOptions); charts.pledge.render(); }
                     if(subEl){ charts.subconsite = new ApexCharts(subEl, subOptions); charts.subconsite.render(); }
+                    if(pledgeYesSubEl){ charts.pledgeYesBySub = new ApexCharts(pledgeYesSubEl, pledgeYesSubOptions); charts.pledgeYesBySub.render(); }
 
                     setTimeout(() => {
                         try {
                             charts.pie && charts.pie.resize();
                             charts.pledge && charts.pledge.resize();
                             charts.subconsite && charts.subconsite.resize();
+                            charts.pledgeYesBySub && charts.pledgeYesBySub.resize();
                         } catch(e){}
                     }, 250);
                 }
@@ -253,13 +303,12 @@
                             charts.pie && charts.pie.resize();
                             charts.pledge && charts.pledge.resize();
                             charts.subconsite && charts.subconsite.resize();
+                            charts.pledgeYesBySub && charts.pledgeYesBySub.resize();
                         } catch(e){}
                     });
                 });
             })();
         </script>
+        <div id="voting-dashboard-stats" class="d-none" data-voting-dashboard-stats='@json($stats)'></div>
     @endpush
-
-    {{-- Single authoritative stats payload for JS. Livewire will update this on refresh. --}}
-    <div class="d-none" id="voting-dashboard-stats" wire:key="voting-dashboard-stats" data-voting-dashboard-stats='@json($stats)'></div>
 </div>

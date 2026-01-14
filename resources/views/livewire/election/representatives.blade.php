@@ -126,6 +126,49 @@
         </div>
     @endif
 
+    {{-- Serial search results (when multiple matches) --}}
+    @if(!empty($searchResults) && count($searchResults) > 0)
+        <div class="card mb-6 shadow-sm">
+            <div class="card-header border-0 pt-5">
+                <div class="card-title">
+                    <h3 class="card-label mb-0">Select Representative</h3>
+                </div>
+            </div>
+            <div class="card-body pt-0">
+                <div class="table-responsive">
+                    <table class="table align-middle table-row-dashed gy-3">
+                        <thead>
+                            <tr class="text-muted fw-semibold fs-7 text-uppercase">
+                                <th>Name</th>
+                                <th>NID</th>
+                                <th>Sub Consite</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($searchResults as $r)
+                                <tr>
+                                    <td class="fw-semibold">{{ $r['name'] ?? '' }}</td>
+                                    <td><span class="badge badge-light">{{ $r['id_card_number'] ?? '' }}</span></td>
+                                    <td>
+                                        @if(!empty($r['sub_consite']) && !empty($r['sub_consite']['code']))
+                                            <span class="badge badge-light">{{ $r['sub_consite']['code'] }}</span>
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-primary" wire:click="selectSerialResult('{{ $r['id'] }}')">Select</button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if($foundUser)
         @php
             $initials = '';

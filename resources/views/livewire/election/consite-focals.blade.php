@@ -5,6 +5,44 @@
                 <div>
                     <h3 class="mb-1">Consites Focals</h3>
                     <div class="text-muted small">List of directories not yet marked as voted (only your assigned sub consites).</div>
+
+                    <div class="d-flex flex-wrap gap-3 mt-4">
+                        <div class="d-flex align-items-center gap-3 px-4 py-3 rounded border bg-light">
+                            <span class="symbol symbol-35px symbol-circle bg-white">
+                                <span class="symbol-label">
+                                    <i class="ki-duotone ki-abstract-26 fs-4 text-gray-700"><span class="path1"></span><span class="path2"></span></i>
+                                </span>
+                            </span>
+                            <div>
+                                <div class="text-muted fs-8">Total</div>
+                                <div class="fw-bold fs-4 text-gray-900">{{ $totalDirectories ?? 0 }}</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-3 px-4 py-3 rounded border border-success-subtle bg-light-success">
+                            <span class="symbol symbol-35px symbol-circle bg-white">
+                                <span class="symbol-label">
+                                    <i class="ki-duotone ki-check-circle fs-4 text-success"><span class="path1"></span><span class="path2"></span></i>
+                                </span>
+                            </span>
+                            <div>
+                                <div class="text-success fs-8">Voted</div>
+                                <div class="fw-bold fs-4 text-success">{{ $votedCount ?? 0 }}</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-3 px-4 py-3 rounded border border-warning-subtle bg-light-warning">
+                            <span class="symbol symbol-35px symbol-circle bg-white">
+                                <span class="symbol-label">
+                                    <i class="ki-duotone ki-time fs-4 text-warning"><span class="path1"></span><span class="path2"></span></i>
+                                </span>
+                            </span>
+                            <div>
+                                <div class="text-warning fs-8">Not Voted</div>
+                                <div class="fw-bold fs-4 text-warning">{{ $notVotedCount ?? 0 }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="d-flex flex-wrap gap-3 align-items-center">
@@ -18,7 +56,7 @@
                     </div>
 
                     <div style="min-width:260px">
-                        <input type="text" class="form-control" placeholder="Search name, NID, address or phone" wire:model.live.debounce.400ms="search" />
+                        <input type="text" class="form-control" placeholder="Search name, NID, serial, address or phone" wire:model.live.debounce.400ms="search" />
                     </div>
                 </div>
             </div>

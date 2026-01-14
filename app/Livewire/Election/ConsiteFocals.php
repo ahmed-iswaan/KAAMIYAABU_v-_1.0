@@ -182,6 +182,25 @@ class ConsiteFocals extends Component
 
         $subConsites = Auth::user()?->subConsites()->orderBy('code')->get(['sub_consites.id', 'code', 'name']);
 
+        // Summary counts (scoped to allowed sub consites and optional selected filter)
+        $baseDirs = Directory::query()
+            ->where('status', 'Active')
+            ->whereIn('sub_consite_id', $allowed)
+            ->when($this->subConsiteId, fn($q) => $q->where('sub_consite_id', $this->subConsiteId));
+
+        $totalDirectories = (clone $baseDirs)->count();
+
+        $votedCount = (clone $baseDirs)
+            ->whereExists(function ($q) {
+                $q->selectRaw(1)
+                  ->from('voted_representatives')
+                  ->whereColumn('voted_representatives.directory_id', 'directories.id')
+                  ->where('voted_representatives.election_id', $this->electionId);
+            })
+            ->count();
+
+        $notVotedCount = max(0, $totalDirectories - $votedCount);
+
         $directories = Directory::query()
             ->select([
                 'id',
@@ -249,6 +268,9 @@ class ConsiteFocals extends Component
             'directories' => $directories,
             'subConsites' => $subConsites,
             'directoryImageUrls' => $directories->getCollection()->mapWithKeys(fn($d) => [$d->id => $this->directoryImageUrl($d)]),
+            'totalDirectories' => $totalDirectories,
+            'votedCount' => $votedCount,
+            'notVotedCount' => $notVotedCount,
         ]);
     }
 }

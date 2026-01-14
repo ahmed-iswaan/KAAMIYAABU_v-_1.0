@@ -29,6 +29,8 @@ class Representatives extends Component
     public $historyOpen = false;
     public $historyLimit = 10;
 
+    public $searchResults = []; // serial search results (when multiple)
+
     protected function swal(string $icon, string $title, string $text = '', array $extra = []): void
     {
         $this->dispatch('swal', array_merge([
@@ -72,7 +74,7 @@ class Representatives extends Component
     public function updatedSearchMode(): void
     {
         // When switching modes, clear inputs and results
-        $this->reset(['foundUser', 'message', 'alreadyVoted', 'searchNid', 'searchSerial']);
+        $this->reset(['foundUser', 'message', 'alreadyVoted', 'searchNid', 'searchSerial', 'searchResults']);
 
         if ($this->searchMode === 'nid') {
             $this->dispatch('nid:reset');
@@ -90,13 +92,65 @@ class Representatives extends Component
 
     public function searchBySerial(): void
     {
-        $this->reset(['foundUser','message','alreadyVoted']);
+        $this->reset(['foundUser','message','alreadyVoted','searchResults']);
 
         $serial = trim((string) $this->searchSerial);
         if ($serial === '') {
             $this->swal('error', 'Invalid Serial', 'Please enter the Serial number.');
             return;
         }
+
+        $allowedSubConsiteIds = $this->allowedSubConsiteIds();
+        if (empty($allowedSubConsiteIds)) {
+            $this->swal('error', 'Permission denied', 'You do not have sub consite permission to view representatives.');
+            return;
+        }
+
+        $results = Directory::with([
+                'subConsite:id,code,name',
+                'property:id,name',
+                'country:id,name',
+                'island:id,name,atoll_id',
+                'island.atoll:id,code',
+                'currentProperty:id,name',
+                'currentCountry:id,name',
+                'currentIsland:id,name,atoll_id',
+                'currentIsland.atoll:id,code',
+            ])
+            ->where('serial', $serial)
+            ->where('status', 'Active')
+            ->whereIn('sub_consite_id', $allowedSubConsiteIds)
+            ->orderBy('name')
+            ->get();
+
+        if ($results->isEmpty()) {
+            $this->swal('warning', 'Not found', 'No directory found for that Serial (within your permitted sub consites).');
+            return;
+        }
+
+        // If exactly one match, behave like previous flow
+        if ($results->count() === 1) {
+            $user = $results->first();
+            $this->foundUser = $user;
+            $this->alreadyVoted = VotedRepresentative::where('election_id', $this->electionId)
+                ->where('directory_id', $user->id)
+                ->exists();
+
+            if ($this->alreadyVoted) {
+                $this->swal('info', 'Already voted', 'This representative is already marked as voted.', ['showConfirmButton' => true]);
+            }
+        } else {
+            $this->searchResults = $results->values()->all();
+            $this->swal('info', 'Multiple matches', 'Select the correct representative from the list.');
+        }
+
+        // Reset serial input after submit (keep results)
+        $this->reset('searchSerial');
+    }
+
+    public function selectSerialResult(string $directoryId): void
+    {
+        $this->reset(['foundUser','alreadyVoted']);
 
         $allowedSubConsiteIds = $this->allowedSubConsiteIds();
         if (empty($allowedSubConsiteIds)) {
@@ -115,31 +169,21 @@ class Representatives extends Component
                 'currentIsland:id,name,atoll_id',
                 'currentIsland.atoll:id,code',
             ])
-            ->where('serial', $serial)
+            ->where('id', $directoryId)
             ->where('status', 'Active')
+            ->whereIn('sub_consite_id', $allowedSubConsiteIds)
             ->first();
 
         if (!$user) {
-            $this->swal('warning', 'Not found', 'No directory found for that Serial.');
+            $this->swal('warning', 'Not found', 'Selected directory not found (or not permitted).');
             return;
         }
 
-        if (!$user->sub_consite_id || !in_array($user->sub_consite_id, $allowedSubConsiteIds, true)) {
-            $this->swal('error', 'Permission denied', 'You do not have consites permission to view this directory.');
-            return;
-        }
-
+        $this->searchResults = [];
         $this->foundUser = $user;
         $this->alreadyVoted = VotedRepresentative::where('election_id', $this->electionId)
             ->where('directory_id', $user->id)
             ->exists();
-
-        if ($this->alreadyVoted) {
-            $this->swal('info', 'Already voted', 'This representative is already marked as voted.', ['showConfirmButton' => true]);
-        }
-
-        // Reset serial input after submit (keep results)
-        $this->reset('searchSerial');
     }
 
     public function searchByNid()
