@@ -499,7 +499,7 @@ class VoterManagement extends Component
                     ->join('form_submissions as fs', 'fs.id', '=', 'fsa.form_submission_id')
                     ->whereColumn('fs.directory_id', 'directories.id')
                     ->where('fs.election_id', $electionId)
-                    ->where('fq.question_text', '3. މާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟')
+                    ->where('fq.question_text', "3.\tމާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟")
                     ->whereNotNull('fsa.value_text')
                     ->orderByDesc('fs.created_at')
                     ->limit(1)
