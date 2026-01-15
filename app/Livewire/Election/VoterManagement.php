@@ -499,7 +499,7 @@ class VoterManagement extends Component
                     ->join('form_submissions as fs', 'fs.id', '=', 'fsa.form_submission_id')
                     ->whereColumn('fs.directory_id', 'directories.id')
                     ->where('fs.election_id', $electionId)
-                    ->where('fq.question_text', '3. މާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟ ')
+                    ->where('fq.question_text', '3. މާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟')
                     ->whereNotNull('fsa.value_text')
                     ->orderByDesc('fs.created_at')
                     ->limit(1)
@@ -966,6 +966,11 @@ class VoterManagement extends Component
                     ->where('election_id', $this->electionId);
             })
             ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
+            ->leftJoin('voter_pledges as vp_final', function ($join) {
+                $join->on('vp_final.directory_id', '=', 'directories.id')
+                    ->where('vp_final.election_id', '=', $this->electionId)
+                    ->where('vp_final.type', '=', \App\Models\VoterPledge::TYPE_FINAL);
+            })
             ->select([
                 'directories.id',
                 'directories.name',
@@ -975,6 +980,7 @@ class VoterManagement extends Component
                 'directories.address',
                 'sub_consites.code as sub_consite_code',
                 'sub_consites.name as sub_consite_name',
+                'vp_final.status as final_pledge_status',
             ]);
 
         // Apply current filters
@@ -1026,6 +1032,7 @@ class VoterManagement extends Component
                 'Permanent Address',
                 'SubConsite Code',
                 'SubConsite Name',
+                'Final Pledge',
             ];
 
             for ($i = 1; $i <= $maxPledges; $i++) {
@@ -1075,6 +1082,11 @@ class VoterManagement extends Component
                             $cells[] = $row ? ($row->updated_at ?? '') : '';
                         }
 
+                        $final = strtolower((string) ($r->final_pledge_status ?? ''));
+                        if ($final === '') {
+                            $final = 'pending';
+                        }
+
                         fputcsv($out, array_merge([
                             $r->name,
                             $r->id_card_number,
@@ -1082,6 +1094,7 @@ class VoterManagement extends Component
                             $r->street_address,
                             $r->sub_consite_code,
                             $r->sub_consite_name,
+                            $final,
                         ], $cells));
                     }
                 });

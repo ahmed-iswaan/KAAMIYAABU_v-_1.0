@@ -26,7 +26,7 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
         }
 
         // Question text to read from form submissions
-        $questionText = '3. މާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟ ';
+        $questionText = '3. މާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟';
 
         // Map option labels -> normalized value
         $qMap = [
