@@ -76,4 +76,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/elections/voting-dashboard', \App\Livewire\Election\VotingDashboard::class)
         ->name('elections.voting-dashboard')
         ->middleware('permission:voting-dashboard-render');
+
+    Route::get('/elections/vote-results', \App\Livewire\Election\VoteResultsEntry::class)
+        ->name('elections.vote-results')
+        ->middleware('permission:vote-results-entry-render');
 });

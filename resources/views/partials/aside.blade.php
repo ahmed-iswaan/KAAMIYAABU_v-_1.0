@@ -124,6 +124,21 @@
                                     </div>
                                     @endcan
 
+                                    <!-- Vote Results menu item -->
+                                    @can('vote-results-entry-render')
+                                    <div class="menu-item">
+                                        <a class="menu-link {{ request()->is('elections/vote-results') ? 'active' : '' }}" href="{{ route('elections.vote-results') }}">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-chart-line-up fs-2">
+                                                    <span class="path1"></span>
+                                                    <span class="path2"></span>
+                                                </i>
+                                            </span>
+                                            <span class="menu-title">Vote Results</span>
+                                        </a>
+                                    </div>
+                                    @endcan
+
                                     <!-- Voting Dashboard menu item -->
                                     @can('voting-dashboard-render')
                                     <div class="menu-item">
