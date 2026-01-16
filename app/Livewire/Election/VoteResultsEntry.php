@@ -137,6 +137,9 @@ class VoteResultsEntry extends Component
             'showConfirmButton' => false,
             'timer' => 1200,
         ]);
+
+        // Trigger charts rebuild on the client after Livewire updates the DOM
+        $this->dispatch('vote-results-updated');
     }
 
     public function render()
@@ -160,6 +163,13 @@ class VoteResultsEntry extends Component
         $chartInvalid = [];
         $chartTurnout = [];
 
+        // Pie Totals (overall)
+        $totals = [
+            'yes' => 0,
+            'no' => 0,
+            'invalid' => 0,
+        ];
+
         if ($this->electionId && !empty($allowed)) {
             $rows = ElectionSubConsiteResult::query()
                 ->join('sub_consites', 'sub_consites.id', '=', 'election_sub_consite_results.sub_consite_id')
@@ -180,6 +190,12 @@ class VoteResultsEntry extends Component
             $chartNo = $rows->pluck('no_votes')->map(fn($v) => (int) $v)->values()->all();
             $chartInvalid = $rows->pluck('invalid_votes')->map(fn($v) => (int) $v)->values()->all();
             $chartTurnout = $rows->map(fn($r) => (int) $r->yes_votes + (int) $r->no_votes + (int) $r->invalid_votes)->values()->all();
+
+            $totals = [
+                'yes' => (int) $rows->sum('yes_votes'),
+                'no' => (int) $rows->sum('no_votes'),
+                'invalid' => (int) $rows->sum('invalid_votes'),
+            ];
         }
 
         return view('livewire.election.vote-results-entry', [
@@ -194,6 +210,7 @@ class VoteResultsEntry extends Component
                 'invalid' => $chartInvalid,
                 'turnout' => $chartTurnout,
             ],
+            'totals' => $totals,
         ]);
     }
 }

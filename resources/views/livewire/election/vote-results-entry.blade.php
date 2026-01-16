@@ -1,16 +1,55 @@
 <div class="container-xxl py-6">
-    <div class="card mb-6">
-        <div class="card-header border-0 pt-6">
-            <div class="card-title">
-                <div>
-                    <h3 class="fw-bold mb-0">Vote Results (By Sub Consite)</h3>
-                    <div class="text-muted small">Turnout = Yes + No + Invalid</div>
+    <div class="row g-6 mb-6">
+        <div class="col-12 col-lg-8">
+            <div class="card h-100">
+                <div class="card-header border-0 pt-6">
+                    <div class="card-title">
+                        <div>
+                            <h3 class="fw-bold mb-0">Vote Results (By Sub Consite)</h3>
+                            <div class="text-muted small">Turnout = Yes + No + Invalid</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div wire:ignore>
+                        <div id="vote_results_by_sub_consite" style="min-height: 420px;"></div>
+                    </div>
+                    <div id="vote-results-chart-data" class="d-none" data-chart='@json($chart ?? [])'></div>
+                    <div id="vote-results-totals-data" class="d-none" data-totals='@json($totals ?? [])'></div>
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <div id="vote_results_by_sub_consite" style="min-height: 420px;"></div>
-            <div id="vote-results-chart-data" class="d-none" data-chart='@json($chart ?? [])'></div>
+
+        <div class="col-12 col-lg-4">
+            <div class="card h-100">
+                <div class="card-header border-0 pt-6">
+                    <div class="card-title">
+                        <div>
+                            <h3 class="fw-bold mb-0">Total Votes</h3>
+                            <div class="text-muted small">Yes / No / Invalid</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <div wire:ignore>
+                        <div id="vote_results_totals_pie" style="min-height: 360px;"></div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Yes Votes (Adam Azim)</span>
+                            <span class="fw-semibold">{{ number_format(($totals['yes'] ?? 0)) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">No Votes (Ali Azim)</span>
+                            <span class="fw-semibold">{{ number_format(($totals['no'] ?? 0)) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Invalid Votes</span>
+                            <span class="fw-semibold">{{ number_format(($totals['invalid'] ?? 0)) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -102,9 +141,10 @@
         document.head.appendChild(s);
     }
 
-    let chart = null;
+    let barChart = null;
+    let pieChart = null;
 
-    function readData(){
+    function readBarData(){
         try{
             const el = document.getElementById('vote-results-chart-data');
             if(!el) return { labels: [], eligible: [], yes: [], no: [], invalid: [], turnout: [] };
@@ -116,8 +156,25 @@
         }
     }
 
-    function build(){
-        const data = readData();
+    function readTotals(){
+        try{
+            const el = document.getElementById('vote-results-totals-data');
+            if(!el) return { yes: 0, no: 0, invalid: 0 };
+            const raw = el.dataset.totals;
+            if(!raw) return { yes: 0, no: 0, invalid: 0 };
+            const obj = JSON.parse(raw);
+            return {
+                yes: Number(obj.yes || 0),
+                no: Number(obj.no || 0),
+                invalid: Number(obj.invalid || 0),
+            };
+        }catch(e){
+            return { yes: 0, no: 0, invalid: 0 };
+        }
+    }
+
+    function buildBar(){
+        const data = readBarData();
         const el = document.querySelector('#vote_results_by_sub_consite');
         if(!el) return;
 
@@ -152,19 +209,60 @@
             yaxis: { labels: { formatter: (val) => Number(val).toLocaleString() } },
         };
 
-        try{ chart && chart.destroy(); }catch(e){}
-        chart = new ApexCharts(el, options);
-        chart.render();
+        try{ barChart && barChart.destroy(); }catch(e){}
+        barChart = new ApexCharts(el, options);
+        barChart.render();
+    }
+
+    function buildPie(){
+        const totals = readTotals();
+        const el = document.querySelector('#vote_results_totals_pie');
+        if(!el) return;
+
+        const options = {
+            series: [totals.yes, totals.no, totals.invalid],
+            labels: ['Yes Votes (Adam Azim)', 'No Votes (Ali Azim)', 'Invalid Votes'],
+            chart: {
+                type: 'pie',
+                height: 360,
+                toolbar: { show: false },
+            },
+            legend: { position: 'bottom' },
+            colors: ['#f97316', '#16a34a', '#0ea5e9'],
+            dataLabels: {
+                enabled: true,
+                formatter: function (val, opts) {
+                    const s = opts.w.config.series[opts.seriesIndex] || 0;
+                    return s.toLocaleString() + ' (' + val.toFixed(1) + '%)';
+                }
+            },
+            tooltip: {
+                y: { formatter: (v) => Number(v||0).toLocaleString() }
+            }
+        };
+
+        try{ pieChart && pieChart.destroy(); }catch(e){}
+        pieChart = new ApexCharts(el, options);
+        pieChart.render();
+    }
+
+    function rebuildAll(){
+        buildBar();
+        buildPie();
     }
 
     ensureApex(() => {
-        build();
+        rebuildAll();
 
-        document.addEventListener('livewire:navigated', () => setTimeout(build, 0));
-        document.addEventListener('livewire:updated', () => setTimeout(build, 0));
+        document.addEventListener('livewire:navigated', () => setTimeout(rebuildAll, 0));
+        document.addEventListener('livewire:updated', () => setTimeout(rebuildAll, 0));
+
+        // Fired from Livewire after saving results
+        window.addEventListener('vote-results-updated', () => setTimeout(rebuildAll, 0));
 
         window.addEventListener('resize', () => {
-            try{ chart && chart.resize(); }catch(e){}
+            try{ barChart && barChart.resize(); }catch(e){}
+            try{ pieChart && pieChart.resize(); }catch(e){}
         });
     });
 })();
