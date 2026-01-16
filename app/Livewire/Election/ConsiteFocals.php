@@ -174,6 +174,114 @@ class ConsiteFocals extends Component
         return null;
     }
 
+    public function exportNotVotedCsv()
+    {
+        $this->authorize('consites-focals-exportNotVotedCsv');
+
+        if (!$this->electionId) {
+            abort(400, 'Election is required');
+        }
+
+        $allowed = $this->allowedSubConsiteIds();
+        if (empty($allowed)) {
+            abort(403);
+        }
+
+        $file = 'consites-focals-not-voted-election-'.$this->electionId.'-'.now()->format('Ymd_His').'.csv';
+
+        $q = Directory::query()
+            ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
+            ->where('directories.status', 'Active')
+            ->whereIn('directories.sub_consite_id', $allowed)
+            ->when($this->subConsiteId, fn($qq) => $qq->where('directories.sub_consite_id', $this->subConsiteId))
+            ->when($this->search, function ($qq) {
+                $sRaw = trim((string) $this->search);
+                $s = $sRaw;
+
+                $serialOnly = null;
+                if (preg_match('/^s\s*(\d+)$/i', $sRaw, $m)) {
+                    $serialOnly = $m[1];
+                }
+
+                $qq->where(function ($w) use ($s, $serialOnly) {
+                    $w->where('directories.name', 'like', "%{$s}%")
+                        ->orWhere('directories.id_card_number', 'like', "%{$s}%")
+                        ->orWhere('directories.serial', 'like', "%{$s}%")
+                        ->orWhere('directories.address', 'like', "%{$s}%")
+                        ->orWhere('directories.street_address', 'like', "%{$s}%")
+                        ->orWhereRaw("JSON_SEARCH(directories.phones, 'one', ?) IS NOT NULL", [$s])
+                        ->orWhere('directories.phones', 'like', "%{$s}%");
+
+                    if ($serialOnly !== null) {
+                        $w->orWhere('directories.serial', $serialOnly);
+                    }
+                });
+            })
+            ->whereNotExists(function ($qq) {
+                $qq->selectRaw(1)
+                    ->from('voted_representatives')
+                    ->whereColumn('voted_representatives.directory_id', 'directories.id')
+                    ->where('voted_representatives.election_id', $this->electionId);
+            })
+            ->orderBy('sub_consites.code')
+            ->orderBy('directories.name')
+            ->select([
+                'directories.name',
+                'directories.id_card_number',
+                'directories.serial',
+                'sub_consites.code as sub_consite_code',
+                'sub_consites.name as sub_consite_name',
+                'directories.phones',
+                'directories.street_address',
+                'directories.address',
+            ]);
+
+        return response()->streamDownload(function () use ($q) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($out, [
+                'Name',
+                'NID',
+                'Serial',
+                'SubConsite Code',
+                'SubConsite Name',
+                'Phones',
+                'Street Address',
+                'Address',
+            ]);
+
+            $q->chunk(1000, function ($rows) use ($out) {
+                foreach ($rows as $r) {
+                    $phones = $r->phones;
+                    if (is_array($phones)) {
+                        $phones = implode(', ', array_filter($phones));
+                    } elseif (is_string($phones)) {
+                        $decoded = json_decode($phones, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $phones = implode(', ', array_filter($decoded));
+                        }
+                    }
+
+                    fputcsv($out, [
+                        $r->name,
+                        $r->id_card_number,
+                        $r->serial,
+                        $r->sub_consite_code,
+                        $r->sub_consite_name,
+                        $phones,
+                        $r->street_address,
+                        $r->address,
+                    ]);
+                }
+            });
+
+            fclose($out);
+        }, $file, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function render()
     {
         $this->authorize('consites-focals-render');

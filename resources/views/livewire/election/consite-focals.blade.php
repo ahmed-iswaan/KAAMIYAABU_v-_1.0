@@ -58,6 +58,14 @@
                     <div style="min-width:260px">
                         <input type="text" class="form-control" placeholder="Search name, NID, serial, address or phone" wire:model.live.debounce.400ms="search" />
                     </div>
+
+                    @can('consites-focals-exportNotVotedCsv')
+                        <div style="min-width:220px">
+                            <button type="button" class="btn btn-light-primary w-100" wire:click="exportNotVotedCsv">
+                                Export Not Voted CSV
+                            </button>
+                        </div>
+                    @endcan
                 </div>
             </div>
         </div>
