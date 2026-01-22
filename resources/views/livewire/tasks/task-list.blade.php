@@ -202,6 +202,9 @@
                             <a href="#" wire:click.prevent="exportAgentPerformanceCsv" class="btn btn-sm btn-light-primary" title="Export agent performance (completed/follow up) from logs">
                                 Export Agent Performance
                             </a>
+                            <button type="button" class="btn btn-sm btn-light-dark" wire:click="openUserDailyPerformanceModal" title="Download user daily performance from logs">
+                                User Daily Performance
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -323,6 +326,51 @@
             </div>
         </div>
     </div>
+
+    <!-- User Daily Performance Modal -->
+    @if($showUserDailyPerformanceModal)
+        <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">User Daily Performance</h5>
+                        <button type="button" class="btn-close" aria-label="Close" wire:click="closeUserDailyPerformanceModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">User</label>
+                            <select class="form-select" wire:model.defer="udpUserId">
+                                <option value="">Select user</option>
+                                @foreach($assignees as $a)
+                                    <option value="{{ $a->id }}">{{ $a->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('udpUserId')<div class="text-danger small">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">From</label>
+                                <input type="date" class="form-control" wire:model.defer="udpFromDate" />
+                                @error('udpFromDate')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">To</label>
+                                <input type="date" class="form-control" wire:model.defer="udpToDate" />
+                                @error('udpToDate')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-3">
+                            Exports event logs for the selected user (task status updates/changes) with date, task number, and status.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeUserDailyPerformanceModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="exportUserDailyPerformanceCsv" wire:loading.attr="disabled">Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Livewire events to control modal moved inside the root -->
     <script>

@@ -43,6 +43,12 @@ class TaskList extends Component
     public $bulkAssignUserId = '';          // user to assign
     public array $currentPageTaskIds = [];  // IDs of tasks in current pagination page
 
+    // User Daily Performance (modal + export)
+    public bool $showUserDailyPerformanceModal = false;
+    public string $udpUserId = '';
+    public ?string $udpFromDate = null; // Y-m-d
+    public ?string $udpToDate = null;   // Y-m-d
+
     protected $queryString=[
         'search'=>['except'=>''],
         'status'=>['except'=>''],
@@ -614,6 +620,86 @@ class TaskList extends Component
                     (string)($userMap[$uid] ?? ''),
                     (int)($r->completed_count ?? 0),
                     (int)($r->follow_up_count ?? 0),
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, $headers);
+    }
+
+    public function openUserDailyPerformanceModal(): void
+    {
+        $this->authorize('task-list-render');
+        $this->udpUserId = '';
+        $this->udpFromDate = now()->format('Y-m-d');
+        $this->udpToDate = now()->format('Y-m-d');
+        $this->resetErrorBag();
+        $this->showUserDailyPerformanceModal = true;
+    }
+
+    public function closeUserDailyPerformanceModal(): void
+    {
+        $this->showUserDailyPerformanceModal = false;
+    }
+
+    public function exportUserDailyPerformanceCsv(): StreamedResponse
+    {
+        $this->authorize('task-list-render');
+
+        $this->validate([
+            'udpUserId' => ['required', 'integer', 'exists:users,id'],
+            'udpFromDate' => ['required', 'date'],
+            'udpToDate' => ['required', 'date', 'after_or_equal:udpFromDate'],
+        ], [
+            'udpUserId.required' => 'Select a user.',
+        ]);
+
+        $from = \Carbon\Carbon::parse($this->udpFromDate)->startOfDay();
+        $to = \Carbon\Carbon::parse($this->udpToDate)->endOfDay();
+        $userId = (int) $this->udpUserId;
+
+        $logs = EventLog::query()
+            ->where('event_tab', 'tasks')
+            ->where('user_id', $userId)
+            ->whereBetween('created_at', [$from, $to])
+            ->whereIn('event_type', ['task.status_changed', 'task_update'])
+            ->orderBy('created_at')
+            ->get(['id', 'created_at', 'event_type', 'task_id', 'event_entry_id', 'event_data']);
+
+        $taskIds = $logs->pluck('task_id')->filter()->merge($logs->pluck('event_entry_id')->filter())->unique()->values();
+        $taskMap = Task::whereIn('id', $taskIds)->pluck('number', 'id');
+
+        $filename = 'user-daily-performance-'.$userId.'-'.$from->format('Ymd').'-'.$to->format('Ymd').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ];
+
+        return response()->streamDownload(function () use ($logs, $taskMap) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            // Removed task_id from export; ensure all columns have values
+            fputcsv($out, ['date', 'time', 'task_number', 'status']);
+
+            foreach ($logs as $l) {
+                $taskId = $l->task_id ?: $l->event_entry_id;
+
+                $status = '';
+                if (is_array($l->event_data ?? null)) {
+                    $status = (string)($l->event_data['status'] ?? '');
+                    if (!$status) {
+                        $status = (string)($l->event_data['new_status'] ?? ($l->event_data['to'] ?? ''));
+                    }
+                }
+
+                $taskNumber = (string)($taskMap[$taskId] ?? '');
+
+                fputcsv($out, [
+                    (string)(optional($l->created_at)->format('Y-m-d') ?? '-'),
+                    (string)(optional($l->created_at)->format('H:i:s') ?? '-'),
+                    $taskNumber !== '' ? $taskNumber : '-',
+                    $status !== '' ? $status : '-',
                 ]);
             }
 
