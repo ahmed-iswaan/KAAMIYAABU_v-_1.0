@@ -27,7 +27,8 @@ return new class extends Migration {
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->unique(['election_id', 'directory_id', 'attempt']);
+            // MySQL has a 64 char identifier limit; use a short explicit index name
+            $table->unique(['election_id', 'directory_id', 'attempt'], 'edcss_eid_did_att_uq');
 
             $table->foreign('election_id')->references('id')->on('elections')->cascadeOnDelete();
             $table->foreign('directory_id')->references('id')->on('directories')->cascadeOnDelete();
