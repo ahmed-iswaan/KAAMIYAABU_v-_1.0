@@ -1,0 +1,28 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('directory_phone_statuses', function (Blueprint $table) {
+            if (!Schema::hasColumn('directory_phone_statuses', 'sub_status_id')) {
+                $table->uuid('sub_status_id')->nullable()->after('status');
+            }
+
+            // Keep a short, safe index name
+            $table->index(['sub_status_id'], 'dps_sub_status_id_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('directory_phone_statuses', function (Blueprint $table) {
+            $table->dropIndex('dps_sub_status_id_idx');
+            $table->dropColumn('sub_status_id');
+        });
+    }
+};

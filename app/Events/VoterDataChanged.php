@@ -37,11 +37,10 @@ class VoterDataChanged implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        return [
-            'voter_id' => $this->voter_id,
-            'election_id' => $this->election_id,
-            'change_type' => $this->changeType,
-            'extra' => $this->extra,
-        ];
+        return array_merge([
+            'change_type' => (string) ($this->changeType ?? ''),
+            'voter_id' => (string) ($this->voter_id ?? ''),
+            'election_id' => (string) ($this->election_id ?? ''),
+        ], is_array($this->extra ?? null) ? $this->extra : []);
     }
 }

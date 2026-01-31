@@ -42,6 +42,9 @@ Route::group(['middleware' => ['auth']], function() {
     // Route::get('properties/{property}', ViewProperty::class)
     //          ->name('properties.view')
     //          ->whereUuid('property');
+    Route::get('/elections/manage', \App\Livewire\Election\ElectionManagement::class)
+        ->name('elections.manage')
+        ->middleware('permission:elections-manage-render');
     Route::get('/elections/voters', VoterManagement::class)->name('elections.voters');
     Route::get('/elections/requests', RequestsManagement::class)->name('elections.requests');
     Route::get('/elections/requests/export', [RequestReportController::class, 'exportRequests'])->name('elections.requests.export');
@@ -80,4 +83,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/elections/vote-results', \App\Livewire\Election\VoteResultsEntry::class)
         ->name('elections.vote-results')
         ->middleware('permission:vote-results-entry-render');
+
+    Route::get('/call-center', \App\Livewire\CallCenter\CallCenter::class)
+        ->name('call-center.index')
+        ->middleware('permission:call-center-render');
 });

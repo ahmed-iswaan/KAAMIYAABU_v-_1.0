@@ -76,11 +76,16 @@ class PermissionTableSeeder extends Seeder
             // 'votedRepresentative-markAsVoted',
 
             // Vote results entry
-            'vote-results-entry-render',
-            'vote-results-entry-save',
+            // 'vote-results-entry-render',
+            // 'vote-results-entry-save',
 
-            // Consites focals export
-            // 'consites-focals-exportNotVotedCsv',
+            // Elections management
+            'elections-manage-render',
+            'elections-manage-save',
+            'elections-manage-toggle',
+
+            // Call Center
+            'call-center-render',
         ];
         
         foreach ($permissions as $permission) {

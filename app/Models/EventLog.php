@@ -17,5 +17,6 @@ class EventLog extends Model
         'event_data' => 'array', // Cast JSON to array
     ];
 
+    public function user(){ return $this->belongsTo(User::class,'user_id'); }
     public function task(){ return $this->belongsTo(Task::class,'task_id'); }
 }

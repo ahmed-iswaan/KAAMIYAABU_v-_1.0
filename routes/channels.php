@@ -20,3 +20,16 @@ Broadcast::channel('task.presence.{taskId}', function ($user, $taskId) {
 Broadcast::channel('tasks.global', function ($user) {
     return $user->can('dashboard-render');
 });
+
+Broadcast::channel('call-center.directory.{electionId}.{directoryId}', function ($user, $electionId, $directoryId) {
+    // Reuse existing permission; adjust if you want stricter access checks.
+    if (!$user->can('call-center-render')) {
+        return false;
+    }
+
+    return [
+        'id' => (string) $user->id,
+        'name' => (string) ($user->name ?? ''),
+        'profile_picture' => $user->profile_picture ?? null,
+    ];
+});

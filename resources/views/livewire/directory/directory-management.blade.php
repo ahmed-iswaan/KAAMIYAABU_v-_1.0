@@ -238,7 +238,11 @@
 
    </div><!-- close content wrapper -->
 
-   @stack('scripts')
+   @push('scripts')
+<script>
+// placeholder to ensure stacks remain intact
+</script>
+@endpush
 </div><!-- close livewire root -->
 
 

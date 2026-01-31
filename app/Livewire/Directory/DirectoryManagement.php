@@ -19,6 +19,7 @@ use App\Models\SubConsite;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Cache; // added
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Models\DirectoryPhoneStatus;
 
 class DirectoryManagement extends Component
 {
@@ -102,6 +103,10 @@ class DirectoryManagement extends Component
     public $islands;
     public $properties;
     protected $referenceLoaded = false;
+
+    // Call status (per number)
+    public array $phoneCallStatuses = []; // [normalizedPhone => status]
+    public array $phoneCallNotes = [];    // [normalizedPhone => notes]
 
     public function mount()
     {
@@ -483,6 +488,10 @@ class DirectoryManagement extends Component
         }
 
         $this->dispatch('reinit-edit-select2');
+
+        // Call Status (per number)
+        $this->loadPhoneCallStatuses((string) $id);
+
         $this->openEdit();
     }
 
@@ -815,5 +824,68 @@ class DirectoryManagement extends Component
         $this->fetchIslands();
         $this->syncProperties();
         $this->dispatch('debug-log', ['message' => 'refreshIslands called -> islands: '.$this->islands->count()]);
+    }
+
+    protected function loadPhoneCallStatuses(?string $directoryId): void
+    {
+        $this->phoneCallStatuses = [];
+        $this->phoneCallNotes = [];
+
+        if (!$directoryId) return;
+
+        $directory = Directory::with('phoneStatuses')->find($directoryId);
+        if (!$directory) return;
+
+        foreach (($directory->phones ?? []) as $p) {
+            $norm = DirectoryPhoneStatus::normalizePhone($p);
+            if (!$norm) continue;
+            $this->phoneCallStatuses[$norm] = DirectoryPhoneStatus::STATUS_NOT_CALLED;
+            $this->phoneCallNotes[$norm] = '';
+        }
+
+        foreach ($directory->phoneStatuses as $row) {
+            $norm = DirectoryPhoneStatus::normalizePhone($row->phone);
+            if (!$norm) continue;
+            $this->phoneCallStatuses[$norm] = $row->status ?: DirectoryPhoneStatus::STATUS_NOT_CALLED;
+            $this->phoneCallNotes[$norm] = (string)($row->notes ?? '');
+        }
+    }
+
+    public function updatePhoneCallStatus(string $directoryId, string $phone, string $status): void
+    {
+        $this->authorize('directory-render');
+
+        $norm = DirectoryPhoneStatus::normalizePhone($phone);
+        if (!$norm) return;
+
+        if (!in_array($status, DirectoryPhoneStatus::STATUSES, true)) {
+            $status = DirectoryPhoneStatus::STATUS_NOT_CALLED;
+        }
+
+        $notes = (string)($this->phoneCallNotes[$norm] ?? '');
+
+        $row = DirectoryPhoneStatus::firstOrNew([
+            'directory_id' => $directoryId,
+            'phone' => $norm,
+        ]);
+
+        $row->status = $status;
+        $row->notes = $notes !== '' ? $notes : null;
+        $row->last_called_at = now();
+        $row->last_called_by = auth()->id();
+        $row->save();
+
+        $this->phoneCallStatuses[$norm] = $status;
+
+        $this->dispatch('$refresh');
+    }
+
+    public function updatePhoneCallNotes(string $directoryId, string $phone): void
+    {
+        $norm = DirectoryPhoneStatus::normalizePhone($phone);
+        if (!$norm) return;
+
+        $status = (string)($this->phoneCallStatuses[$norm] ?? DirectoryPhoneStatus::STATUS_NOT_CALLED);
+        $this->updatePhoneCallStatus($directoryId, $norm, $status);
     }
 }

@@ -10,12 +10,23 @@
                     <div class="card-body py-6 px-7">
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-6">
                             <div class="d-flex flex-column">
-                                <span class="fs-1 fw-bold text-white">My Tasks</span>
-                                <span class="fs-8 text-white">Live status summary</span>
+                                <span class="fs-1 fw-bold text-white">Overview</span>
+                                <span class="fs-8 text-white">Totals for directories you can access (current filters/search applied).</span>
                             </div>
-                            <span class="badge bg-white bg-opacity-15 border border-white border-opacity-25 text-white fw-semibold px-4 py-3">Total {{ $taskTotal }}</span>
+                            <span class="badge bg-white bg-opacity-15 border border-white border-opacity-25 text-white fw-semibold px-4 py-3">Total {{ number_format($overviewTotal ?? 0) }}</span>
                         </div>
-                        @php $pendingPct = $taskTotal ? round(($taskPending/$taskTotal)*100) : 0; $followPct = $taskTotal ? round(($taskFollowUp/$taskTotal)*100) : 0; $completedPct = $taskTotal ? round(($taskCompleted/$taskTotal)*100) : 0; @endphp
+
+                        @php
+                            $tAll = (int)($overviewTotal ?? 0);
+                            $tDone = (int)($overviewCompleted ?? 0);
+                            $tPending = (int)($overviewPending ?? 0);
+                            $tByMe = (int)($overviewCompletedByMe ?? 0);
+
+                            $pendingPct = $tAll ? round(($tPending/$tAll)*100) : 0;
+                            $completedPct = $tAll ? round(($tDone/$tAll)*100) : 0;
+                            $byMePct = $tAll ? round(($tByMe/$tAll)*100) : 0;
+                        @endphp
+
                         <div class="d-flex flex-column flex-lg-row align-items-stretch gap-6">
                             <!-- Pending -->
                             <div class="flex-lg-fill min-w-0">
@@ -26,7 +37,7 @@
                                     <div class="flex-grow-1">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="text-white fw-semibold">Pending</span>
-                                            <span class="fw-bold text-warning">{{ $taskPending }} <span class="fs-8 text-white">({{ $pendingPct }}%)</span></span>
+                                            <span class="fw-bold text-warning">{{ $tPending }} <span class="fs-8 text-white">({{ $pendingPct }}%)</span></span>
                                         </div>
                                         <div class="progress bg-white bg-opacity-15 mt-2" style="height:6px;">
                                             <div class="progress-bar bg-warning" style="width: {{ $pendingPct }}%"></div>
@@ -34,23 +45,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Follow Up -->
-                            <div class="flex-lg-fill min-w-0">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="symbol symbol-45px me-4">
-                                        <div class="symbol-label bg-info bg-opacity-20"><span class="text-info fw-bold">F</span></div>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="text-white fw-semibold">Follow Up</span>
-                                            <span class="fw-bold text-info">{{ $taskFollowUp }} <span class="fs-8 text-white">({{ $followPct }}%)</span></span>
-                                        </div>
-                                        <div class="progress bg-white bg-opacity-15 mt-2" style="height:6px;">
-                                            <div class="progress-bar bg-info" style="width: {{ $followPct }}%"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+
                             <!-- Completed -->
                             <div class="flex-lg-fill min-w-0">
                                 <div class="d-flex align-items-center mb-3">
@@ -60,7 +55,7 @@
                                     <div class="flex-grow-1">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="text-white fw-semibold">Completed</span>
-                                            <span class="fw-bold text-success">{{ $taskCompleted }} <span class="fs-8 text-white">({{ $completedPct }}%)</span></span>
+                                            <span class="fw-bold text-success">{{ $tDone }} <span class="fs-8 text-white">({{ $completedPct }}%)</span></span>
                                         </div>
                                         <div class="progress bg-white bg-opacity-15 mt-2" style="height:6px;">
                                             <div class="progress-bar bg-success" style="width: {{ $completedPct }}%"></div>
@@ -68,7 +63,26 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Completed by me -->
+                            <div class="flex-lg-fill min-w-0">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="symbol symbol-45px me-4">
+                                        <div class="symbol-label bg-primary bg-opacity-20"><span class="text-primary fw-bold">M</span></div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="text-white fw-semibold">Completed by me</span>
+                                            <span class="fw-bold text-primary">{{ $tByMe }} <span class="fs-8 text-white">({{ $byMePct }}%)</span></span>
+                                        </div>
+                                        <div class="progress bg-white bg-opacity-15 mt-2" style="height:6px;">
+                                            <div class="progress-bar bg-primary" style="width: {{ $byMePct }}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
                         <div class="mt-6 pt-4 border-top border-white border-opacity-25">
                             <div class="d-flex justify-content-between small text-white">
                                 <span>Refreshed {{ now()->format('H:i') }}</span>
@@ -87,8 +101,8 @@
             <div class="col-xl-6">
                 <div class="card card-flush p-6 shadow-sm h-100">
                     <div class="d-flex align-items-center justify-content-between mb-4">
-                        <div class="fs-5 fw-bold">Directories Without Tasks</div>
-                        <div class="fs-7 text-muted">{{ number_format($directoriesWithNoTasks) }} Active directories have no tasks</div>
+                        <div class="fs-5 fw-bold">Directories Pending and Completed</div>
+                        <div class="fs-7 text-muted">Current active election (call status)</div>
                     </div>
                     <div class="position-relative" style="height: 320px;">
                         <canvas id="dashNoTaskPie" wire:ignore class="position-absolute top-0 start-0 w-100 h-100"></canvas>
@@ -98,9 +112,7 @@
                         </div>
                     </div>
                     <div class="d-flex flex-wrap gap-6 mt-4">
-                        <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f1416c;"></span><span class="fs-7 text-muted">No Task</span></div>
                         <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f6c000;"></span><span class="fs-7 text-muted">Pending</span></div>
-                        <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#3e97ff;"></span><span class="fs-7 text-muted">Follow-up</span></div>
                         <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#50cd89;"></span><span class="fs-7 text-muted">Completed</span></div>
                     </div>
                 </div>
@@ -108,8 +120,8 @@
             <div class="col-xl-6">
                 <div class="card card-flush p-6 shadow-sm h-100">
                     <div class="d-flex align-items-center justify-content-between mb-4">
-                        <div class="fs-5 fw-bold">Tasks by SubConsite</div>
-                        <div class="fs-7 text-muted">Pending / Follow-up / Completed / No Task</div>
+                        <div class="fs-5 fw-bold">Directories by SubConsite</div>
+                        <div class="fs-7 text-muted">Pending / Completed (current active election)</div>
                     </div>
                     <div style="height: 320px;">
                         <canvas id="dashSubConsiteStatusChart" wire:ignore></canvas>
@@ -131,7 +143,7 @@
                             </div>
                             <div>
                                 <h4 class="fw-bold mb-0">Users Task Performance</h4>
-                                <div class="text-muted fs-8">Assigned task stats + personal completion counts</div>
+                                <div class="text-muted fs-8">Limited to your SubConsite directories</div>
                             </div>
                         </div>
                         <span class="badge badge-light-success fs-8 fw-semibold px-4 py-2">{{ count($userTaskStats) }} Users</span>
@@ -144,10 +156,10 @@
                                         <th class="ps-3">#</th>
                                         <th>User</th>
                                         <th class="text-center">Total Assigned</th>
+                                        <th class="text-center">Pending</th>
+                                        <th class="text-center">Completed (Assigned)</th>
                                         <th class="text-center">Completed By User</th>
-                                        <th class="text-center">Daily By User</th>
-                                        <th class="text-center">Follow Up By User</th>
-                                        <th class="text-center">Daily Follow Up By User</th>
+                                        <th class="text-center">Completed Today</th>
                                         <th class="text-end pe-3" style="min-width:160px;">Completion %</th>
                                     </tr>
                                 </thead>
@@ -164,10 +176,10 @@
                                                 </div>
                                             </td>
                                             <td class="text-center fw-bold">{{ $row['total'] }}</td>
-                                            <td class="text-center"><span class="badge badge-light-primary fw-semibold" title="All tasks user completed (completed_by)">{{ $row['completed_by_user'] }}</span></td>
-                                            <td class="text-center"><span class="badge badge-light-dark fw-semibold" title="Tasks user completed today (completed_by)">{{ $row['completed_by_user_today'] }}</span></td>
-                                            <td class="text-center"><span class="badge badge-light-info fw-semibold" title="All tasks user placed in follow up (follow_up_by)">{{ $row['follow_up_by_user'] }}</span></td>
-                                            <td class="text-center"><span class="badge badge-light-warning fw-semibold" title="Tasks user set to follow up today (follow_up_by)">{{ $row['follow_up_by_user_today'] }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-warning fw-semibold">{{ $row['pending'] }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-success fw-semibold">{{ $row['completed_assigned'] ?? 0 }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-primary fw-semibold" title="Completed by this user (election_directory_call_statuses.updated_by)">{{ $row['completed_by_user'] }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-dark fw-semibold" title="Completed by this user today (election_directory_call_statuses.updated_by)">{{ $row['completed_by_user_today'] ?? 0 }}</span></td>
                                             <td class="text-end pe-3">
                                                 <div class="d-flex align-items-center justify-content-end gap-3">
                                                     <div class="progress w-100" style="max-width:120px;height:6px;">
@@ -178,7 +190,7 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="8" class="text-muted fst-italic py-10 text-center">No task assignments found.</td></tr>
+                                        <tr><td colspan="8" class="text-muted fst-italic py-10 text-center">No data found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
@@ -228,17 +240,15 @@
             };
 
             function buildDashboardCharts(){
-                // Pie
+                // Pie (Election call status)
                 const pieEl = document.getElementById('dashNoTaskPie');
                 if(pieEl && window.Chart){
                     const data = [
-                        parseInt(@json($directoriesWithNoTasks ?? 0), 10) || 0,
-                        parseInt(@json($piePendingDirs ?? 0), 10) || 0,
-                        parseInt(@json($pieFollowUpDirs ?? 0), 10) || 0,
-                        parseInt(@json($pieCompletedDirs ?? 0), 10) || 0,
+                        parseInt(@json($pieElectionPendingDirs ?? 0), 10) || 0,
+                        parseInt(@json($pieElectionCompletedDirs ?? 0), 10) || 0,
                     ];
-                    const labels = ['No Task','Pending','Follow-up','Completed'];
-                    const colors = ['#f1416c','#f6c000','#3e97ff','#50cd89'];
+                    const labels = ['Pending','Completed'];
+                    const colors = ['#f6c000','#50cd89'];
                     if(window.__dashNoTaskPie){ window.__dashNoTaskPie.destroy(); }
                     window.__dashNoTaskPie = new Chart(pieEl, {
                         type: 'doughnut',
@@ -246,18 +256,17 @@
                         options: { responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ position:'bottom' } } }
                     });
                     const totalEl = document.getElementById('dashNoTaskTotal');
-                    if(totalEl){ totalEl.textContent = (parseInt(@json($activeDirectories ?? 0),10)||0).toLocaleString(); }
+                    if(totalEl){ totalEl.textContent = (parseInt(@json($overviewTotal ?? 0),10)||0).toLocaleString(); }
                 }
 
-                // Stacked bar
+                // Stacked bar (Pending vs Completed by SubConsite)
                 const barEl = document.getElementById('dashSubConsiteStatusChart');
                 if(barEl && window.Chart){
                     const labels = @json($subConsiteLabels ?? []);
                     if(!labels.length) return;
                     const pending = @json($subConsitePending ?? []);
-                    const followUp = @json($subConsiteFollowUp ?? []);
                     const completed = @json($subConsiteCompleted ?? []);
-                    const noTask = @json($subConsiteNoTask ?? []);
+
                     if(window.__dashSubChart){ window.__dashSubChart.destroy(); }
                     window.__dashSubChart = new Chart(barEl, {
                         type:'bar',
@@ -265,9 +274,7 @@
                             labels,
                             datasets:[
                                 { label:'Pending', data:pending, backgroundColor:'#f6c000' },
-                                { label:'Follow-up', data:followUp, backgroundColor:'#3e97ff' },
                                 { label:'Completed', data:completed, backgroundColor:'#50cd89' },
-                                { label:'No Task', data:noTask, backgroundColor:'#f1416c' },
                             ]
                         },
                         options:{

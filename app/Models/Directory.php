@@ -129,18 +129,18 @@ class Directory extends Model
     public function permanentLocationString()
     {
         $locationParts = [];
-        if ($this->country) {
-            $locationParts[] = 'Country: ' . $this->country->name;
-        }
+        // if ($this->country) {
+        //     $locationParts[] = $this->country->name;
+        // }
         if ($this->property) {
-            $locationParts[] = 'Property: ' . $this->property->name;
+            $locationParts[] = $this->property->name;
         }
         if ($this->address) {
-            $locationParts[] = 'Address: ' . $this->address;
+            $locationParts[] = $this->address;
         }
-        if ($this->street_address) {
-            $locationParts[] = 'Street: ' . $this->street_address;
-        }
+        // if ($this->street_address) {
+        //     $locationParts[] = $this->street_address;
+        // }
 
         return !empty($locationParts) ? implode(', ', $locationParts) : 'N/A';
     }
@@ -149,16 +149,16 @@ class Directory extends Model
     {
         $locationParts = [];
         if ($this->currentCountry) {
-            $locationParts[] = 'Country: ' . $this->currentCountry->name;
+            $locationParts[] = $this->currentCountry->name;
         }
         if ($this->currentProperty) {
-            $locationParts[] = 'Property: ' . $this->currentProperty->name;
+            $locationParts[] = $this->currentProperty->name;
         }
         if ($this->current_address) {
-            $locationParts[] = 'Address: ' . $this->current_address;
+            $locationParts[] = $this->current_address;
         }
         if ($this->current_street_address) {
-            $locationParts[] = 'Street: ' . $this->current_street_address;
+            $locationParts[] = $this->current_street_address;
         }
 
         return !empty($locationParts) ? implode(', ', $locationParts) : 'N/A';

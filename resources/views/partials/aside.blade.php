@@ -55,6 +55,22 @@
                                         </a>
                                     </div>
                                     @endcan
+                                                                   @can('call-center-render')
+                                <!--begin:Menu item (Call Center) -->
+                                <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('call-center') ? 'active' : '' }}" href="{{ route('call-center.index') }}">
+                                        <span class="menu-icon">
+                                            <i class="ki-duotone ki-call fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                                <span class="path3"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Call Center</span>
+                                    </a>
+                                </div>
+                                <!--end:Menu item (Call Center) -->
+                                @endcan
                                   @can('agent-render')                               <!--begin:Menu item (Agents) -->
                                  <div class="menu-item">
                                     <a class="menu-link {{ request()->is('agents') ? 'active' : '' }}" href="/agents">
@@ -287,6 +303,18 @@
                                     </a>
                                 </div>
                                 @endcan
+                                                                {{-- Elections --}}
+                                @can('elections-manage-render')
+                                <div class="menu-item">
+                                    <a class="menu-link" href="{{ route('elections.manage') }}">
+                                        <span class="menu-icon"><i class="ki-duotone ki-questionnaire-tablet fs-2">
+                                            <span class="path1"></span>
+                                            <span class="path2"></span>
+                                        </i></span>
+                                        <span class="menu-title">Elections</span>
+                                    </a>
+                                </div>
+                                @endcan
                                 @can('user-render')
                                <!--begin:Menu item-->
                                   <div class="menu-item">
@@ -352,6 +380,8 @@
 								</div>
 								<!--end:Menu item-->
                                 @endcan
+ 
+
 							</div>
 						</div>
 						<!--end::Menu-->

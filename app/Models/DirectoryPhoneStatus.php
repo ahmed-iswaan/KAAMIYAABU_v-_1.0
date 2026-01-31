@@ -36,6 +36,7 @@ class DirectoryPhoneStatus extends Model
         'directory_id',
         'phone',
         'status',
+        'sub_status_id',
         'notes',
         'last_called_at',
         'last_called_by',

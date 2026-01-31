@@ -134,6 +134,49 @@
                         <button type="button" class="btn btn-sm btn-light-primary" wire:click="editAddPhoneField"><i class="ki-duotone ki-plus fs-2"><span class="path1"></span><span class="path2"></span></i>Add Phone</button>
                         @error('edit_phones') <div class="text-danger">{{ $message }}</div> @enderror
                         @error('edit_phones.*') <div class="text-danger">{{ $message }}</div> @enderror
+
+                        @php
+                            $phonesList = is_array($edit_phones) ? array_filter($edit_phones) : [];
+                        @endphp
+
+                        @if(count($phonesList))
+                            <div class="mt-4 p-4 rounded border border-dashed">
+                                <div class="fw-semibold mb-2">Call Status (per number)</div>
+
+                                @foreach($phonesList as $p)
+                                    @php
+                                        $norm = preg_replace('/\D+/', '', (string) $p);
+                                        $currentStatus = $this->phoneCallStatuses[$norm] ?? 'not_called';
+                                    @endphp
+
+                                    <div class="row g-2 align-items-center mb-2">
+                                        <div class="col-md-3">
+                                            <span class="badge badge-light-dark">{{ $p }}</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select class="form-select form-select-sm form-select-solid"
+                                                    wire:change="updatePhoneCallStatus('{{ $editingDirectoryId }}', '{{ $norm }}', $event.target.value)">
+                                                <option value="not_called" @selected($currentStatus==='not_called')>Not called</option>
+                                                <option value="completed" @selected($currentStatus==='completed')>Completed</option>
+                                                <option value="wrong_number" @selected($currentStatus==='wrong_number')>Wrong number</option>
+                                                <option value="no_answer" @selected($currentStatus==='no_answer')>No answer</option>
+                                                <option value="busy" @selected($currentStatus==='busy')>Busy</option>
+                                                <option value="switched_off" @selected($currentStatus==='switched_off')>Switched off</option>
+                                                <option value="callback" @selected($currentStatus==='callback')>Call back</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input type="text" class="form-control form-control-sm form-control-solid"
+                                                   placeholder="Notes (optional)"
+                                                   wire:model.lazy="phoneCallNotes.{{ $norm }}"
+                                                   wire:change="updatePhoneCallNotes('{{ $editingDirectoryId }}', '{{ $norm }}')" />
+                                        </div>
+                                    </div>
+                                @endforeach
+
+                                <div class="fs-8 text-muted mt-2">Saved automatically when status/notes change.</div>
+                            </div>
+                        @endif
                     </div>
 
                     <!-- Contact Info -->

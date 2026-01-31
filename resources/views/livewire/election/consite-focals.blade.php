@@ -78,27 +78,18 @@
                 <div class="d-flex flex-column gap-4">
                     @forelse($directories as $d)
                         @php
-                            $initials = '';
-                            if(trim((string)($d->name ?? ''))){
-                                $parts = preg_split('/\s+/', trim((string)$d->name));
-                                $chars = array_map(fn($p) => mb_substr($p,0,1), $parts);
-                                $initials = mb_strtoupper(mb_substr(implode('', $chars), 0, 2));
-                            }
                             $perm = trim(($d->street_address ?? '') . (($d->street_address && $d->address) ? ' / ' : '') . ($d->address ?? ''));
                             $phones = $d->phones;
                             if (is_array($phones)) { $phones = implode(', ', array_filter($phones)); }
                             $imgUrl = $directoryImageUrls[$d->id] ?? null;
+                            $fallback = asset('assets/media/avatars/blank.png');
                         @endphp
 
                         <div class="card border-0 shadow-sm">
                             <div class="card-body p-4">
                                 <div class="d-flex align-items-start gap-3">
                                     <div class="symbol symbol-50px symbol-circle flex-shrink-0">
-                                        @if(!empty($imgUrl))
-                                            <img src="{{ $imgUrl }}" alt="{{ $d->name }}" class="w-50px h-50px object-fit-cover" />
-                                        @else
-                                            <span class="symbol-label bg-light-primary text-primary fw-bold">{{ $initials ?: '—' }}</span>
-                                        @endif
+                                        <img src="{{ $imgUrl ?: $fallback }}" alt="{{ $d->name }}" class="w-50px h-50px object-fit-cover" />
                                     </div>
 
                                     <div class="flex-grow-1">
@@ -160,22 +151,13 @@
                     <tbody>
                         @forelse($directories as $d)
                             @php
-                                $initials = '';
-                                if(trim((string)($d->name ?? ''))){
-                                    $parts = preg_split('/\s+/', trim((string)$d->name));
-                                    $chars = array_map(fn($p) => mb_substr($p,0,1), $parts);
-                                    $initials = mb_strtoupper(mb_substr(implode('', $chars), 0, 2));
-                                }
                                 $imgUrl = $directoryImageUrls[$d->id] ?? null;
+                                $fallback = asset('assets/media/avatars/blank.png');
                             @endphp
                             <tr>
                                 <td class="ps-4">
                                     <div class="symbol symbol-40px symbol-circle">
-                                        @if(!empty($imgUrl))
-                                            <img src="{{ $imgUrl }}" alt="{{ $d->name }}" class="w-40px h-40px object-fit-cover" />
-                                        @else
-                                            <span class="symbol-label bg-light-primary text-primary fw-bold">{{ $initials ?: '—' }}</span>
-                                        @endif
+                                        <img src="{{ $imgUrl ?: $fallback }}" alt="{{ $d->name }}" class="w-40px h-40px object-fit-cover" />
                                     </div>
                                 </td>
                                 <td><div class="fw-semibold">{{ $d->name }}</div></td>
