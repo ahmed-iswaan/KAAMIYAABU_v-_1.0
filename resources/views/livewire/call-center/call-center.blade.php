@@ -61,6 +61,11 @@
                                     <option value="{{ $sc->id }}">{{ $sc->code }}{{ $sc->name ? ' - '.$sc->name : '' }}</option>
                                 @endforeach
                             </select>
+                            <select class="form-select form-select-sm" style="min-width: 160px;" wire:model.live="filterStatus">
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                                <option value="all">All</option>
+                            </select>
                         </div>
 
                         <div class="ms-auto d-flex align-items-center gap-2">
@@ -326,7 +331,7 @@
                     <div wire:key="cc-modal-body-{{ $selectedDirectoryId ?? 'none' }}-{{ $modalRenderTick ?? 0 }}">
                     @if($selectedDirectory)
                         @php
-                            $imgUrl = $directoryImageUrls[$selectedDirectory->id] ?? null;
+                            $imgUrl = $selectedDirectoryImageUrl ?? ($directoryImageUrls[$selectedDirectory->id] ?? null);
                             $fallback = asset('assets/media/avatars/blank.png');
                             $phones = is_array($selectedDirectory->phones) ? implode(' / ', array_filter($selectedDirectory->phones)) : (is_string($selectedDirectory->phones ?? null) ? $selectedDirectory->phones : '');
                             $perm = method_exists($selectedDirectory, 'permanentLocationString') ? $selectedDirectory->permanentLocationString() : ($selectedDirectory->address ?? 'N/A');
@@ -335,8 +340,8 @@
                         <!-- Enhanced Profile Header -->
                         <div class="bg-light rounded-3 p-5 mb-6 border border-gray-200">
                             <div class="d-flex align-items-start gap-4">
-                                <div class="symbol symbol-70px symbol-circle flex-shrink-0 border border-3 border-white shadow-sm">
-                                    <img src="{{ $imgUrl ?: $fallback }}" alt="{{ $selectedDirectory->name }}" class="w-100 h-100 object-fit-cover" />
+                                <div class="symbol symbol-70px symbol-circle flex-shrink-0 border border-3 border-white shadow-sm" style="width:70px;height:70px;">
+                                    <img src="{{ $imgUrl ?: $fallback }}" alt="{{ $selectedDirectory->name }}" style="width:70px;height:70px;object-fit:cover;border-radius:50%;display:block;" />
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
@@ -387,10 +392,11 @@
                                                             Undo
                                                         </button>
                                                     @endcan
-
+                                                    @can('call-center-mark-completed')
                                                     <span class="badge badge-light-{{ $dirStatusBadgeColor }} fs-7 fw-bold px-3 py-2">
                                                         {{ $dirStatusLabelMap[$dirStatus] ?? $dirStatus }}
                                                     </span>
+                                                   @endcan
                                                 @else
                                                     @can('call-center-mark-completed')
                                                         <button type="button"
@@ -680,10 +686,12 @@
 
                                                     @if($activeElectionId)
                                                         <div class="mt-3 d-flex justify-content-end">
-                                                            <button type="button" class="btn btn-sm btn-icon btn-light-danger w-25px h-25px"
-                                                                    wire:click="clearAttempt('{{ $a }}')" title="Clear attempt">
-                                                                <i class="ki-duotone ki-trash fs-5"><span class="path1"></span><span class="path2"></span><span class="path3"></span><span class="path4"></span><span class="path5"></span></i>
-                                                            </button>
+                                                            @can('call-center-clear-attempt')
+                                                                <button type="button" class="btn btn-sm btn-icon btn-light-danger w-25px h-25px"
+                                                                        wire:click="clearAttempt('{{ $a }}')" title="Clear attempt">
+                                                                    <i class="ki-duotone ki-trash fs-5"><span class="path1"></span><span class="path2"></span><span class="path3"></span><span class="path4"></span><span class="path5"></span></i>
+                                                                </button>
+                                                            @endcan
                                                         </div>
                                                     @endif
                                                 </div>

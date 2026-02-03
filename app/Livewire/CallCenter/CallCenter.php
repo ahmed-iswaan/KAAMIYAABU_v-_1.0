@@ -34,6 +34,7 @@ class CallCenter extends Component
 
     public string $search = '';
     public string $filterSubConsiteId = '';
+    public string $filterStatus = 'pending';
     public int $perPage = 25;
 
     // Modal state
@@ -115,11 +116,13 @@ class CallCenter extends Component
     protected $queryString = [
         'search' => ['except' => ''],
         'filterSubConsiteId' => ['except' => ''],
+        'filterStatus' => ['except' => 'pending'],
         'perPage' => ['except' => 25],
     ];
 
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingFilterSubConsiteId(): void { $this->resetPage(); }
+    public function updatingFilterStatus(): void { $this->resetPage(); }
     public function updatedPerPage(): void { $this->resetPage(); }
 
     public function mount(): void
@@ -894,7 +897,7 @@ class CallCenter extends Component
 
     public function clearAttempt(string $attempt): void
     {
-        $this->authorize('call-center-render');
+        $this->authorize('call-center-clear-attempt');
 
         $attemptInt = (int) $attempt;
         if (!in_array($attemptInt, ElectionDirectoryCallSubStatus::ATTEMPTS, true)) return;
@@ -1167,40 +1170,41 @@ class CallCenter extends Component
     {
         $this->authorize('call-center-render');
 
-        $allowed = $this->allowedSubConsiteIds();
-
         // Totals for all directories visible to this user (respect filters/search)
-        $allDirIdsQuery = Directory::query()
-            ->where('status', 'Active')
-            ->whereIn('sub_consite_id', $allowed)
-            ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
-            ->when($this->search, function ($q) {
-                $term = trim($this->search);
-                $q->where(function ($qq) use ($term) {
-                    $qq->where('name', 'like', '%' . $term . '%')
-                        ->orWhere('id_card_number', 'like', '%' . $term . '%')
-                        ->orWhere('serial', 'like', '%' . $term . '%')
-                        ->orWhere('phones', 'like', '%' . $term . '%')
-                        ->orWhere('address', 'like', '%' . $term . '%');
-                });
-            });
-
-        $allDirectoryIds = $allDirIdsQuery->pluck('id')->map(fn($v) => (string)$v)->all();
-        $totalAll = count($allDirectoryIds);
+        $totalAll = 0;
         $totalCompleted = 0;
         $totalCompletedByMe = 0;
-        $totalPending = $totalAll;
+        $totalPending = 0;
 
-        if ($this->activeElectionId && $totalAll) {
+        $allowed = $this->allowedSubConsiteIds();
+
+        if ($this->activeElectionId && count($allowed)) {
+            $baseTotalsQuery = Directory::query()
+                ->where('status', 'Active')
+                ->whereIn('sub_consite_id', $allowed)
+                ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
+                ->when($this->search, function ($q) {
+                    $term = trim($this->search);
+                    $q->where(function ($qq) use ($term) {
+                        $qq->where('name', 'like', '%' . $term . '%')
+                            ->orWhere('id_card_number', 'like', '%' . $term . '%')
+                            ->orWhere('serial', 'like', '%' . $term . '%')
+                            ->orWhere('phones', 'like', '%' . $term . '%')
+                            ->orWhere('address', 'like', '%' . $term . '%');
+                    });
+                });
+
+            $totalAll = (clone $baseTotalsQuery)->count();
+
             $statuses = ElectionDirectoryCallStatus::query()
                 ->where('election_id', (string) $this->activeElectionId)
-                ->whereIn('directory_id', $allDirectoryIds)
+                ->whereIn('directory_id', (clone $baseTotalsQuery)->pluck('id')->map(fn($v) => (string)$v)->all())
                 ->get(['directory_id', 'status', 'updated_by']);
 
             $totalCompleted = $statuses->where('status', 'completed')->count();
             $totalCompletedByMe = $statuses
                 ->where('status', 'completed')
-                ->where('updated_by', auth()->id())
+                ->where('updated_by', (string) auth()->id())
                 ->count();
 
             $totalPending = max(0, $totalAll - $totalCompleted);
@@ -1216,6 +1220,19 @@ class CallCenter extends Component
             ->where('status', 'Active')
             ->whereIn('sub_consite_id', $allowed)
             ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
+            ->when($this->filterStatus === 'completed' && $this->activeElectionId, function ($q) {
+                $q->whereIn('id', ElectionDirectoryCallStatus::query()
+                    ->where('election_id', (string) $this->activeElectionId)
+                    ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                    ->select('directory_id'));
+            })
+            ->when($this->filterStatus === 'pending' && $this->activeElectionId, function ($q) {
+                $completedIds = ElectionDirectoryCallStatus::query()
+                    ->where('election_id', (string) $this->activeElectionId)
+                    ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                    ->select('directory_id');
+                $q->whereNotIn('id', $completedIds);
+            })
             ->when($this->search, function ($q) {
                 $term = trim($this->search);
                 $q->where(function ($qq) use ($term) {
@@ -1268,6 +1285,7 @@ class CallCenter extends Component
             'directories' => $directories,
             'subConsites' => $subConsites,
             'directoryImageUrls' => $directories->getCollection()->mapWithKeys(fn($d) => [$d->id => $this->directoryImageUrl($d)]),
+            'selectedDirectoryImageUrl' => $this->selectedDirectory ? $this->directoryImageUrl($this->selectedDirectory) : null,
             'listStatuses' => $listStatuses,
             'listSubStatuses' => $listSubStatuses,
             'activeSubStatuses' => $this->activeSubStatuses,

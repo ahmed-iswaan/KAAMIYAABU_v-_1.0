@@ -86,11 +86,12 @@ class PermissionTableSeeder extends Seeder
 
             // Call Center (granular)
             // 'call-center-render',
-            'call-center-notes',
-            'call-center-call-status',
-            'call-center-history',
-            'call-center-mark-completed',
-            'call-center-undo-status',
+            // 'call-center-notes',
+            // 'call-center-call-status',
+            // 'call-center-history',
+            // 'call-center-mark-completed',
+            // 'call-center-undo-status',
+            'call-center-clear-attempt',
         ];
         
         foreach ($permissions as $permission) {
