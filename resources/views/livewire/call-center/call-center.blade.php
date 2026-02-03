@@ -378,17 +378,29 @@
                                                 @endphp
 
                                                 @if($dirStatus === 'completed')
+                                                    @can('call-center-undo-status')
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-light-warning fw-bold px-4 py-2"
+                                                                wire:click="undoDirectoryStatus"
+                                                                @disabled(!$activeElectionId)>
+                                                            <i class="ki-duotone ki-arrow-left fs-2 me-1"><span class="path1"></span><span class="path2"></span></i>
+                                                            Undo
+                                                        </button>
+                                                    @endcan
+
                                                     <span class="badge badge-light-{{ $dirStatusBadgeColor }} fs-7 fw-bold px-3 py-2">
                                                         {{ $dirStatusLabelMap[$dirStatus] ?? $dirStatus }}
                                                     </span>
                                                 @else
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-light-success fw-bold px-4 py-2"
-                                                            wire:click="markAsCompleted"
-                                                            @disabled(!$activeElectionId)>
-                                                        <i class="ki-duotone ki-check fs-2 me-1"><span class="path1"></span><span class="path2"></span></i>
-                                                        Completed
-                                                    </button>
+                                                    @can('call-center-mark-completed')
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-light-success fw-bold px-4 py-2"
+                                                                wire:click="markAsCompleted"
+                                                                @disabled(!$activeElectionId)>
+                                                            <i class="ki-duotone ki-check fs-2 me-1"><span class="path1"></span><span class="path2"></span></i>
+                                                            Completed
+                                                        </button>
+                                                    @endcan
                                                 @endif
                                             @else
                                                 <span class="badge badge-light-warning">No active election</span>
@@ -461,23 +473,29 @@
                         <!-- Modal Tabs -->
                         <ul class="nav nav-tabs nav-line-tabs nav-line-tabs-2x mb-5 fs-6 fw-semibold" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_notes') active @endif" data-bs-toggle="tab" role="tab" href="#cc_notes" wire:click="setActiveModalTab('cc_notes')">Notes</a>
+                                <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_form') active @endif" data-bs-toggle="tab" role="tab" href="#cc_form" wire:click="setActiveModalTab('cc_form')">Form</a>
                             </li>
+                            @can('call-center-notes')
+                                <li class="nav-item" role="presentation">
+                                    <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_notes') active @endif" data-bs-toggle="tab" role="tab" href="#cc_notes" wire:click="setActiveModalTab('cc_notes')">Notes</a>
+                                </li>
+                            @endcan
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_requests') active @endif" data-bs-toggle="tab" role="tab" href="#cc_requests" wire:click="setActiveModalTab('cc_requests')">Requests</a>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_status_attempts') active @endif" data-bs-toggle="tab" role="tab" href="#cc_status_attempts" wire:click="setActiveModalTab('cc_status_attempts')">Status & Attempts</a>
                             </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_call_status') active @endif" data-bs-toggle="tab" role="tab" href="#cc_call_status" wire:click="setActiveModalTab('cc_call_status')">Call Status</a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_form') active @endif" data-bs-toggle="tab" role="tab" href="#cc_form" wire:click="setActiveModalTab('cc_form')">Form</a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_history') active @endif" data-bs-toggle="tab" role="tab" href="#cc_history" wire:click="setActiveModalTab('cc_history')">History</a>
-                            </li>
+                            @can('call-center-call-status')
+                                <li class="nav-item" role="presentation">
+                                    <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_call_status') active @endif" data-bs-toggle="tab" role="tab" href="#cc_call_status" wire:click="setActiveModalTab('cc_call_status')">Call Status</a>
+                                </li>
+                            @endcan
+                            @can('call-center-history')
+                                <li class="nav-item" role="presentation">
+                                    <a class="nav-link @if(($activeModalTab ?? 'cc_notes') === 'cc_history') active @endif" data-bs-toggle="tab" role="tab" href="#cc_history" wire:click="setActiveModalTab('cc_history')">History</a>
+                                </li>
+                            @endcan
                         </ul>
 
                         <div class="tab-content" wire:key="cc-tab-content-{{ $selectedDirectory->id }}">
@@ -800,47 +818,54 @@
                                             </select>
                                         </div>
 
-                                        <div class="mb-5">
-                                            <label class="form-label fw-semibold">
-                                                4. ވޯޓްލާ ދުވަހު ހުންނަވާނީ ކޮން ސަރަހައްދުގަތޯ؟
-                                            </label>
-                                            <select class="form-select" wire:model.live="ccForm.q4_voting_area" @disabled(!$activeElectionId)>
-                                                <option value="">—</option>
-                                                <option value="male">މާލެ</option>
-                                                <option value="vilimale">ވިލިމާލެ</option>
-                                                <option value="hulhumale_phase1">ހުޅުމާލެ ފޭސް 1</option>
-                                                <option value="hulhumale_phase2">ހުޅުމާލެ ފޭސް 2</option>
-                                                <option value="other">ނޫން (އެހެންނިހެން)</option>
-                                                <option value="unknown">ނޭނގޭ</option>
-                                            </select>
+                                        @if(($ccForm['q3_support'] ?? null) === 'aanekey')
+                                            <div class="mb-5">
+                                                <label class="form-label fw-semibold">
+                                                    4. ވޯޓްލާ ދުވަހު ހުންނަވާނީ ކޮން ސަރަހައްދުގަތޯ؟
+                                                </label>
+                                                <select class="form-select" wire:model.live="ccForm.q4_voting_area" @disabled(!$activeElectionId)>
+                                                    <option value="">—</option>
+                                                    <option value="male">މާލެ</option>
+                                                    <option value="vilimale">ވިލިމާލެ</option>
+                                                    <option value="hulhumale_phase1">ހުޅުމާލެ ފޭސް 1</option>
+                                                    <option value="hulhumale_phase2">ހުޅުމާލެ ފޭސް 2</option>
+                                                    <option value="other">ނޫން (އެހެންނިހެން)</option>
+                                                    <option value="unknown">ނޭނގޭ</option>
+                                                </select>
 
-                                            @if(($ccForm['q4_voting_area'] ?? null) === 'other')
-                                                <div class="mt-3">
-                                                    <label class="form-label fw-semibold">ނޫން ނަމަ ކޮންތާކުތޯ؟</label>
-                                                    <input type="text" class="form-control" wire:model.live="ccForm.q4_other_text" placeholder="..." @disabled(!$activeElectionId) />
+                                                @if(($ccForm['q4_voting_area'] ?? null) === 'other')
+                                                    <div class="mt-3">
+                                                        <label class="form-label fw-semibold">ނޫން ނަމަ ކޮންތާކުތޯ؟</label>
+                                                        <input type="text" class="form-control" wire:model.live="ccForm.q4_other_text" placeholder="..." @disabled(!$activeElectionId) />
+                                                    </div>
+                                                @else
+                                                    <!-- Keep field disabled/hidden when not 'other' to avoid stale values in UI -->
+                                                    <input type="hidden" wire:model.live="ccForm.q4_other_text" />
+                                                @endif
+                                            </div>
+
+                                            @if(!in_array(($ccForm['q4_voting_area'] ?? null), ['other','unknown'], true))
+                                                <div class="mb-5">
+                                                    <label class="form-label fw-semibold">5. ވޯޓުލާން ދިއުމަށް އެހީތެރިކަމެއް ބޭނުންފުޅުވޭތޯ؟</label>
+                                                    <select class="form-select" wire:model.live="ccForm.q5_help_needed" @disabled(!$activeElectionId)>
+                                                        <option value="">—</option>
+                                                        <option value="yes">އާނ</option>
+                                                        <option value="no">ނޫން</option>
+                                                        <option value="maybe">މަބީ</option>
+                                                    </select>
                                                 </div>
                                             @else
-                                                <!-- Keep field disabled/hidden when not 'other' to avoid stale values in UI -->
-                                                <input type="hidden" wire:model.live="ccForm.q4_other_text" />
+                                                <!-- Skip Q5 when Q4 is other/unknown, but keep field bound to avoid stale values -->
+                                                <input type="hidden" wire:model.live="ccForm.q5_help_needed" />
                                             @endif
-                                        </div>
 
-                                        <div class="mb-5">
-                                            <label class="form-label fw-semibold">5. ވޯޓުލާން ދިއުމަށް އެހީތެރިކަމެއް ބޭނުންފުޅުވޭތޯ؟</label>
-                                            <select class="form-select" wire:model.live="ccForm.q5_help_needed" @disabled(!$activeElectionId)>
-                                                <option value="">—</option>
-                                                <option value="yes">އާނ</option>
-                                                <option value="no">ނޫން</option>
-                                                <option value="maybe">މަބީ</option>
-                                            </select>
-                                        </div>
+                                            <div class="mb-0">
+                                                <label class="form-label fw-semibold">6. މޭޔަރ އަށް ދެއްވަން ބޭނުންފުޅުވާ ހިޔާލެއް އެބަ އޮތްތޯ؟ (ނޯޓްސް)</label>
+                                                <textarea class="form-control" rows="4" wire:model.live="ccForm.q6_message_to_mayor" placeholder="..." @disabled(!$activeElectionId)></textarea>
+                                            </div>
+                                        @endif
 
-                                        <div class="mb-0">
-                                            <label class="form-label fw-semibold">6. މޭޔަރ އަށް ދެއްވަން ބޭނުންފުޅުވާ ހިޔާލެއް އެބަ އޮތްތޯ؟ (ނޯޓްސް)</label>
-                                            <textarea class="form-control" rows="4" wire:model.live="ccForm.q6_message_to_mayor" placeholder="..." @disabled(!$activeElectionId)></textarea>
-                                        </div>
-
-                                                                                <!--begin::Alert-->
+                                        <!--begin::Alert-->
                                         <div class="alert alert-primary d-flex align-items-center p-5 pt-5 mt-6">
                                          
                                             <!--begin::Wrapper-->

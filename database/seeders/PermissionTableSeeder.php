@@ -80,12 +80,17 @@ class PermissionTableSeeder extends Seeder
             // 'vote-results-entry-save',
 
             // Elections management
-            'elections-manage-render',
-            'elections-manage-save',
-            'elections-manage-toggle',
+            // 'elections-manage-render',
+            // 'elections-manage-save',
+            // 'elections-manage-toggle',
 
-            // Call Center
-            'call-center-render',
+            // Call Center (granular)
+            // 'call-center-render',
+            'call-center-notes',
+            'call-center-call-status',
+            'call-center-history',
+            'call-center-mark-completed',
+            'call-center-undo-status',
         ];
         
         foreach ($permissions as $permission) {

@@ -92,6 +92,11 @@ class CallCenter extends Component
         $allowed = ['cc_notes', 'cc_requests', 'cc_status_attempts', 'cc_call_status', 'cc_form', 'cc_history'];
         if (!in_array($tab, $allowed, true)) return;
 
+        // Permission gates for tab access
+        if ($tab === 'cc_notes' && !auth()->user()?->can('call-center-notes')) return;
+        if ($tab === 'cc_call_status' && !auth()->user()?->can('call-center-call-status')) return;
+        if ($tab === 'cc_history' && !auth()->user()?->can('call-center-history')) return;
+
         $this->activeModalTab = $tab;
     }
 
@@ -312,8 +317,52 @@ class CallCenter extends Component
 
     public function markAsCompleted(): void
     {
+        $this->authorize('call-center-mark-completed');
+
         $this->directoryCallStatus = ElectionDirectoryCallStatus::STATUS_COMPLETED;
         $this->saveDirectoryCallStatus();
+    }
+
+    public function undoDirectoryStatus(): void
+    {
+        $this->authorize('call-center-undo-status');
+
+        if (!$this->selectedDirectory || !$this->activeElectionId) return;
+
+        $row = ElectionDirectoryCallStatus::query()
+            ->where('election_id', (string) $this->activeElectionId)
+            ->where('directory_id', (string) $this->selectedDirectory->id)
+            ->first();
+
+        $prev = $row?->status;
+
+        if ($row) {
+            $row->delete();
+        }
+
+        // Reset local state
+        $this->directoryCallStatus = ElectionDirectoryCallStatus::STATUS_NOT_STARTED;
+
+        $this->logEvent(
+            'Directory Status Undone',
+            'Directory status reset to pending (status row deleted)',
+            [
+                'election_id' => (string) $this->activeElectionId,
+                'directory_id' => (string) $this->selectedDirectory->id,
+                'previous_status' => (string) ($prev ?? ''),
+                'new_status' => ElectionDirectoryCallStatus::STATUS_NOT_STARTED,
+            ]
+        );
+        $this->refreshHistory();
+
+        VoterDataChanged::dispatch(
+            'call_center_directory_status_undone',
+            (string) $this->selectedDirectory->id,
+            (string) $this->activeElectionId,
+            ['status' => ElectionDirectoryCallStatus::STATUS_NOT_STARTED]
+        );
+
+        // Note: list statuses are computed in render(); no component property to update here.
     }
 
     public function updatePhoneCallStatus(string $phone, string $status): void
@@ -469,6 +518,21 @@ class CallCenter extends Component
 
         $row->save();
 
+        // Auto-complete directory status when the required form answers exist.
+        $q1 = trim((string)($this->ccForm['q1_performance'] ?? ''));
+        $q2 = trim((string)($this->ccForm['q2_reason'] ?? ''));
+        $q3 = trim((string)($this->ccForm['q3_support'] ?? ''));
+
+        // Q2 is only required when Q1 is NOT "kamudhey" (per Blade condition)
+        $formIsComplete = ($q1 !== '')
+            && ($q3 !== '')
+            && ($q1 === 'kamudhey' || $q2 !== '');
+
+        if ($formIsComplete) {
+            $this->directoryCallStatus = ElectionDirectoryCallStatus::STATUS_COMPLETED;
+            $this->saveDirectoryCallStatus();
+        }
+
         $this->logEvent(
             'Call Center Form Saved',
             'Call center form auto-saved',
@@ -507,6 +571,12 @@ class CallCenter extends Component
         // If voting area is not 'other', clear stale free-text.
         if ($key === 'q4_voting_area' && ($value ?? null) !== 'other') {
             $this->ccForm['q4_other_text'] = null;
+        }
+
+        // Ignore "clearing" events coming from Livewire hydration/re-render for selects
+        // (this was causing Q1/Q3 to appear auto-filled/changed unexpectedly).
+        if (in_array($key, ['q1_performance', 'q3_support'], true) && ($value === '' || $value === null)) {
+            return;
         }
 
         try {
@@ -754,6 +824,9 @@ class CallCenter extends Component
         $this->selectedDirectory = $directory;
         $this->selectedDirectoryId = (string) $directory->id;
         $this->showDetailsModal = true;
+
+        // Default to Form tab when modal opens
+        $this->activeModalTab = 'cc_form';
 
         // Load modal data
         $this->loadElectionDirectoryCallStatusForSelected();
