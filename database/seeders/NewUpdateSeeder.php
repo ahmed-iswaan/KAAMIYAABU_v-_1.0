@@ -17,7 +17,7 @@ use Carbon\Carbon;
 class NewUpdateSeeder extends Seeder
 {
     /**
-     * Update directories from database/data/finalmdplist.json
+     * Update directories from database/seeders/data/electiondatalistmale.json
      * - Upsert by ID card number
      * - Overwrite fields when changed; log changes
      * - Merge phone numbers (keep old, add new unique)
@@ -25,14 +25,14 @@ class NewUpdateSeeder extends Seeder
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/finalmdplist.json');
+        $file = database_path('seeders/data/electiondatalistmale.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
         }
 
         $rows = json_decode(File::get($file), true);
-        if (!is_array($rows)) { $this->command->error('finalmdplist.json not valid JSON array.'); return; }
+        if (!is_array($rows)) { $this->command->error('electiondatalistmale.json not valid JSON array.'); return; }
 
         $maldivesId = Country::where('name', 'Maldives')->value('id');
         if (!$maldivesId) { $this->command->error('Country Maldives missing.'); return; }
@@ -63,7 +63,7 @@ class NewUpdateSeeder extends Seeder
             ?? $islandIndex['vilimale']
             ?? null;
 
-        // Preload parties & subconsite
+        // Preload parties & subconsite (party may not exist in this dataset)
         $partyMap = Party::all()->mapWithKeys(fn($p)=>[strtoupper(trim($p->short_name)) => $p->id])->toArray();
         $subConsiteMap = SubConsite::all()->mapWithKeys(fn($s)=>[strtoupper(trim($s->code))=>$s->id])->toArray();
 
@@ -71,9 +71,9 @@ class NewUpdateSeeder extends Seeder
 
         foreach ($rows as $r) {
             $processed++;
-            $nid = trim($r['Id #'] ?? $r['id_card'] ?? '');
+            $nid = trim((string)($r['Full ID'] ?? $r['Id #'] ?? $r['id_card'] ?? ''));
             if ($nid === '') { $skipped++; continue; }
-            $name = trim($r['Name'] ?? $r['name'] ?? '');
+            $name = trim((string)($r['Name'] ?? $r['name'] ?? ''));
             if ($name === '') { $skipped++; continue; }
 
             // SERIAL (nullable) - only update when JSON has a non-empty value
@@ -85,46 +85,52 @@ class NewUpdateSeeder extends Seeder
             }
 
             // Gender
-            $genderRaw = strtoupper(trim($r['GENDER'] ?? $r['gender'] ?? ''));
+            $genderRaw = strtoupper(trim((string)($r['Sex'] ?? $r['GENDER'] ?? $r['gender'] ?? '')));
             $gender = $genderRaw === 'MALE' || $genderRaw === 'M' ? 'male' : ($genderRaw === 'FEMALE' || $genderRaw === 'F' ? 'female' : 'other');
+
             // Party
             $partyShort = strtoupper(trim($r['PARTY'] ?? $r['party'] ?? ''));
             $partyId = $partyShort !== '' ? ($partyMap[$partyShort] ?? null) : null;
+
             // SubConsite
-            $subCode = strtoupper(trim($r['CODE'] ?? $r['sub_code'] ?? ''));
+            $subCode = strtoupper(trim((string)($r['Consit'] ?? $r['CODE'] ?? $r['sub_code'] ?? '')));
             $subConsiteId = $subCode !== '' ? ($subConsiteMap[$subCode] ?? null) : null;
 
-            // Island mapping by CODE
-            $isMaleCodes = ['T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T14','T15'];
-            $isHulhumaleCodes = ['T01','T16','T17'];
-            $isVilimaleCodes = ['T13'];
+            // Island mapping by Island field first; fallback to prior heuristics
+            $islandNameRaw = trim((string)($r['Island'] ?? $r['ISLAND'] ?? ''));
+            $islandId = $this->resolveIslandIdFromDatasetName($islandNameRaw, $islandIndex, $islandMaleId, $islandHulhumaleId, $islandVilimaleId);
 
-            $islandId = null;
-            if (in_array($subCode, $isHulhumaleCodes, true)) {
-                $islandId = $islandHulhumaleId;
-            } elseif (in_array($subCode, $isMaleCodes, true)) {
-                $islandId = $islandMaleId;
-            } elseif (in_array($subCode, $isVilimaleCodes, true)) {
-                $islandId = $islandVilimaleId;
-            }
-
+            // Also normalize stored island name for lookups (no DB write here, used only to resolve ID)
             if (!$islandId) {
-                $dhaaira = trim($r['DHAAIRA NAME'] ?? $r['dhaaira'] ?? '');
-                $islandId = $this->resolveIslandFallback($dhaaira, $islandMaleId, $islandHulhumaleId, $islandVilimaleId);
+                // Fallback to Mauru code-based mapping (kept for compatibility)
+                $isMaleCodes = ['T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T14','T15'];
+                $isHulhumaleCodes = ['T01','T16','T17'];
+                $isVilimaleCodes = ['T13'];
+                if (in_array($subCode, $isHulhumaleCodes, true)) {
+                    $islandId = $islandHulhumaleId;
+                } elseif (in_array($subCode, $isMaleCodes, true)) {
+                    $islandId = $islandMaleId;
+                } elseif (in_array($subCode, $isVilimaleCodes, true)) {
+                    $islandId = $islandVilimaleId;
+                }
             }
 
             // Always set current island from resolved island
             $currentIslandId = $islandId;
 
             // DOB
-            $dobRaw = trim($r['D.O.B'] ?? $r['dob'] ?? '');
+            $dobRaw = trim((string)($r['DOB'] ?? $r['D.O.B'] ?? $r['dob'] ?? ''));
             $dob = null;
             if ($dobRaw !== '' && strtoupper($dobRaw) !== '#VALUE!') {
                 $dob = $this->parseDob($dobRaw);
             }
 
             // Phones
-            $phonesNew = $this->parsePhones($r['latest numbers'] ?? $r['phones'] ?? '');
+            $phonesNew = array_values(array_filter([
+                $this->normalizePhone((string)($r['phone 1'] ?? '')),
+                $this->normalizePhone((string)($r['phone 2'] ?? '')),
+            ]));
+
             $existing = Directory::where('id_card_number', $nid)->first();
             $mergedPhones = $existing && is_array($existing->phones) ? collect($existing->phones) : collect();
             $beforePhones = $mergedPhones->implode(',');
@@ -133,7 +139,7 @@ class NewUpdateSeeder extends Seeder
             $phonesChanged = $beforePhones !== $afterPhones;
 
             // Properties strictly from ADDRESS, same for current
-            $addressRaw = trim($r['ADDRESS'] ?? $r['address'] ?? '');
+            $addressRaw = trim((string)($r['Address'] ?? $r['ADDRESS'] ?? $r['address'] ?? ''));
             [$permPropertyId, $permStreet] = $this->resolveOrCreateProperty($addressRaw, $islandId);
             [$currPropertyId, $currStreet] = $this->resolveOrCreateProperty($addressRaw, $currentIslandId);
 
@@ -173,7 +179,7 @@ class NewUpdateSeeder extends Seeder
                         'event_type' => 'directory_updated',
                         'event_tab' => 'directory',
                         'event_entry_id' => $existing->id,
-                        'description' => 'Directory updated via NewUpdateSeeder 03/01/2026',
+                        'description' => 'Directory updated via NewUpdateSeeder 04/02/2026',
                         'event_data' => $changes,
                         'ip_address' => request()->ip() ?? null,
                     ]);
@@ -188,7 +194,7 @@ class NewUpdateSeeder extends Seeder
                     'event_type' => 'directory_created',
                     'event_tab' => 'directory',
                     'event_entry_id' => $dir->id,
-                    'description' => 'Directory created via NewUpdateSeeder 03/01/2026',
+                    'description' => 'Directory created via NewUpdateSeeder 04/02/2026',
                     'event_data' => [
                         'id_card_number' => $nid,
                         'name' => $name,
@@ -277,5 +283,51 @@ class NewUpdateSeeder extends Seeder
         elseif (str_contains($lower, 'vilimale') || str_contains($lower,'villimale')) { $islandId = $vilimaleId; }
         elseif (str_contains($lower, 'henveiru') || str_contains($lower,'galolhu') || str_contains($lower,'maafannu') || str_contains($lower,'machchangoalhi') || str_contains($lower,'mahchangoalhi')) { $islandId = $maleId; }
         return $islandId;
+    }
+
+    private function normalizePhone(string $raw): string
+    {
+        $p = preg_replace('/[^0-9+]/', '', trim($raw));
+        return $p === '0' ? '' : (string) $p;
+    }
+
+    private function resolveIslandIdFromDatasetName(
+        string $datasetIsland,
+        array $islandIndex,
+        ?string $maleId,
+        ?string $hulhumaleId,
+        ?string $vilimaleId
+    ): ?string {
+        $raw = mb_strtolower(trim($datasetIsland));
+        if ($raw === '') return null;
+
+        // Normalize common punctuation/spaces
+        $raw = str_replace(['  ', "\t"], ' ', $raw);
+        $raw = str_replace('é', 'e', $raw);
+
+        // Handle prefixes like "k." or "k"
+        $rawNoAtoll = preg_replace("/^k\.?\s*/", '', $raw);
+
+        // Canonicalize common island variants
+        $canonical = $rawNoAtoll;
+        $canonical = str_replace(["male'", 'male', 'malé'], 'malé', $canonical);
+        $canonical = str_replace(["hulhumale'", 'hulhumale', "hulhumalé'", 'hulhumalé'], "hulhumalé'", $canonical);
+        $canonical = str_replace(['vilimale', 'villimale', 'villimalé', 'vilimalé'], 'villimalé', $canonical);
+
+        // Direct index lookup by raw/canonical
+        $key1 = mb_strtolower($datasetIsland);
+        $key2 = str_replace('é', 'e', $key1);
+        $key3 = mb_strtolower($canonical);
+        $key4 = str_replace('é', 'e', $key3);
+
+        $found = $islandIndex[$key1] ?? $islandIndex[$key2] ?? $islandIndex[$key3] ?? $islandIndex[$key4] ?? null;
+        if ($found) return $found;
+
+        // If still not found, return known IDs based on canonical string
+        if (str_contains($canonical, 'malé')) return $maleId;
+        if (str_contains($canonical, 'hulhumal')) return $hulhumaleId;
+        if (str_contains($canonical, 'vilimal')) return $vilimaleId;
+
+        return null;
     }
 }

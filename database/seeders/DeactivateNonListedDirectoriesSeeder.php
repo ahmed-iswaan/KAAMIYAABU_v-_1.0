@@ -11,12 +11,12 @@ use App\Models\EventLog;
 class DeactivateNonListedDirectoriesSeeder extends Seeder
 {
     /**
-     * Keep only directories present in finalmdplist.json as Active,
+     * Keep only directories present in electiondatalistmale.json as Active,
      * and set status of all other directories to Inactive.
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/finalmdplist.json');
+        $file = database_path('seeders/data/electiondatalistmale.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
@@ -24,20 +24,17 @@ class DeactivateNonListedDirectoriesSeeder extends Seeder
 
         $rows = json_decode(File::get($file), true);
         if (!is_array($rows)) {
-            $this->command->error('finalmdplist.json is not a valid JSON array.');
+            $this->command->error('electiondatalistmale.json is not a valid JSON array.');
             return;
         }
 
         $idCards = collect($rows)
-            ->map(fn($r) => trim($r['Id #'] ?? ''))
-            ->filter()
+            ->map(fn($r) => trim((string)($r['Full ID'] ?? '')))
+            ->filter(fn($v) => $v !== '')
             ->unique()
             ->values();
 
-        $expectedCount = 5608; // based on current dataset size
-        if ($idCards->count() !== $expectedCount) {
-            $this->command->warn("Warning: collected {$idCards->count()} IDs, expected {$expectedCount}.");
-        }
+        // No fixed expected count for this dataset
 
         $totalBefore = Directory::count();
         $keepCountDb = Directory::whereIn('id_card_number', $idCards)->count();
@@ -65,7 +62,7 @@ class DeactivateNonListedDirectoriesSeeder extends Seeder
                             'event_type' => 'directory_status_changed',
                             'event_tab' => 'directory',
                             'event_entry_id' => $dir->id,
-                            'description' => 'Directory status set to Active (in voters update list 03/01/2026)',
+                            'description' => 'Directory status set to Active (in election data list 04/02/2026)',
                             'event_data' => [
                                 'field' => 'status',
                                 'from' => $old,
@@ -103,7 +100,7 @@ class DeactivateNonListedDirectoriesSeeder extends Seeder
                             'event_type' => 'directory_status_changed',
                             'event_tab' => 'directory',
                             'event_entry_id' => $dir->id,
-                            'description' => 'Directory status set to Inactive (not in voters update list 03/01/2026)',
+                            'description' => 'Directory status set to Inactive (not in election data list 04/02/2026)',
                             'event_data' => [
                                 'field' => 'status',
                                 'from' => $old,
