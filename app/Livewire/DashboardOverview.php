@@ -160,25 +160,27 @@ class DashboardOverview extends Component
             ->get();
 
         $rank = 1;
-        $this->userTaskStats = $userRows->map(function($r) use (&$rank){
-            $total = (int)($r->total ?? 0);
-            $completedAssigned = (int)($r->completed_assigned ?? 0);
-            $pending = max(0, $total - $completedAssigned);
-            $pct = $total ? round(($completedAssigned / $total) * 100) : 0;
+        $this->userTaskStats = $userRows
+            ->filter(fn($r) => (int)($r->completed_by_user ?? 0) > 0)
+             ->map(function($r) use (&$rank){
+                 $total = (int)($r->total ?? 0);
+                 $completedAssigned = (int)($r->completed_assigned ?? 0);
+                 $pending = max(0, $total - $completedAssigned);
+                 $pct = $total ? round(($completedAssigned / $total) * 100) : 0;
 
-            return [
-                'rank' => $rank++,
-                'user_id' => $r->id,
-                'name' => $r->name,
-                'total' => $total,
-                'pending' => $pending,
-                'completed_assigned' => $completedAssigned,
-                'completed_assigned_today' => (int)($r->completed_assigned_today ?? 0),
-                'completed_by_user' => (int)($r->completed_by_user ?? 0),
-                'completed_by_user_today' => (int)($r->completed_by_user_today ?? 0),
-                'completed_pct' => $pct,
-            ];
-        })->toArray();
+                 return [
+                     'rank' => $rank++,
+                     'user_id' => $r->id,
+                     'name' => $r->name,
+                     'total' => $total,
+                     'pending' => $pending,
+                     'completed_assigned' => $completedAssigned,
+                     'completed_assigned_today' => (int)($r->completed_assigned_today ?? 0),
+                     'completed_by_user' => (int)($r->completed_by_user ?? 0),
+                     'completed_by_user_today' => (int)($r->completed_by_user_today ?? 0),
+                     'completed_pct' => $pct,
+                 ];
+             })->toArray();
     }
 
     public function refreshStats(): void
