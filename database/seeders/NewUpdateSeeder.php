@@ -95,6 +95,7 @@ class NewUpdateSeeder extends Seeder
             // SubConsite
             $subCode = strtoupper(trim((string)($r['Consit'] ?? $r['CODE'] ?? $r['sub_code'] ?? '')));
             $subConsiteId = $subCode !== '' ? ($subConsiteMap[$subCode] ?? null) : null;
+            $hasDatasetSubConsite = $subCode !== '' && !empty($subConsiteId);
 
             // Island mapping by Island field first; fallback to prior heuristics
             $islandNameRaw = trim((string)($r['Island'] ?? $r['ISLAND'] ?? ''));
@@ -159,7 +160,8 @@ class NewUpdateSeeder extends Seeder
                 'current_properties_id' => $currPropertyId,
                 'current_street_address' => $currStreet ?: ($existing?->current_street_address),
                 'party_id' => $partyId ?? ($existing?->party_id),
-                'sub_consite_id' => $subConsiteId ?? ($existing?->sub_consite_id),
+                // If Consit code provided and found in DB, always overwrite.
+                'sub_consite_id' => $hasDatasetSubConsite ? $subConsiteId : ($existing?->sub_consite_id),
                 'status' => $existing?->status ?? 'Active',
             ];
 
