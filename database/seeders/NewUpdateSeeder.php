@@ -71,10 +71,11 @@ class NewUpdateSeeder extends Seeder
 
         foreach ($rows as $r) {
             $processed++;
-            $nid = trim((string)($r['Full ID'] ?? $r['Id #'] ?? $r['id_card'] ?? ''));
-            if ($nid === '') { $skipped++; continue; }
-            $name = trim((string)($r['Name'] ?? $r['name'] ?? ''));
-            if ($name === '') { $skipped++; continue; }
+            $nidRaw = (string)($r['Full ID'] ?? $r['Id #'] ?? $r['id_card'] ?? '');
+            $nid = strtoupper(trim(preg_replace('/\s+/', '', $nidRaw)));
+             if ($nid === '') { $skipped++; continue; }
+             $name = trim((string)($r['Name'] ?? $r['name'] ?? ''));
+             if ($name === '') { $skipped++; continue; }
 
             // SERIAL (nullable) - only update when JSON has a non-empty value
             $serialRaw = $r['SERIAL'] ?? $r['serial'] ?? null;
@@ -94,8 +95,12 @@ class NewUpdateSeeder extends Seeder
 
             // SubConsite
             $subCode = strtoupper(trim((string)($r['Consit'] ?? $r['CODE'] ?? $r['sub_code'] ?? '')));
-            $subConsiteId = $subCode !== '' ? ($subConsiteMap[$subCode] ?? null) : null;
-            $hasDatasetSubConsite = $subCode !== '' && !empty($subConsiteId);
+            // Normalize codes: T1 -> T01, T4 -> T04 (keeps T10+ as-is)
+            if (preg_match('/^T(\d)$/', $subCode, $m)) {
+                $subCode = 'T0' . $m[1];
+            }
+             $subConsiteId = $subCode !== '' ? ($subConsiteMap[$subCode] ?? null) : null;
+             $hasDatasetSubConsite = $subCode !== '' && !empty($subConsiteId);
 
             // Island mapping by Island field first; fallback to prior heuristics
             $islandNameRaw = trim((string)($r['Island'] ?? $r['ISLAND'] ?? ''));
@@ -132,7 +137,9 @@ class NewUpdateSeeder extends Seeder
                 $this->normalizePhone((string)($r['phone 2'] ?? '')),
             ]));
 
-            $existing = Directory::where('id_card_number', $nid)->first();
+            $existing = Directory::query()
+                ->whereRaw('UPPER(REPLACE(id_card_number, " ", "")) = ?', [$nid])
+                ->first();
             $mergedPhones = $existing && is_array($existing->phones) ? collect($existing->phones) : collect();
             $beforePhones = $mergedPhones->implode(',');
             foreach ($phonesNew as $ph) { if(!$mergedPhones->contains($ph) && $ph!=='0') { $mergedPhones->push($ph); } }
@@ -187,24 +194,24 @@ class NewUpdateSeeder extends Seeder
                     ]);
                 }
             } else {
-                $payload['id'] = (string) Str::uuid();
-                $payload['id_card_number'] = $nid;
-                $dir = Directory::create($payload);
-                $created++;
-                EventLog::create([
-                    'user_id' => auth()->id() ?? null,
-                    'event_type' => 'directory_created',
-                    'event_tab' => 'directory',
-                    'event_entry_id' => $dir->id,
-                    'description' => 'Directory created via NewUpdateSeeder 04/02/2026',
-                    'event_data' => [
-                        'id_card_number' => $nid,
-                        'name' => $name,
-                        'phones' => $phonesNew,
-                    ],
-                    'ip_address' => request()->ip() ?? null,
-                ]);
-            }
+                 $payload['id'] = (string) Str::uuid();
+                 $payload['id_card_number'] = $nid;
+                 $dir = Directory::create($payload);
+                 $created++;
+                 EventLog::create([
+                     'user_id' => auth()->id() ?? null,
+                     'event_type' => 'directory_created',
+                     'event_tab' => 'directory',
+                     'event_entry_id' => $dir->id,
+                     'description' => 'Directory created via NewUpdateSeeder 04/02/2026',
+                     'event_data' => [
+                         'id_card_number' => $nid,
+                         'name' => $name,
+                         'phones' => $phonesNew,
+                     ],
+                     'ip_address' => request()->ip() ?? null,
+                 ]);
+             }
 
             if ($processed % 1000 === 0) {
                 $this->command->info("Processed {$processed}/{$total} ...");
