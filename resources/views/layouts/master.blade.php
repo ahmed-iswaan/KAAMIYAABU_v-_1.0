@@ -549,6 +549,43 @@ if(typeof window.Echo === 'undefined') {
 })();
 </script>
 @stack('scripts')
+<script>
+// Livewire -> Bootstrap modal bridge (Call Center Directory modal)
+// Keeps the modal working even when Livewire re-renders parts of the DOM.
+(function initCallCenterModalBridge(){
+    function ensureModalInstance(){
+        const el = document.getElementById('callCenterDirectoryModal');
+        if(!el) return null;
+        if(typeof bootstrap === 'undefined' || !bootstrap.Modal) return null;
+        return bootstrap.Modal.getOrCreateInstance(el, {backdrop: 'static'});
+    }
+
+    document.addEventListener('livewire:init', () => {
+        if(!window.Livewire || window.__ccModalBridgeAttached) return;
+
+        window.Livewire.on('open-call-center-directory-modal', () => {
+            // wait for DOM to include the latest modal body content
+            requestAnimationFrame(() => {
+                const m = ensureModalInstance();
+                if(m) m.show();
+            });
+        });
+
+        window.Livewire.on('close-call-center-directory-modal', () => {
+            const m = ensureModalInstance();
+            if(m) m.hide();
+        });
+
+        // If user closes via backdrop/esc, tell Livewire to cleanup state.
+        document.addEventListener('hidden.bs.modal', (e) => {
+            if(e?.target?.id !== 'callCenterDirectoryModal') return;
+            try { window.Livewire.dispatch('closeDirectoryModal'); } catch(_){ }
+        });
+
+        window.__ccModalBridgeAttached = true;
+    });
+})();
+</script>
 </body>
 
 </html>
