@@ -12,6 +12,8 @@ use App\Models\FormSubmissionAnswer;
 use App\Models\FormQuestionOption;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Arr;
+use App\Models\ElectionDirectoryCallStatus;
+use App\Models\CallCenterForm;
 
 class AdminDashboard extends Component
 {
@@ -26,6 +28,10 @@ class AdminDashboard extends Component
     public $piePendingDirs = 0;
     public $pieFollowUpDirs = 0;
     public $pieCompletedDirs = 0;
+
+    // Current active election (call status) - same datasets as /dashboard
+    public int $pieElectionPendingDirs = 0;
+    public int $pieElectionCompletedDirs = 0;
 
     public $subConsiteLabels = [];
     public $subConsitePending = [];
@@ -59,10 +65,46 @@ class AdminDashboard extends Component
     public $provPledged = [];
     public $provNotPledged = [];
 
+    // Pending/Completed by SubConsite (current active election)
+    public $dashSubConsiteLabels = [];
+    public $dashSubConsitePending = [];
+    public $dashSubConsiteCompleted = [];
+
+    // Replace follow-up card with daily completed
+    public $tasksCompletedToday = 0;
+
+    // Directory status totals
+    public $directoriesActive = 0;
+    public $directoriesInactive = 0;
+
+    // Election status totals (directories)
+    public int $directoriesPendingTotal = 0;
+    public int $directoriesCompletedTotal = 0;
+    public int $directoriesCompletedTodayTotal = 0;
+
+    // Q1/Q3/Q4/Q5 answers by SubConsite (stacked bars per question)
+    public $qsBySubCharts = []; // [{position, questionId, text, labels(subs), series:[{label,color,data[]}]]
+
+    // Filters for call center charts
+    public $ccElectionId = null;
+    public $ccSubConsiteId = null;
+
+    public $ccAvailableElections = [];
+    public $ccAvailableSubConsites = [];
+
+    // Users performance (active election call status)
+    public array $userPerformanceRows = [];
+    public bool $showAllUsersPerformance = false;
+    public array $expandedUserIds = []; // [userId => true]
+    public array $userDailyStats = []; // [userId => [['date'=>Y-m-d,'completed'=>n,'attempts'=>n],...]]
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
         $this->computeStats();
+        $this->computeElectionDirectoryPie();
+        $this->computeElectionPendingCompletedBySubConsite();
+
         $this->pledgeElectionId = Election::orderBy('start_date','desc')->value('id');
         $this->computePledgeBySubConsite();
 
@@ -79,8 +121,20 @@ class AdminDashboard extends Component
         }
         $this->computeFormSubmissionChart();
         $this->computeFormTotalsPies();
+        $this->computeQ1Q3TotalsPies();
+        $this->computeQPositionsBySubConsiteCharts([1,3,4,5]);
         // Dispatch initial chart data to ensure JS initializes
         $this->dispatch('admin-form-chart-update', ['labels'=>$this->fsLabels, 'series'=>$this->fsSeries]);
+
+        $this->ccAvailableElections = Election::orderBy('start_date','desc')->get(['id','name','start_date']);
+        $this->ccAvailableSubConsites = DB::table('sub_consites')->orderBy('code')->get(['id','code']);
+
+        $this->ccElectionId = Election::query()->where('status', Election::STATUS_ACTIVE)->value('id');
+        $this->ccSubConsiteId = null;
+
+        $this->computeQPositionsBySubConsiteCharts([1,3,4,5]);
+
+        $this->computeUsersPerformance();
     }
 
     // Explicit refresh method to recompute and dispatch
@@ -92,19 +146,58 @@ class AdminDashboard extends Component
 
     private function computeStats(): void
     {
-        // Active directories
-        $this->activeDirectories = (int) Directory::where('status','Active')->count();
+        // Directory status totals (from current active election call status)
+        $activeElectionId = Election::query()
+            ->where('status', Election::STATUS_ACTIVE)
+            ->value('id');
 
-        // Task aggregates
+        $totalActiveDirs = (int) Directory::query()->where('status', 'Active')->count();
+
+        // Compute election status totals (directories) for top cards
+        $this->activeDirectories = $totalActiveDirs;
+
+        if (!$activeElectionId) {
+            $this->directoriesCompletedTotal = 0;
+            $this->directoriesPendingTotal = $totalActiveDirs;
+            $this->directoriesCompletedTodayTotal = 0;
+        } else {
+            $completedAll = (int) ElectionDirectoryCallStatus::query()
+                ->where('election_id', (string) $activeElectionId)
+                ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                ->distinct('directory_id')
+                ->count('directory_id');
+
+            $completedToday = (int) ElectionDirectoryCallStatus::query()
+                ->where('election_id', (string) $activeElectionId)
+                ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                ->whereDate('completed_at', now()->toDateString())
+                ->distinct('directory_id')
+                ->count('directory_id');
+
+            $this->directoriesCompletedTotal = $completedAll;
+            $this->directoriesPendingTotal = max(0, $totalActiveDirs - $completedAll);
+            $this->directoriesCompletedTodayTotal = $completedToday;
+        }
+
+        // Backward compatible fields used by the existing blade (now represent pending/completed)
+        $this->directoriesActive = $this->directoriesPendingTotal;
+        $this->directoriesInactive = $this->directoriesCompletedTotal;
+
+        // Keep task aggregates (other parts of admin dashboard still use them)
         $taskAgg = DB::table('tasks')
             ->where('deleted', false)
             ->selectRaw("SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending")
             ->selectRaw("SUM(CASE WHEN status='follow_up' THEN 1 ELSE 0 END) as follow_up")
             ->selectRaw("SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed")
+            ->selectRaw("SUM(CASE WHEN status='completed' AND DATE(updated_at)=? THEN 1 ELSE 0 END) as completed_today", [now()->toDateString()])
             ->first();
+
         $this->tasksPending = (int)($taskAgg->pending ?? 0);
         $this->tasksFollowUp = (int)($taskAgg->follow_up ?? 0);
         $this->tasksCompleted = (int)($taskAgg->completed ?? 0);
+
+        // For the top card, use election-directory daily completed, but keep this property for other potential uses.
+        $this->tasksCompletedToday = (int) $this->directoriesCompletedTodayTotal;
 
         // Directories with no tasks
         $this->directoriesWithNoTasks = (int) Directory::where('status','Active')
@@ -221,6 +314,7 @@ class AdminDashboard extends Component
         $this->selectedQuestionId = optional($q)->id;
         $this->computeFormSubmissionChart();
         $this->computeFormTotalsPies();
+        $this->computeQPositionsBySubConsiteCharts([1,3,4,5]);
     }
 
     public function updatedSelectedQuestionId(): void
@@ -391,18 +485,311 @@ class AdminDashboard extends Component
         [$this->q3PieLabels, $this->q3PieCounts] = $build($q3?->id);
     }
 
+    private function computeQPositionsBySubConsiteCharts(array $positions): void
+    {
+        // call center questions live in call_center_forms
+        $this->qsBySubCharts = [];
+
+        $electionId = $this->ccElectionId ?: Election::query()->where('status', Election::STATUS_ACTIVE)->value('id');
+        if (!$electionId) return;
+
+        $subs = DB::table('sub_consites')->select('id','code')->orderBy('code')->get();
+        $subCodes = $subs->pluck('code')->toArray();
+        $codeById = $subs->pluck('code','id')->toArray();
+
+        // If filtering to one SubConsite, only render that one label
+        if ($this->ccSubConsiteId) {
+            $selectedCode = $codeById[$this->ccSubConsiteId] ?? null;
+            if ($selectedCode) {
+                $subCodes = [$selectedCode];
+            }
+        }
+
+        $palette = ['#3e97ff','#50cd89','#f6c000','#f1416c','#7239ea','#00a3ef','#a1a5b7','#181c32'];
+
+        $questions = [
+            1 => ['field' => 'q1_performance', 'text' => 'Performance'],
+            3 => ['field' => 'q3_support', 'text' => 'Support'],
+            4 => ['field' => 'q4_voting_area', 'text' => 'Voting area'],
+            5 => ['field' => 'q5_help_needed', 'text' => 'Help needed'],
+        ];
+
+        foreach ($questions as $pos => $meta) {
+            $rows = DB::table('call_center_forms as ccf')
+                ->join('directories as d', 'd.id', '=', 'ccf.directory_id')
+                ->where('ccf.election_id', (string) $electionId)
+                ->when($this->ccSubConsiteId, function($q){
+                    $q->where('d.sub_consite_id', $this->ccSubConsiteId);
+                })
+                ->whereNotNull('d.sub_consite_id')
+                ->select('d.sub_consite_id', 'ccf.' . $meta['field'] . ' as answer')
+                ->get();
+
+            // counts[label][subCode]
+            $counts = [];
+            foreach ($rows as $r) {
+                $value = trim((string)($r->answer ?? ''));
+                if ($value === '') continue;
+                $subCode = $codeById[$r->sub_consite_id] ?? null;
+                if (!$subCode) continue;
+                $label = $value;
+                $counts[$label] = $counts[$label] ?? [];
+                $counts[$label][$subCode] = ($counts[$label][$subCode] ?? 0) + 1;
+            }
+
+            if (empty($counts)) continue;
+
+            $totals = [];
+            foreach ($counts as $label => $bySub) {
+                $totals[$label] = array_sum($bySub);
+            }
+            arsort($totals);
+            $optionLabels = array_keys($totals);
+
+            $series = [];
+            foreach ($optionLabels as $i => $label) {
+                $data = [];
+                foreach ($subCodes as $subCode) {
+                    $data[] = (int)($counts[$label][$subCode] ?? 0);
+                }
+                $series[] = [
+                    'label' => $label,
+                    'color' => $palette[$i % count($palette)],
+                    'data' => $data,
+                ];
+            }
+
+            $this->qsBySubCharts[] = [
+                'position' => (int) $pos,
+                'questionId' => (string) $pos,
+                'text' => $meta['text'],
+                'labels' => $subCodes,
+                'series' => $series,
+            ];
+        }
+    }
+
+    protected function computeElectionDirectoryPie(): void
+    {
+        $this->pieElectionPendingDirs = 0;
+        $this->pieElectionCompletedDirs = 0;
+
+        $activeTotal = (int) Directory::query()->where('status', 'Active')->count();
+        if (!$activeTotal) return;
+
+        $activeElectionId = Election::query()
+            ->where('status', Election::STATUS_ACTIVE)
+            ->value('id');
+
+        if (!$activeElectionId) {
+            $this->pieElectionPendingDirs = $activeTotal;
+            return;
+        }
+
+        $completed = ElectionDirectoryCallStatus::query()
+            ->where('election_id', (string) $activeElectionId)
+            ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+            ->distinct('directory_id')
+            ->count('directory_id');
+
+        $this->pieElectionCompletedDirs = (int) $completed;
+        $this->pieElectionPendingDirs = max(0, $activeTotal - $this->pieElectionCompletedDirs);
+    }
+
+    protected function computeElectionPendingCompletedBySubConsite(): void
+    {
+        $this->dashSubConsiteLabels = [];
+        $this->dashSubConsitePending = [];
+        $this->dashSubConsiteCompleted = [];
+
+        $activeElectionId = Election::query()
+            ->where('status', Election::STATUS_ACTIVE)
+            ->value('id');
+
+        $subs = DB::table('sub_consites')
+            ->leftJoin('directories as d', function($join){
+                $join->on('d.sub_consite_id', '=', 'sub_consites.id')
+                    ->where('d.status', '=', 'Active');
+            })
+            ->leftJoin('election_directory_call_statuses as edcs', function($join) use ($activeElectionId){
+                $join->on('edcs.directory_id', '=', 'd.id');
+                if ($activeElectionId) {
+                    $join->where('edcs.election_id', '=', (string) $activeElectionId);
+                } else {
+                    // No active election -> prevent matches
+                    $join->whereRaw('1=0');
+                }
+            })
+            ->select('sub_consites.code')
+            ->selectRaw('COUNT(DISTINCT d.id) as total_active')
+            ->selectRaw("COUNT(DISTINCT CASE WHEN edcs.status = 'completed' THEN d.id END) as completed")
+            ->groupBy('sub_consites.code')
+            ->orderBy('sub_consites.code')
+            ->get();
+
+        $this->dashSubConsiteLabels = $subs->pluck('code')->toArray();
+        $this->dashSubConsiteCompleted = $subs->pluck('completed')->map(fn($v)=> (int)$v)->toArray();
+        $this->dashSubConsitePending = $subs->map(function($r){
+            $t = (int)($r->total_active ?? 0);
+            $c = (int)($r->completed ?? 0);
+            return max(0, $t - $c);
+        })->toArray();
+    }
+
+    public function toggleShowAllUsersPerformance(): void
+    {
+        $this->showAllUsersPerformance = !$this->showAllUsersPerformance;
+        $this->computeUsersPerformance();
+    }
+
+    public function toggleUserDaily(int $userId): void
+    {
+        $this->expandedUserIds[$userId] = !($this->expandedUserIds[$userId] ?? false);
+        if ($this->expandedUserIds[$userId]) {
+            $this->loadUserDailyStats($userId);
+        }
+    }
+
+    protected function computeUsersPerformance(): void
+    {
+        $this->userPerformanceRows = [];
+
+        $activeElectionId = Election::query()
+            ->where('status', Election::STATUS_ACTIVE)
+            ->value('id');
+        if (!$activeElectionId) return;
+
+        $attemptsByUser = DB::table('election_directory_call_sub_statuses as edcss')
+            ->where('edcss.election_id', (string) $activeElectionId)
+            ->select('edcss.updated_by')
+            ->selectRaw('COUNT(DISTINCT CONCAT(edcss.directory_id, ":", edcss.attempt)) as attempts')
+            ->groupBy('edcss.updated_by');
+
+        $completedByUser = DB::table('election_directory_call_statuses as edcs')
+            ->where('edcs.election_id', (string) $activeElectionId)
+            ->where('edcs.status', 'completed')
+            ->select('edcs.updated_by')
+            ->selectRaw('COUNT(edcs.id) as completed')
+            ->groupBy('edcs.updated_by');
+
+        $rows = DB::table('users as u')
+            ->leftJoinSub($attemptsByUser, 'a', function($join){
+                $join->on('a.updated_by', '=', 'u.id');
+            })
+            ->leftJoinSub($completedByUser, 'c', function($join){
+                $join->on('c.updated_by', '=', 'u.id');
+            })
+            ->select('u.id','u.name')
+            ->selectRaw('COALESCE(c.completed, 0) as completed')
+            ->selectRaw('COALESCE(a.attempts, 0) as attempts')
+            ->orderByRaw('COALESCE(c.completed, 0) DESC')
+            ->orderBy('u.name')
+            ->get();
+
+        if (!$this->showAllUsersPerformance) {
+            $rows = $rows->filter(fn($r) => ((int)($r->attempts ?? 0)) > 0 || ((int)($r->completed ?? 0)) > 0);
+        }
+
+        $rank = 1;
+        $this->userPerformanceRows = $rows->map(function($r) use (&$rank){
+            return [
+                'rank' => $rank++,
+                'user_id' => (int)$r->id,
+                'name' => $r->name,
+                'completed' => (int)($r->completed ?? 0),
+                'attempts' => (int)($r->attempts ?? 0),
+            ];
+        })->toArray();
+    }
+
+    protected function loadUserDailyStats(int $userId): void
+    {
+        $activeElectionId = Election::query()
+            ->where('status', Election::STATUS_ACTIVE)
+            ->value('id');
+        if (!$activeElectionId) return;
+
+        // IMPORTANT:
+        // - We keep the UI behavior "2" (show only days with completed > 0 in the table).
+        // - Daily attempts can still be computed correctly across all days.
+        // - To avoid mismatches caused by edits to the same (directory_id,attempt) on later days,
+        //   attribute each attempt to the FIRST date it appeared for that user.
+
+        $attempts = DB::table('election_directory_call_sub_statuses as edcss')
+            ->where('edcss.election_id', (string) $activeElectionId)
+            ->where('edcss.updated_by', $userId)
+            ->selectRaw('DATE(MIN(edcss.updated_at)) as d')
+            ->selectRaw('COUNT(*) as attempts')
+            ->groupBy('edcss.directory_id', 'edcss.attempt');
+
+        // Completed daily should follow the semantic completed timestamp when present.
+        $completed = DB::table('election_directory_call_statuses as edcs')
+            ->where('edcs.election_id', (string) $activeElectionId)
+            ->where('edcs.updated_by', $userId)
+            ->where('edcs.status', 'completed')
+            ->selectRaw('DATE(COALESCE(edcs.completed_at, edcs.updated_at)) as d')
+            ->selectRaw('COUNT(*) as completed')
+            ->groupBy(DB::raw('DATE(COALESCE(edcs.completed_at, edcs.updated_at))'));
+
+        // Build distinct date list (single column only)
+        $attemptDates = DB::query()->fromSub(
+                DB::table('election_directory_call_sub_statuses as edcss')
+                    ->where('edcss.election_id', (string) $activeElectionId)
+                    ->where('edcss.updated_by', $userId)
+                    ->select('edcss.directory_id', 'edcss.attempt', 'edcss.updated_at'),
+                'x'
+            )
+            ->selectRaw('DISTINCT DATE(MIN(x.updated_at)) as d')
+            ->groupBy('x.directory_id', 'x.attempt');
+
+        $completeDates = DB::table('election_directory_call_statuses as edcs')
+            ->where('edcs.election_id', (string) $activeElectionId)
+            ->where('edcs.updated_by', $userId)
+            ->where('edcs.status', 'completed')
+            ->selectRaw('DISTINCT DATE(COALESCE(edcs.completed_at, edcs.updated_at)) as d');
+
+        $datesUnion = $attemptDates->union($completeDates);
+
+        $rows = DB::query()->fromSub($datesUnion, 'dd')
+            ->leftJoinSub(
+                DB::query()->fromSub($attempts, 'att')
+                    ->select('att.d')
+                    ->selectRaw('SUM(att.attempts) as attempts')
+                    ->groupBy('att.d'),
+                'a',
+                function ($join) {
+                    $join->on('a.d', '=', 'dd.d');
+                }
+            )
+            ->leftJoinSub($completed, 'c', function($join){
+                $join->on('c.d', '=', 'dd.d');
+            })
+            ->select('dd.d')
+            ->selectRaw('COALESCE(c.completed, 0) as completed')
+            ->selectRaw('COALESCE(a.attempts, 0) as attempts')
+            ->orderBy('dd.d', 'desc')
+            ->get();
+
+        $this->userDailyStats[$userId] = $rows->map(fn($r) => [
+            'date' => (string)$r->d,
+            'completed' => (int)($r->completed ?? 0),
+            'attempts' => (int)($r->attempts ?? 0),
+        ])->toArray();
+    }
+
     public function render()
     {
         return view('livewire.admin.admin-dashboard',[
             'activeDirectories' => $this->activeDirectories,
             'tasksPending' => $this->tasksPending,
-            'tasksFollowUp' => $this->tasksFollowUp,
             'tasksCompleted' => $this->tasksCompleted,
             'directoriesWithNoTasks' => $this->directoriesWithNoTasks,
             // Pie segments
             'piePendingDirs' => $this->piePendingDirs,
             'pieFollowUpDirs' => $this->pieFollowUpDirs,
             'pieCompletedDirs' => $this->pieCompletedDirs,
+            'pieElectionPendingDirs' => $this->pieElectionPendingDirs,
+            'pieElectionCompletedDirs' => $this->pieElectionCompletedDirs,
             'subConsiteLabels' => $this->subConsiteLabels,
             'subConsitePending' => $this->subConsitePending,
             'subConsiteFollowUp' => $this->subConsiteFollowUp,
@@ -425,6 +812,24 @@ class AdminDashboard extends Component
             'fsAllCharts' => $this->fsAllCharts,
             'fsBySubCharts' => $this->fsBySubCharts,
             'formTotalsPies' => $this->formTotalsPies,
+            'dashSubConsiteLabels' => $this->dashSubConsiteLabels,
+            'dashSubConsitePending' => $this->dashSubConsitePending,
+            'dashSubConsiteCompleted' => $this->dashSubConsiteCompleted,
+            'tasksCompletedToday' => $this->tasksCompletedToday,
+            'directoriesActive' => $this->directoriesActive,
+            'directoriesInactive' => $this->directoriesInactive,
+            'directoriesPendingTotal' => $this->directoriesPendingTotal,
+            'directoriesCompletedTotal' => $this->directoriesCompletedTotal,
+            'directoriesCompletedTodayTotal' => $this->directoriesCompletedTodayTotal,
+            'qsBySubCharts' => $this->qsBySubCharts,
+            'ccAvailableElections' => $this->ccAvailableElections,
+            'ccAvailableSubConsites' => $this->ccAvailableSubConsites,
+            'ccElectionId' => $this->ccElectionId,
+            'ccSubConsiteId' => $this->ccSubConsiteId,
+            'userPerformanceRows' => $this->userPerformanceRows,
+            'showAllUsersPerformance' => $this->showAllUsersPerformance,
+            'expandedUserIds' => $this->expandedUserIds,
+            'userDailyStats' => $this->userDailyStats,
         ])->layout('layouts.master');
     }
 }
