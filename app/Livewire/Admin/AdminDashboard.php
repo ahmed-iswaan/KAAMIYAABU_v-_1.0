@@ -14,6 +14,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Arr;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\CallCenterForm;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminDashboard extends Component
 {
@@ -98,6 +99,10 @@ class AdminDashboard extends Component
     public array $expandedUserIds = []; // [userId => true]
     public array $userDailyStats = []; // [userId => [['date'=>Y-m-d,'completed'=>n,'attempts'=>n],...]]
 
+    // CSV export (daily)
+    public ?int $selectedUserPerformanceCsvUserId = null;
+    public array $userPerformanceUsersForSelect = []; // [['id'=>..,'name'=>..], ...]
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
@@ -135,6 +140,14 @@ class AdminDashboard extends Component
         $this->computeQPositionsBySubConsiteCharts([1,3,4,5]);
 
         $this->computeUsersPerformance();
+
+        // build user select list for daily CSV
+        $this->userPerformanceUsersForSelect = collect($this->userPerformanceRows ?? [])
+            ->map(fn($r) => ['id' => (int)$r['user_id'], 'name' => (string)$r['name']])
+            ->values()
+            ->toArray();
+
+        $this->selectedUserPerformanceCsvUserId = (int) (collect($this->userPerformanceUsersForSelect)->first()['id'] ?? 0) ?: null;
     }
 
     // Explicit refresh method to recompute and dispatch
@@ -640,17 +653,86 @@ class AdminDashboard extends Component
     {
         $this->showAllUsersPerformance = !$this->showAllUsersPerformance;
         $this->computeUsersPerformance();
-    }
 
-    public function toggleUserDaily(int $userId): void
-    {
-        $this->expandedUserIds[$userId] = !($this->expandedUserIds[$userId] ?? false);
-        if ($this->expandedUserIds[$userId]) {
-            $this->loadUserDailyStats($userId);
+        // refresh select options to match current list
+        $this->userPerformanceUsersForSelect = collect($this->userPerformanceRows ?? [])
+            ->map(fn($r) => ['id' => (int)$r['user_id'], 'name' => (string)$r['name']])
+            ->values()
+            ->toArray();
+
+        if ($this->selectedUserPerformanceCsvUserId === null || !collect($this->userPerformanceUsersForSelect)->contains('id', $this->selectedUserPerformanceCsvUserId)) {
+            $this->selectedUserPerformanceCsvUserId = (int) (collect($this->userPerformanceUsersForSelect)->first()['id'] ?? 0) ?: null;
         }
     }
 
-    protected function computeUsersPerformance(): void
+    public function downloadUsersPerformanceCsv(): StreamedResponse
+    {
+        if (empty($this->userPerformanceRows)) {
+            $this->computeUsersPerformance();
+        }
+
+        $filename = 'users_performance_' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM for Excel
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, ['User', 'Completed', 'Attempts']);
+
+            foreach (($this->userPerformanceRows ?? []) as $row) {
+                fputcsv($out, [
+                    (string)($row['name'] ?? ''),
+                    (int)($row['completed'] ?? 0),
+                    (int)($row['attempts'] ?? 0),
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function downloadUserPerformanceDailyCsv(): StreamedResponse
+    {
+        $userId = (int) ($this->selectedUserPerformanceCsvUserId ?? 0);
+        if ($userId <= 0) {
+            abort(422, 'Select a user');
+        }
+
+        // Ensure daily stats exist for this user
+        $this->loadUserDailyStats($userId);
+
+        $userName = collect($this->userPerformanceRows ?? [])->firstWhere('user_id', $userId)['name']
+            ?? DB::table('users')->where('id', $userId)->value('name')
+            ?? ('user_' . $userId);
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]+/','_', (string)$userName);
+        $filename = 'users_performance_daily_' . $safeName . '_' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($userId, $userName) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, ['User', 'Date', 'Completed', 'Attempts']);
+
+            foreach (($this->userDailyStats[$userId] ?? []) as $d) {
+                fputcsv($out, [
+                    (string)$userName,
+                    (string)($d['date'] ?? ''),
+                    (int)($d['completed'] ?? 0),
+                    (int)($d['attempts'] ?? 0),
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function computeUsersPerformance(): void
     {
         $this->userPerformanceRows = [];
 

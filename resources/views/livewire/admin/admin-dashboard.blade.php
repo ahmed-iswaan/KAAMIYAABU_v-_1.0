@@ -116,9 +116,27 @@
                     <div class="text-muted fs-8">Active election (from election_directory_call_statuses)</div>
                 </div>
             </div>
-            <button type="button" class="btn btn-sm btn-light-primary" wire:click="toggleShowAllUsersPerformance">
-                {{ ($showAllUsersPerformance ?? false) ? 'Show only active users' : 'Show all users' }}
-            </button>
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-light" wire:click="downloadUsersPerformanceCsv">
+                    Download CSV
+                </button>
+
+                <div class="d-flex align-items-center gap-2">
+                    <select class="form-select form-select-sm" style="min-width: 220px;" wire:model="selectedUserPerformanceCsvUserId">
+                        @foreach(($userPerformanceUsersForSelect ?? []) as $u)
+                            <option value="{{ $u['id'] }}">{{ $u['name'] }}</option>
+                        @endforeach
+                    </select>
+                    <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadUserPerformanceDailyCsv">
+                        Download Daily CSV
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-light-primary" wire:click="toggleShowAllUsersPerformance">
+                    {{ ($showAllUsersPerformance ?? false) ? 'Show only active users' : 'Show all users' }}
+                </button>
+            </div>
         </div>
         <div class="card-body pt-0">
             <div class="table-responsive">
