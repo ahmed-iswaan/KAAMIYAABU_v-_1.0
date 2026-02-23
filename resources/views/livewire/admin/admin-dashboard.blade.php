@@ -131,6 +131,9 @@
                     <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadUserPerformanceDailyCsv">
                         Download Daily CSV
                     </button>
+                    <button type="button" class="btn btn-sm btn-light" wire:click="downloadUsersPerformanceDailyZip">
+                        Download All Daily (Users)
+                    </button>
                 </div>
 
                 <button type="button" class="btn btn-sm btn-light-primary" wire:click="toggleShowAllUsersPerformance">
@@ -500,17 +503,18 @@ const TotalsAboveBarsPlugin = {
                     { label: 'Pledged', data: provPledged, backgroundColor: '#f6c000' },
                 ]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    // Put the TOTAL above the bar to avoid overlapping the segment values
-                    totalsAboveBars: { mode: 'above' },
-                    segmentValues: { minSegmentPixelHeight: 18 }
-                }
-            },
+            options:
+                {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        // Put the TOTAL above the bar to avoid overlapping the segment values
+                        totalsAboveBars: { mode: 'above' },
+                        segmentValues: { minSegmentPixelHeight: 18 }
+                    }
+                },
             plugins: [TotalsAboveBarsPlugin, SegmentValuesPlugin]
         });
     }

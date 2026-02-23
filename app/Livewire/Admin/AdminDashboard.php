@@ -15,6 +15,7 @@ use Illuminate\Support\Arr;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\CallCenterForm;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 class AdminDashboard extends Component
 {
@@ -732,6 +733,123 @@ class AdminDashboard extends Component
         ]);
     }
 
+    public function downloadUsersPerformanceDailyZip(): StreamedResponse
+    {
+        // CSV can't have sheets; preferred is a ZIP containing one CSV per user.
+        // If the ZipArchive extension is missing, fall back to a single combined CSV.
+
+        if (!class_exists(\ZipArchive::class)) {
+            return $this->downloadUsersPerformanceDailyCombinedCsv();
+        }
+
+        // CSV export (daily)
+        $userId = (int) ($this->selectedUserPerformanceCsvUserId ?? 0);
+        if ($userId <= 0) {
+            abort(422, 'Select a user');
+        }
+
+        // Ensure daily stats exist for this user
+        $this->loadUserDailyStats($userId);
+
+        $userName = collect($this->userPerformanceRows ?? [])->firstWhere('user_id', $userId)['name']
+            ?? DB::table('users')->where('id', $userId)->value('name')
+            ?? ('user_' . $userId);
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]+/','_', (string)$userName);
+        $filename = 'users_performance_daily_' . $safeName . '_' . now()->format('Y-m-d_His') . '.zip';
+
+        $tmp = tempnam(sys_get_temp_dir(), 'upd_');
+        if ($tmp === false) {
+            abort(500, 'Unable to create temp file');
+        }
+
+        // ZipArchive expects a .zip path
+        $zipPath = $tmp . '.zip';
+        @unlink($zipPath);
+
+        $zip = new ZipArchive();
+        $opened = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        if ($opened !== true) {
+            @unlink($tmp);
+            abort(500, 'Unable to create zip');
+        }
+
+        foreach ($activeUsers as $r) {
+            $userId = (int)($r['user_id'] ?? 0);
+            if ($userId <= 0) continue;
+
+            $name = (string)($r['name'] ?? ('User_' . $userId));
+            $safeName = preg_replace('/[^A-Za-z0-9_\-]+/','_', $name);
+
+            $this->loadUserDailyStats($userId);
+            $rows = $this->userDailyStats[$userId] ?? [];
+
+            $fh = fopen('php://temp', 'w+');
+            // UTF-8 BOM for Excel
+            fwrite($fh, "\xEF\xBB\xBF");
+            fputcsv($fh, ['User', 'Date', 'Completed', 'Attempts']);
+            foreach ($rows as $d) {
+                fputcsv($fh, [
+                    $name,
+                    (string)($d['date'] ?? ''),
+                    (int)($d['completed'] ?? 0),
+                    (int)($d['attempts'] ?? 0),
+                ]);
+            }
+            rewind($fh);
+            $csv = stream_get_contents($fh) ?: '';
+            fclose($fh);
+
+            $zip->addFromString($safeName . '_daily.csv', $csv);
+        }
+
+        $zip->close();
+        @unlink($tmp);
+
+        $filename = 'users_performance_daily_' . now()->format('Y-m-d_His') . '.zip';
+
+        return response()->download($zipPath, $filename, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function downloadUsersPerformanceDailyCombinedCsv(): StreamedResponse
+    {
+        if (empty($this->userPerformanceRows)) {
+            $this->computeUsersPerformance();
+        }
+
+        $activeUsers = collect($this->userPerformanceRows ?? []);
+        $filename = 'users_performance_daily_ALL_' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($activeUsers) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['User', 'Date', 'Completed', 'Attempts']);
+
+            foreach ($activeUsers as $r) {
+                $userId = (int)($r['user_id'] ?? 0);
+                if ($userId <= 0) continue;
+
+                $name = (string)($r['name'] ?? ('User_' . $userId));
+                $this->loadUserDailyStats($userId);
+
+                foreach (($this->userDailyStats[$userId] ?? []) as $d) {
+                    fputcsv($out, [
+                        $name,
+                        (string)($d['date'] ?? ''),
+                        (int)($d['completed'] ?? 0),
+                        (int)($d['attempts'] ?? 0),
+                    ]);
+                }
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     private function computeUsersPerformance(): void
     {
         $this->userPerformanceRows = [];
@@ -857,6 +975,15 @@ class AdminDashboard extends Component
             'completed' => (int)($r->completed ?? 0),
             'attempts' => (int)($r->attempts ?? 0),
         ])->toArray();
+    }
+
+    public function toggleUserDaily(int $userId): void
+    {
+        $this->expandedUserIds[$userId] = !($this->expandedUserIds[$userId] ?? false);
+
+        if ($this->expandedUserIds[$userId]) {
+            $this->loadUserDailyStats($userId);
+        }
     }
 
     public function render()
