@@ -742,21 +742,11 @@ class AdminDashboard extends Component
             return $this->downloadUsersPerformanceDailyCombinedCsv();
         }
 
-        // CSV export (daily)
-        $userId = (int) ($this->selectedUserPerformanceCsvUserId ?? 0);
-        if ($userId <= 0) {
-            abort(422, 'Select a user');
+        if (empty($this->userPerformanceRows)) {
+            $this->computeUsersPerformance();
         }
 
-        // Ensure daily stats exist for this user
-        $this->loadUserDailyStats($userId);
-
-        $userName = collect($this->userPerformanceRows ?? [])->firstWhere('user_id', $userId)['name']
-            ?? DB::table('users')->where('id', $userId)->value('name')
-            ?? ('user_' . $userId);
-
-        $safeName = preg_replace('/[^A-Za-z0-9_\-]+/','_', (string)$userName);
-        $filename = 'users_performance_daily_' . $safeName . '_' . now()->format('Y-m-d_His') . '.zip';
+        $activeUsers = collect($this->userPerformanceRows ?? []);
 
         $tmp = tempnam(sys_get_temp_dir(), 'upd_');
         if ($tmp === false) {
@@ -767,8 +757,8 @@ class AdminDashboard extends Component
         $zipPath = $tmp . '.zip';
         @unlink($zipPath);
 
-        $zip = new ZipArchive();
-        $opened = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip = new \ZipArchive();
+        $opened = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         if ($opened !== true) {
             @unlink($tmp);
             abort(500, 'Unable to create zip');
@@ -779,13 +769,12 @@ class AdminDashboard extends Component
             if ($userId <= 0) continue;
 
             $name = (string)($r['name'] ?? ('User_' . $userId));
-            $safeName = preg_replace('/[^A-Za-z0-9_\-]+/','_', $name);
+            $safeName = preg_replace('/[^A-Za-z0-9_\-]+/', '_', $name);
 
             $this->loadUserDailyStats($userId);
             $rows = $this->userDailyStats[$userId] ?? [];
 
             $fh = fopen('php://temp', 'w+');
-            // UTF-8 BOM for Excel
             fwrite($fh, "\xEF\xBB\xBF");
             fputcsv($fh, ['User', 'Date', 'Completed', 'Attempts']);
             foreach ($rows as $d) {
