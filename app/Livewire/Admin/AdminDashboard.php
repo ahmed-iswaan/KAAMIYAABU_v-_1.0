@@ -15,6 +15,7 @@ use Illuminate\Support\Arr;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\CallCenterForm;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 use ZipArchive;
 
 class AdminDashboard extends Component
@@ -733,7 +734,7 @@ class AdminDashboard extends Component
         ]);
     }
 
-    public function downloadUsersPerformanceDailyZip(): StreamedResponse
+    public function downloadUsersPerformanceDailyZip(): Response
     {
         // CSV can't have sheets; preferred is a ZIP containing one CSV per user.
         // If the ZipArchive extension is missing, fall back to a single combined CSV.
