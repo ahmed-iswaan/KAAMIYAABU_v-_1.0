@@ -23,6 +23,13 @@ class ElectionManagement extends Component
     public ?string $endDate = null;   // Y-m-d
     public string $status = Election::STATUS_ACTIVE;
 
+    public $showAddSubConsiteModal = false;
+    public $selectedElectionId = null;
+    public $selectedSubConsiteId = null;
+    public $subConsites = [];
+    public $existingElectionSubConsites = [];
+    public $subConsiteSelections = [];
+
     public function openCreate(): void
     {
         $this->authorize('elections-manage-render');
@@ -181,6 +188,46 @@ class ElectionManagement extends Component
                 'ip_address' => request()->ip(),
             ]);
         });
+    }
+
+    public function getElectionSubConsites($electionId)
+    {
+        return DB::table('participants')
+            ->where('election_id', $electionId)
+            ->distinct()
+            ->pluck('sub_consite_id')
+            ->all();
+    }
+
+    public function openAddSubConsiteModal($electionId)
+    {
+        $this->selectedElectionId = $electionId;
+        $allSubConsites = \App\Models\SubConsite::orderBy('name')->get(['id','name']);
+        $existingSubConsites = $this->getElectionSubConsites($electionId);
+        $this->subConsiteSelections = [];
+        foreach ($allSubConsites as $sc) {
+            $this->subConsiteSelections[$sc->id] = in_array($sc->id, $existingSubConsites);
+        }
+        $this->subConsites = $allSubConsites;
+        $this->showAddSubConsiteModal = true;
+    }
+
+    public function toggleSubConsite($subConsiteId)
+    {
+        $isSelected = $this->subConsiteSelections[$subConsiteId] ?? false;
+        if ($isSelected) {
+            // Add participant
+            \App\Models\Participant::updateOrCreate([
+                'election_id' => $this->selectedElectionId,
+                'sub_consite_id' => $subConsiteId,
+            ], []);
+        } else {
+            // Remove participant
+            \App\Models\Participant::where([
+                'election_id' => $this->selectedElectionId,
+                'sub_consite_id' => $subConsiteId,
+            ])->delete();
+        }
     }
 
     public function render()

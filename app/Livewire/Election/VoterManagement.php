@@ -139,7 +139,10 @@ class VoterManagement extends Component
     public function mount()
     {
         $this->elections = Election::orderBy('start_date','desc')->get(['id','name','status']);
-        if(!$this->electionId && $this->elections->count()){
+        $activeElection = $this->elections->firstWhere('status', Election::STATUS_ACTIVE);
+        if ($activeElection) {
+            $this->electionId = $activeElection->id;
+        } elseif (!$this->electionId && $this->elections->count()) {
             $this->electionId = $this->elections->first()->id;
         }
         $this->opinionTypes = OpinionType::where('active',true)->orderBy('name')->get(['id','name']);
@@ -149,50 +152,27 @@ class VoterManagement extends Component
         if(is_array($saved)) { $this->finalPledgeFilters = $saved; }
     }
 
-    public function updatedElectionId(){ $this->resetPage(); }
-
-    public function setActiveTab($tab){ if(in_array($tab,['details','opinions','notes','requests'])) $this->activeTab = $tab; }
-
-    public function viewVoter($id)
-    {
-        $this->authorize('voters-viewVoter');
-        $this->viewingVoter = Directory::with([
-            'party:id,short_name,logo,name',
-            'subConsite:id,code,name',
-            'property:id,name',
-            'island:id,name,atoll_id',
-            'island.atoll:id,code',
-            'country:id,name'
-        ])->find($id);
-
-        if($this->viewingVoter){
-            $this->notesLimit = 3; // reset notes limit when opening a voter
-            $this->loadVoterRelations();
-            $this->activeTab = 'details';
-            $this->dispatch('show-view-voter-modal');
-        }
-    }
-
     private function loadVoterRelations(){
         if(!$this->viewingVoter) return;
         $id = $this->viewingVoter->id;
+        $activeElectionId = Election::where('status', Election::STATUS_ACTIVE)->value('id');
         $this->voterOpinions = VoterOpinion::with(['type:id,name','takenBy:id,name'])
             ->where('directory_id',$id)
-            ->when($this->electionId, fn($q)=>$q->where('election_id',$this->electionId))
+            ->when($activeElectionId, fn($q)=>$q->where('election_id',$activeElectionId))
             ->latest()->get();
         $this->voterRequests = VoterRequest::with([
                 'type:id,name','author:id,name','responses.responder:id,name'
             ])
             ->where('directory_id',$id)
-            ->when($this->electionId, fn($q)=>$q->where('election_id',$this->electionId))
+            ->when($activeElectionId, fn($q)=>$q->where('election_id',$activeElectionId))
             ->latest()->get();
         $this->voterNotes = \App\Models\VoterNote::with(['author:id,name'])
             ->where('directory_id',$id)
-            ->when($this->electionId, fn($q)=>$q->where('election_id',$this->electionId))
+            ->when($activeElectionId, fn($q)=>$q->where('election_id',$activeElectionId))
             ->latest()->get();
         // load pledges
-        if($this->electionId){
-            $pledges = VoterPledge::where('directory_id',$id)->where('election_id',$this->electionId)->get();
+        if($activeElectionId){
+            $pledges = VoterPledge::where('directory_id',$id)->where('election_id',$activeElectionId)->get();
             $this->provisionalPledge = $pledges->firstWhere('type',VoterPledge::TYPE_PROVISIONAL);
             $this->finalPledge = $pledges->firstWhere('type',VoterPledge::TYPE_FINAL);
             $this->provisional_status = $this->provisionalPledge->status ?? '';
@@ -590,6 +570,7 @@ class VoterManagement extends Component
                 ->count();
         }
         $this->calculatePledgeTotals();
+        
         return view('livewire.election.voter-management', [
             'voters' => $voters,
             'pageTitle' => $this->pageTitle,
@@ -632,6 +613,15 @@ class VoterManagement extends Component
             ->all();
         Log::info('PledgeTotals: filtered directory ids', ['count'=>count($dirIds),'sample'=>array_slice($dirIds,0,10)]);
 
+        // Debug logging to compare filtered directory IDs with pledge directory IDs
+        Log::info('PledgeTotals: debug directory IDs', [
+            'dirIds' => $dirIds,
+            'pledgeDirectoryIds' => DB::table('voter_provisional_user_pledges')
+                ->where('election_id', $this->electionId)
+                ->where('user_id', Auth::id())
+                ->pluck('directory_id')->all()
+        ]);
+
         if (empty($dirIds)) {
             $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
             $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
@@ -639,29 +629,42 @@ class VoterManagement extends Component
             return;
         }
 
-        // Provisional totals are now per-user (pending means no row by current user)
+        // Provisional totals: count only for current user
         $provRows = DB::table('voter_provisional_user_pledges')
             ->where('election_id', $this->electionId)
             ->where('user_id', Auth::id())
             ->whereIn('directory_id', $dirIds)
-            ->selectRaw('LOWER(COALESCE(status, "pending")) as s, COUNT(*) as c')
+            ->selectRaw('id, election_id, user_id, directory_id, status')
+            ->get();
+        Log::info('PledgeTotals: debug provisional rows', [
+            'rows' => $provRows->toArray(),
+            'electionId' => $this->electionId,
+            'userId' => Auth::id(),
+            'dirIds' => $dirIds
+        ]);
+        $provSummary = DB::table('voter_provisional_user_pledges')
+            ->where('election_id', $this->electionId)
+            ->where('user_id', Auth::id())
+            ->whereIn('directory_id', $dirIds)
+            ->selectRaw('LOWER(TRIM(COALESCE(status, "pending"))) as s, COUNT(*) as c')
             ->groupBy('s')
             ->get();
         $tp = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
         $countWithProvPledge = 0;
-        foreach ($provRows as $r) {
+        foreach ($provSummary as $r) {
             $key = in_array($r->s, ['yes','no','neutral','pending'], true) ? $r->s : 'pending';
             $tp[$key] = ($tp[$key] ?? 0) + (int)$r->c;
             $countWithProvPledge += (int)$r->c;
         }
         $tp['pending'] = max(0, count($dirIds) - $countWithProvPledge);
 
-        // Final totals over filtered directories (Yes/No/Neutral, Pending = no row)
+
+        // Final totals: count all matching rows
         $finalRows = DB::table('voter_pledges')
             ->where('election_id', $this->electionId)
             ->where('type', \App\Models\VoterPledge::TYPE_FINAL)
             ->whereIn('directory_id', $dirIds)
-            ->selectRaw('LOWER(COALESCE(status, "pending")) as s, COUNT(*) as c')
+            ->selectRaw('LOWER(TRIM(COALESCE(status, "pending"))) as s, COUNT(*) as c')
             ->groupBy('s')
             ->get();
         $tf = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
@@ -1103,5 +1106,27 @@ class VoterManagement extends Component
         }, $file, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    public function setActiveTab($tab){ if(in_array($tab,['details','opinions','notes','requests'])) $this->activeTab = $tab; }
+    
+    public function viewVoter($id)
+    {
+        $this->authorize('voters-viewVoter');
+        $this->viewingVoter = Directory::with([
+            'party:id,short_name,logo,name',
+            'subConsite:id,code,name',
+            'property:id,name',
+            'island:id,name,atoll_id',
+            'island.atoll:id,code',
+            'country:id,name'
+        ])->find($id);
+
+        if($this->viewingVoter){
+            $this->notesLimit = 3; // reset notes limit when opening a voter
+            $this->loadVoterRelations();
+            $this->activeTab = 'details';
+            $this->dispatch('show-view-voter-modal');
+        }
     }
 }

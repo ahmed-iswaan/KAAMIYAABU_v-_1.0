@@ -57,6 +57,7 @@
                                                 @else
                                                     <button type="button" class="btn btn-light-warning" wire:click="setInactive('{{ $e->id }}')">Deactivate</button>
                                                 @endif
+                                                <button type="button" class="btn btn-light-info" wire:click="openAddSubConsiteModal('{{ $e->id }}')">Add SubConsite as Participants</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -119,6 +120,35 @@
                     </div>
                 </div>
             @endif
+
+            @isset($showAddSubConsiteModal)
+                @if($showAddSubConsiteModal)
+                    <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Add SubConsite Participants</h5>
+                                    <button type="button" class="btn-close" aria-label="Close" wire:click="$set('showAddSubConsiteModal', false)"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label class="form-label fw-semibold">Select SubConsites</label>
+                                    <ul class="list-group">
+                                        @foreach($subConsites as $sc)
+                                            <li class="list-group-item d-flex align-items-center">
+                                                <input type="checkbox" class="form-check-input me-2" wire:model="subConsiteSelections.{{ $sc->id }}" wire:change="toggleSubConsite('{{ $sc->id }}')">
+                                                <span>{{ $sc->name }}</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light" wire:click="$set('showAddSubConsiteModal', false)">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endisset
         </div>
     </div>
 </div>
