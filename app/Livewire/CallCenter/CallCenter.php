@@ -745,6 +745,25 @@ class CallCenter extends Component
         // Ensure the attempt is visible once user starts using it
         $this->visibleAttempts = max($this->visibleAttempts, $attemptInt);
 
+        // Mark as completed if sub-status matches the required list
+        $subStatusName = '';
+        if ($subStatusId !== '') {
+            $subStatusName = strtolower(trim((string)($this->activeSubStatuses[$subStatusId] ?? '')));
+            if ($subStatusName === '') {
+                $subStatusName = strtolower(trim((string) SubStatus::query()->whereKey($subStatusId)->value('name')));
+            }
+        }
+        $autoCompleteNames = [
+            'phone hung up',
+            'wrong number',
+            'would decide after speaking with mayor',
+            'deceased', // lowercase only
+        ];
+        if (in_array(strtolower($subStatusName), $autoCompleteNames, true)) {
+            $this->directoryCallStatus = ElectionDirectoryCallStatus::STATUS_COMPLETED;
+            $this->saveDirectoryCallStatus();
+        }
+
         // Sync directory phone status + notes when an attempt is saved
         if ($phone !== '') {
             // Persist both the selected sub_status_id and a mapped legacy status for the phone
