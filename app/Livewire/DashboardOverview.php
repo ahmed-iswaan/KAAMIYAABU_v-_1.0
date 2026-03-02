@@ -162,6 +162,13 @@ class DashboardOverview extends Component
         $rank = 1;
         $this->userTaskStats = $userRows
             ->filter(fn($r) => (int)($r->completed_by_user ?? 0) > 0)
+            ->filter(function ($r) {
+                // Only include users who have at least one Spatie role assigned
+                return DB::table('model_has_roles')
+                    ->where('model_type', 'App\\Models\\User')
+                    ->where('model_id', $r->id)
+                    ->exists();
+            })
              ->map(function($r) use (&$rank){
                  $total = (int)($r->total ?? 0);
                  $completedAssigned = (int)($r->completed_assigned ?? 0);
