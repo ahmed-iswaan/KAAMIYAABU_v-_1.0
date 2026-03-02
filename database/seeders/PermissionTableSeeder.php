@@ -91,7 +91,10 @@ class PermissionTableSeeder extends Seeder
             // 'call-center-history',
             // 'call-center-mark-completed',
             // 'call-center-undo-status',
-            'call-center-clear-attempt',
+            // 'call-center-clear-attempt',
+
+            // Voters (bulk provisional pledges)
+            'voters-bulkProvisionalPledge',
         ];
         
         foreach ($permissions as $permission) {

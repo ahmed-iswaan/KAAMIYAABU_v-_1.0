@@ -14,7 +14,7 @@
         <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
             <div class="container-xxl">
                 <div class="row g-6 mb-6">
-                        @can('voters-openProvisionalPledge')
+                        @can('voters-bulkProvisionalPledge')
                     <div class="col-md-6">
                         <div class="card card-bordered shadow-sm">
                             <div class="card-body py-4">
@@ -321,22 +321,27 @@
                                                 <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-175px py-4" data-kt-menu="true">
                                                     @can('voters-viewVoter')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click="viewVoter('{{ $entry->id }}')">View</a>
+                                                        <a href="#" class="menu-link px-3" wire:click.prevent="viewVoter('{{ $entry->id }}')">View</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-openProvisionalPledge')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click="openProvisionalPledgeModal('{{ $entry->id }}')">Provisional Pledge</a>
+                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openProvisionalPledgeModal('{{ $entry->id }}')">Provisional Pledge</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-viewProvisionalHistory')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click="openProvisionalHistory('{{ $entry->id }}')">Provisional History</a>
+                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openProvisionalHistory('{{ $entry->id }}')">Provisional History</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-openFinalPledge')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click="openFinalPledgeModal('{{ $entry->id }}')">Final Pledge</a>
+                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openFinalPledgeModal('{{ $entry->id }}')">Final Pledge</a>
+                                                    </div>
+                                                    @endcan
+                                                    @can('voters-bulkProvisionalPledge')
+                                                    <div class="menu-item px-3">
+                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openBulkProvisionalPledgeModalForDirectory('{{ $entry->id }}')">Bulk Provisional Pledge</a>
                                                     </div>
                                                     @endcan
                                                 </div>
@@ -359,6 +364,30 @@
     @include('livewire.election.partials.pledge-provisional-modal')
     @include('livewire.election.partials.pledge-final-modal')
     @include('livewire.election.partials.provisional-history-modal')
+
+    {{-- Bulk Provisional Pledge Modal --}}
+    @if($showBulkProvisionalPledgeModal)
+        <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);" role="dialog" aria-modal="true" wire:ignore.self>
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Bulk Provisional Pledge Entry</h5>
+                        <button type="button" class="btn-close" aria-label="Close" wire:click="closeBulkProvisionalPledgeModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <livewire:bulk-provisional-pledge-form
+                            :election-id="$electionId"
+                            :selected-directory-ids="$bulkProvSelectedDirectoryIds"
+                            wire:key="bulk-prov-pledge-{{ $electionId }}-{{ md5(json_encode($bulkProvSelectedDirectoryIds)) }}"
+                        />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeBulkProvisionalPledgeModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @push('scripts')
     <script>

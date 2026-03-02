@@ -739,6 +739,7 @@ class VoterManagement extends Component
             'echo:elections.voters,VoterDataChanged' => 'handleRealtimeUpdate',
             'reverb-voter-update' => 'handleRealtimeUpdate',
             'window:voter-data-updated' => 'handleRealtimeUpdate', // NEW fallback browser event
+            'bulk-prov-pledges-saved' => 'handleBulkProvPledgesSaved',
         ];
     }
 
@@ -1128,5 +1129,43 @@ class VoterManagement extends Component
             $this->activeTab = 'details';
             $this->dispatch('show-view-voter-modal');
         }
+    }
+
+    public bool $showBulkProvisionalPledgeModal = false;
+
+    /**
+     * Directory IDs selected from the table for bulk provisional pledge entry.
+     * Keep this small (only chosen rows) to avoid loading huge option lists.
+     */
+    public array $bulkProvSelectedDirectoryIds = [];
+
+    public function openBulkProvisionalPledgeModal(array $directoryIds = []): void
+    {
+        $this->authorize('voters-bulkProvisionalPledge');
+
+        // normalize + keep uniques only
+        $directoryIds = array_values(array_unique(array_filter($directoryIds)));
+
+        $this->bulkProvSelectedDirectoryIds = $directoryIds;
+        $this->showBulkProvisionalPledgeModal = true;
+    }
+
+    public function openBulkProvisionalPledgeModalForDirectory(string $directoryId): void
+    {
+        $this->authorize('voters-bulkProvisionalPledge');
+
+        $this->openBulkProvisionalPledgeModal([$directoryId]);
+    }
+
+    public function closeBulkProvisionalPledgeModal(): void
+    {
+        $this->showBulkProvisionalPledgeModal = false;
+    }
+
+    public function handleBulkProvPledgesSaved(): void
+    {
+        // close modal + refresh totals/list
+        $this->showBulkProvisionalPledgeModal = false;
+        $this->calculatePledgeTotals();
     }
 }
