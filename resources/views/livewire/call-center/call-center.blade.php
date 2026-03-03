@@ -879,14 +879,13 @@
                                                     <input type="hidden" wire:model.lazy="ccForm.q5_help_needed" />
                                                 @endif
 
-                                                @php($showQ6MessageToMayor = (($ccForm['q3_support'] ?? null) === 'aanekey'))
+                                                <!-- @php($showQ6MessageToMayor = (($ccForm['q3_support'] ?? null) === 'aanekey'))
                                                 <div class="mb-0" wire:key="ccForm-q6-message-to-mayor" style="{{ $showQ6MessageToMayor ? '' : 'display:none;' }}">
                                                     <label class="form-label fw-semibold">6. މޭޔަރ އަށް ދެއްވަން ބޭނުންފުޅުވާ ހިޔާލެއް އެބަ އޮތްތޯ؟ (ނޯޓްސް)</label>
                                                     <textarea class="form-control" rows="4" wire:model.defer="ccForm.q6_message_to_mayor" placeholder="..." @disabled(!$activeElectionId || !$showQ6MessageToMayor)></textarea>
-                                                </div>
+                                                </div> -->
                                             @endif
 
-                                            <!--begin::Alert-->
                                             <div class="alert alert-primary d-flex align-items-center p-5 pt-5 mt-6">
                                              
                                                 <!--begin::Wrapper-->
