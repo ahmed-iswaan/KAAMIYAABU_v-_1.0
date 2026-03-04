@@ -56,7 +56,7 @@
                         <div class="card-title d-flex flex-wrap align-items-center gap-3 w-100">
                             <div class="d-flex align-items-center position-relative flex-grow-1 my-1 me-md-4" style="min-width:200px;">
                                 <i class="ki-duotone ki-magnifier fs-3 position-absolute ms-5"><span class="path1"></span><span class="path2"></span></i>
-                                <input type="text" wire:model.live.debounce.500ms="search" class="form-control form-control-solid w-100 ps-13" placeholder="Search by Name, Email or ID Card">
+                                <input type="text" wire:model.live.debounce.500ms="search" class="form-control form-control-solid w-100 ps-13" placeholder="Search by Name, Email, ID Card or BK{block} (e.g. bk12)">
                                 @if($search)
                                     <button type="button" class="btn btn-sm btn-light position-absolute end-0 top-50 translate-middle-y me-2" style="z-index:2;" wire:click="$set('search','')">
                                         <i class="ki-duotone ki-cross fs-2">
@@ -277,6 +277,7 @@
                                                 <div class="d-flex flex-column">
                                                     <span class="text-gray-800 text-hover-primary mb-1">{{ ucwords(strtolower($entry->name)) }}</span>
                                                     <small class="text-muted">{{ $entry->id_card_number ?? '—' }}</small>
+
                                                 </div>
                                             </td>
                                             <td>
@@ -305,6 +306,9 @@
                                             </td>
                                             <td>
                                                 <div class="text-gray-700 small">{{ $entry->permanentLocationString() }}</div>
+                                                    @if(!empty($entry->block))
+                                                        <small class="text-muted">BK{{ $entry->block }}</small>
+                                                    @endif
                                             </td>
                                             <td><span class="badge badge-{{ $colorProv }} fw-bold">{{ $labelProv }}</span></td>
                                                @can('voters-openFinalPledge')

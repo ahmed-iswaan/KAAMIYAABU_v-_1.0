@@ -438,7 +438,7 @@ class VoterManagement extends Component
                 'country:id,name'
             ])
             ->select([
-                'directories.id','name','profile_picture','id_card_number','gender','date_of_birth','phones','email','party_id','sub_consite_id','properties_id','street_address','address','country_id','island_id','status','created_at'
+                'directories.id','name','profile_picture','id_card_number','block','gender','date_of_birth','phones','email','party_id','sub_consite_id','properties_id','street_address','address','country_id','island_id','status','created_at'
             ])
             // Only Active directories
             ->where('status','Active')
@@ -505,15 +505,25 @@ class VoterManagement extends Component
         }
 
         if($this->search){
-            $term = '%'.$this->search.'%';
-            $directoryQuery->where(function($qq) use ($term){
-                $qq->where('name','like',$term)
-                   ->orWhere('email','like',$term)
-                   ->orWhere('id_card_number','like',$term)
-                   // directory addresses
-                   ->orWhere('street_address','like',$term)
-                   ->orWhere('address','like',$term);
-            });
+            $raw = trim((string) $this->search);
+
+            // Special: block search by prefix "bk" e.g. bk12, BK-12, bk 12
+            if (preg_match('/^bk\s*\-?\s*(.+)$/i', $raw, $m)) {
+                $blockTerm = '%' . trim($m[1]) . '%';
+                $directoryQuery->where('block', 'like', $blockTerm);
+            } else {
+                $term = '%'.$raw.'%';
+                $directoryQuery->where(function($qq) use ($term){
+                    $qq->where('name','like',$term)
+                       ->orWhere('email','like',$term)
+                       ->orWhere('id_card_number','like',$term)
+                       // block number
+                       ->orWhere('block','like',$term)
+                       // directory addresses
+                       ->orWhere('street_address','like',$term)
+                       ->orWhere('address','like',$term);
+                });
+            }
         }
 
         // Multi final pledge filter logic

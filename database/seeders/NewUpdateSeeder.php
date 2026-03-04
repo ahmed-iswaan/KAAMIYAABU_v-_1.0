@@ -25,14 +25,14 @@ class NewUpdateSeeder extends Seeder
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/electiondatalistmale.json');
+        $file = database_path('seeders/data/dhaftharulist.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
         }
 
         $rows = json_decode(File::get($file), true);
-        if (!is_array($rows)) { $this->command->error('electiondatalistmale.json not valid JSON array.'); return; }
+        if (!is_array($rows)) { $this->command->error('dhaftharulist.json not valid JSON array.'); return; }
 
         $maldivesId = Country::where('name', 'Maldives')->value('id');
         if (!$maldivesId) { $this->command->error('Country Maldives missing.'); return; }
@@ -92,6 +92,28 @@ class NewUpdateSeeder extends Seeder
                 $block = trim((string) $blockRaw);
                 if ($block === '') { $block = null; }
             }
+
+            // Past fields (nullable) - only update when JSON has a non-empty value
+            $pastAtollRaw = $r['Past Atoll'] ?? $r['PAST ATOLL'] ?? $r['past_atoll'] ?? null;
+            $pastIslandRaw = $r['Past Island'] ?? $r['PAST ISLAND'] ?? $r['past_island'] ?? null;
+            $pastWardRaw = $r['Past Ward'] ?? $r['PAST WARD'] ?? $r['past_ward'] ?? null;
+            $pastAddress1Raw = $r['Past Address1'] ?? $r['Past Address 1'] ?? $r['PAST ADDRESS1'] ?? $r['past_address1'] ?? null;
+            $pastAddress2Raw = $r['Past Address2'] ?? $r['Past Address 2'] ?? $r['PAST ADDRESS2'] ?? $r['past_address2'] ?? null;
+            $prevConstituencyRaw = $r['Prev. constituency'] ?? $r['Prev constituency'] ?? $r['PREV CONSTITUENCY'] ?? $r['prev_constituency'] ?? null;
+
+            $pastAtoll = $pastAtollRaw !== null ? trim((string) $pastAtollRaw) : null;
+            $pastIsland = $pastIslandRaw !== null ? trim((string) $pastIslandRaw) : null;
+            $pastWard = $pastWardRaw !== null ? trim((string) $pastWardRaw) : null;
+            $pastAddress1 = $pastAddress1Raw !== null ? trim((string) $pastAddress1Raw) : null;
+            $pastAddress2 = $pastAddress2Raw !== null ? trim((string) $pastAddress2Raw) : null;
+            $prevConstituency = $prevConstituencyRaw !== null ? trim((string) $prevConstituencyRaw) : null;
+
+            if ($pastAtoll === '') { $pastAtoll = null; }
+            if ($pastIsland === '') { $pastIsland = null; }
+            if ($pastWard === '') { $pastWard = null; }
+            if ($pastAddress1 === '') { $pastAddress1 = null; }
+            if ($pastAddress2 === '') { $pastAddress2 = null; }
+            if ($prevConstituency === '') { $prevConstituency = null; }
 
             // Gender
             $genderRaw = strtoupper(trim((string)($r['Sex'] ?? $r['GENDER'] ?? $r['gender'] ?? '')));
@@ -166,6 +188,15 @@ class NewUpdateSeeder extends Seeder
                 'serial' => $serial ?? ($existing?->serial),
                 // Set block if provided, otherwise keep existing value
                 'block' => $block ?? ($existing?->block),
+
+                // Past fields (preserve existing when JSON missing/empty)
+                'past_atoll' => $pastAtoll ?? ($existing?->past_atoll),
+                'past_island' => $pastIsland ?? ($existing?->past_island),
+                'past_ward' => $pastWard ?? ($existing?->past_ward),
+                'past_address1' => $pastAddress1 ?? ($existing?->past_address1),
+                'past_address2' => $pastAddress2 ?? ($existing?->past_address2),
+                'prev_constituency' => $prevConstituency ?? ($existing?->prev_constituency),
+
                 'date_of_birth' => $dob ?: ($existing?->date_of_birth),
                 'phones' => $mergedPhones->values()->all(),
                 'country_id' => $maldivesId,
