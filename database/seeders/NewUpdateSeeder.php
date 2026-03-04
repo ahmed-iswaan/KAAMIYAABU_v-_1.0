@@ -85,6 +85,14 @@ class NewUpdateSeeder extends Seeder
                 if ($serial === '') { $serial = null; }
             }
 
+            // BLOCK (nullable) - only update when JSON has a non-empty value
+            $blockRaw = $r['BLOCK'] ?? $r['Block'] ?? $r['block'] ?? null;
+            $block = null;
+            if ($blockRaw !== null) {
+                $block = trim((string) $blockRaw);
+                if ($block === '') { $block = null; }
+            }
+
             // Gender
             $genderRaw = strtoupper(trim((string)($r['Sex'] ?? $r['GENDER'] ?? $r['gender'] ?? '')));
             $gender = $genderRaw === 'MALE' || $genderRaw === 'M' ? 'male' : ($genderRaw === 'FEMALE' || $genderRaw === 'F' ? 'female' : 'other');
@@ -156,6 +164,8 @@ class NewUpdateSeeder extends Seeder
                 'gender' => $gender,
                 // Set serial if provided, otherwise keep existing value
                 'serial' => $serial ?? ($existing?->serial),
+                // Set block if provided, otherwise keep existing value
+                'block' => $block ?? ($existing?->block),
                 'date_of_birth' => $dob ?: ($existing?->date_of_birth),
                 'phones' => $mergedPhones->values()->all(),
                 'country_id' => $maldivesId,
