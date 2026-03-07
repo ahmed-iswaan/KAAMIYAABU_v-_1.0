@@ -150,46 +150,43 @@
                                             </div>
                                         </td>
                                         <td data-order="2023-12-20T20:43:00+05:00">{{ \Carbon\Carbon::parse($user->created_at)->format('d M Y, g:i a') }}</td>
-                                        <td class="text-end position-relative">
-                                            <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
-                                            <i class="ki-duotone ki-down fs-5 ms-1"></i></a>
-                                            <!--begin::Menu-->
-                                            <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-180px py-4" data-kt-menu="true">
-                                                <!--begin::Menu item-->
-                                                <div class="menu-item px-3">
-                                                    <a href="#"
-                                                    class="menu-link px-3"
-                                                    wire:click="editUser({{ $user->id }})">
-                                                    Edit
-                                                 </a>
-                                                </div>
-                                                <!--end::Menu item-->
+                                        <td class="text-end">
+                                            <div class="dropdown">
+                                                <button type="button" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Actions
+                                                    <i class="ki-duotone ki-down fs-5 ms-1"></i>
+                                                </button>
 
-                                                @can('user-resetPassword')
-                                                <div class="menu-item px-3">
-                                                    <a href="#" class="menu-link px-3" wire:click="openResetPasswordModal({{ $user->id }})">
-                                                        Reset Password
-                                                    </a>
-                                                </div>
-                                                @endcan
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                    <li>
+                                                        <button type="button" class="dropdown-item" wire:click.prevent="editUser({{ $user->id }})">
+                                                            Edit
+                                                        </button>
+                                                    </li>
 
-                                                @if($user->roles->isEmpty())
+                                                    @can('user-resetPassword')
+                                                        <li>
+                                                            <button type="button" class="dropdown-item" wire:click.prevent="openResetPasswordModal({{ $user->id }})">
+                                                                Reset Password
+                                                            </button>
+                                                        </li>
+                                                    @endcan
 
-                                                @else
-                                                    <!--begin::Menu item-->
-                                                        <div class="menu-item px-3">
-                                                            <a href="#" class="menu-link px-3" wire:click="removeRole({{ $user->id }})" >Remove Role</a>
-                                                        </div>
-                                                   <!--end::Menu item-->
-                                                @endif
-                                                <!--begin::Menu item-->
-                                                <div class="menu-item px-3">
-                                                    <a href="#" class="menu-link px-3" wire:click="openSubconsiteModal({{ $user->id }})">Manage Sub Consites</a>
-                                                </div>
-                                                <!--end::Menu item-->
+                                                    @if(! $user->roles->isEmpty())
+                                                        <li>
+                                                            <button type="button" class="dropdown-item" wire:click.prevent="removeRole({{ $user->id }})">
+                                                                Remove Role
+                                                            </button>
+                                                        </li>
+                                                    @endif
 
+                                                    <li>
+                                                        <button type="button" class="dropdown-item" wire:click.prevent="openSubconsiteModal({{ $user->id }})">
+                                                            Manage Sub Consites
+                                                        </button>
+                                                    </li>
+                                                </ul>
                                             </div>
-                                            <!--end::Menu-->
                                         </td>
                                     </tr>
                                     @endforeach
@@ -284,6 +281,9 @@
   #kt_table_users_wrapper table#kt_table_users tr td:first-child { border-left: 0 !important; }
   /* Keep avatar circles crisp */
   .symbol.symbol-circle { overflow: hidden; }
+
+  /* Guard: keep dropdown menus from stretching full width in the table */
+  #kt_table_users_wrapper .dropdown-menu { width: auto !important; min-width: 12rem; }
 </style>
 @endpush
 </div>
