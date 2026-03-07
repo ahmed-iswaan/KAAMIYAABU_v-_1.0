@@ -152,7 +152,7 @@
                                             <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
                                             <i class="ki-duotone ki-down fs-5 ms-1"></i></a>
                                             <!--begin::Menu-->
-                                            <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-125px py-4" data-kt-menu="true">
+                                            <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-180px py-4" data-kt-menu="true">
                                                 <!--begin::Menu item-->
                                                 <div class="menu-item px-3">
                                                     <a href="#"
@@ -162,6 +162,15 @@
                                                  </a>
                                                 </div>
                                                 <!--end::Menu item-->
+
+                                                @can('user-openPasswordViewModal')
+                                                <div class="menu-item px-3">
+                                                    <a href="#" class="menu-link px-3" wire:click="openPasswordViewModal({{ $user->id }})">
+                                                        View Password
+                                                    </a>
+                                                </div>
+                                                @endcan
+
                                                 @if($user->roles->isEmpty())
 
                                                 @else
@@ -203,6 +212,55 @@
             </div>
 
    </div>
+
+<!-- Password View Modal (shows stored hash only) -->
+<div wire:ignore.self class="modal fade" id="kt_modal_view_password" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered mw-650px">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="fw-bold">Password (Hash)</h2>
+                <div class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal" aria-label="Close" wire:click="closePasswordViewModal">
+                    <i class="ki-duotone ki-cross fs-1">
+                        <span class="path1"></span>
+                        <span class="path2"></span>
+                    </i>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3 text-muted">
+                    User: <span class="fw-semibold text-gray-800">{{ $passwordViewUserName }}</span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Stored password value</label>
+                    <textarea class="form-control form-control-solid" rows="4" readonly>{{ $passwordViewHash }}</textarea>
+                    <div class="form-text">
+                        This is the stored password hash. Plaintext passwords are not retrievable.
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal" wire:click="closePasswordViewModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    document.addEventListener('livewire:init', () => {
+        const modalEl = document.getElementById('kt_modal_view_password');
+        if (!modalEl) return;
+
+        const modal = new bootstrap.Modal(modalEl);
+
+        Livewire.on('showPasswordViewModal', () => modal.show());
+        Livewire.on('closePasswordViewModal', () => modal.hide());
+    });
+</script>
+@endpush
 
 @push('styles')
 <style>

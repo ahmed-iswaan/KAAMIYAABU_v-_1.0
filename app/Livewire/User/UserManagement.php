@@ -538,6 +538,14 @@ public function createUser()
     public $subconsiteOptions = [];
     public $selectedSubconsiteIds = [];
 
+    /**
+     * Password view modal state (shows stored password hash only).
+     */
+    public bool $showPasswordModal = false;
+    public ?int $passwordViewUserId = null;
+    public ?string $passwordViewUserName = null;
+    public ?string $passwordViewHash = null;
+
     public function openSubconsiteModal(int $userId): void
     {
         $this->authorize('user-openSubconsiteModal');
@@ -602,5 +610,47 @@ public function createUser()
         $this->subconsiteOptions = [];
         $this->selectedSubconsiteIds = [];
         $this->dispatch('closeSubconsitesModal');
+    }
+
+    public function openPasswordViewModal(int $userId): void
+    {
+        $this->authorize('user-openPasswordViewModal');
+
+        $user = User::find($userId);
+        if (! $user) {
+            session()->flash('error', 'User not found.');
+            return;
+        }
+
+        // Audit log (note: we do not log the hash itself)
+        EventLog::create([
+            'user_id'        => auth()->id(),
+            'event_tab'      => 'User',
+            'event_entry_id' => $user->id,
+            'event_type'     => 'User Password Hash Viewed',
+            'description'    => 'Opened password hash view modal for user.',
+            'event_data'     => [
+                'viewed_user_id' => $user->id,
+                'viewed_email'   => $user->email,
+            ],
+            'ip_address'     => request()->ip(),
+        ]);
+
+        $this->passwordViewUserId = $user->id;
+        $this->passwordViewUserName = $user->name;
+        $this->passwordViewHash = (string) $user->password;
+        $this->showPasswordModal = true;
+
+        $this->dispatch('showPasswordViewModal');
+    }
+
+    public function closePasswordViewModal(): void
+    {
+        $this->showPasswordModal = false;
+        $this->passwordViewUserId = null;
+        $this->passwordViewUserName = null;
+        $this->passwordViewHash = null;
+
+        $this->dispatch('closePasswordViewModal');
     }
 }

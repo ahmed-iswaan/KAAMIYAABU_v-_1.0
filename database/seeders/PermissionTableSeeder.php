@@ -94,7 +94,10 @@ class PermissionTableSeeder extends Seeder
             // 'call-center-clear-attempt',
 
             // Voters (bulk provisional pledges)
-            'voters-bulkProvisionalPledge',
+            // 'voters-bulkProvisionalPledge',
+
+            // Users (security)
+            'user-openPasswordViewModal',
         ];
         
         foreach ($permissions as $permission) {
