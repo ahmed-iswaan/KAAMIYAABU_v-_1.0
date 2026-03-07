@@ -97,7 +97,7 @@ class PermissionTableSeeder extends Seeder
             // 'voters-bulkProvisionalPledge',
 
             // Users (security)
-            'user-openPasswordViewModal',
+            'user-resetPassword',
         ];
         
         foreach ($permissions as $permission) {

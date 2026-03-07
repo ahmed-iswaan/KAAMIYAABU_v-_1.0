@@ -165,10 +165,10 @@
                                                 </div>
                                                 <!--end::Menu item-->
 
-                                                @can('user-openPasswordViewModal')
+                                                @can('user-resetPassword')
                                                 <div class="menu-item px-3">
-                                                    <a href="#" class="menu-link px-3" wire:click="openPasswordViewModal({{ $user->id }})">
-                                                        View Password
+                                                    <a href="#" class="menu-link px-3" wire:click="openResetPasswordModal({{ $user->id }})">
+                                                        Reset Password
                                                     </a>
                                                 </div>
                                                 @endcan
@@ -215,13 +215,13 @@
 
    </div>
 
-<!-- Password View Modal (shows stored hash only) -->
-<div wire:ignore.self class="modal fade" id="kt_modal_view_password" tabindex="-1" aria-hidden="true">
+<!-- Reset Password Modal -->
+<div wire:ignore.self class="modal fade" id="kt_modal_reset_password" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered mw-650px">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="fw-bold">Password (Hash)</h2>
-                <div class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal" aria-label="Close" wire:click="closePasswordViewModal">
+                <h2 class="fw-bold">Reset Password</h2>
+                <div class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal" aria-label="Close" wire:click="closeResetPasswordModal">
                     <i class="ki-duotone ki-cross fs-1">
                         <span class="path1"></span>
                         <span class="path2"></span>
@@ -231,20 +231,33 @@
 
             <div class="modal-body">
                 <div class="mb-3 text-muted">
-                    User: <span class="fw-semibold text-gray-800">{{ $passwordViewUserName }}</span>
+                    User: <span class="fw-semibold text-gray-800">{{ $resetPasswordUserName }}</span>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Stored password value</label>
-                    <textarea class="form-control form-control-solid" rows="4" readonly>{{ $passwordViewHash }}</textarea>
-                    <div class="form-text">
-                        This is the stored password hash. Plaintext passwords are not retrievable.
+                <form wire:submit.prevent="resetUserPassword">
+                    <div class="mb-5">
+                        <label class="required form-label">New Password</label>
+                        <input type="password" class="form-control form-control-solid" wire:model.defer="reset_password" placeholder="Enter new password">
+                        @error('reset_password') <div class="text-danger mt-2">{{ $message }}</div> @enderror
                     </div>
-                </div>
-            </div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal" wire:click="closePasswordViewModal">Close</button>
+                    <div class="mb-5">
+                        <label class="required form-label">Confirm Password</label>
+                        <input type="password" class="form-control form-control-solid" wire:model.defer="reset_password_confirmation" placeholder="Confirm new password">
+                        @error('reset_password_confirmation') <div class="text-danger mt-2">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="text-end">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal" wire:click="closeResetPasswordModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="indicator-label">Reset</span>
+                            <span wire:loading wire:target="resetUserPassword" class="indicator-progress">
+                                Please wait...
+                                <span class="spinner-border spinner-border-sm align-middle ms-2"></span>
+                            </span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -253,13 +266,13 @@
 @push('scripts')
 <script>
     document.addEventListener('livewire:init', () => {
-        const modalEl = document.getElementById('kt_modal_view_password');
+        const modalEl = document.getElementById('kt_modal_reset_password');
         if (!modalEl) return;
 
         const modal = new bootstrap.Modal(modalEl);
 
-        Livewire.on('showPasswordViewModal', () => modal.show());
-        Livewire.on('closePasswordViewModal', () => modal.hide());
+        Livewire.on('showResetPasswordModal', () => modal.show());
+        Livewire.on('closeResetPasswordModal', () => modal.hide());
     });
 </script>
 @endpush

@@ -546,6 +546,13 @@ public function createUser()
     public ?string $passwordViewUserName = null;
     public ?string $passwordViewHash = null;
 
+    // Reset password modal state
+    public bool $showResetPasswordModal = false;
+    public ?int $resetPasswordUserId = null;
+    public ?string $resetPasswordUserName = null;
+    public string $reset_password = '';
+    public string $reset_password_confirmation = '';
+
     public function openSubconsiteModal(int $userId): void
     {
         $this->authorize('user-openSubconsiteModal');
@@ -614,7 +621,13 @@ public function createUser()
 
     public function openPasswordViewModal(int $userId): void
     {
-        $this->authorize('user-openPasswordViewModal');
+        // Backwards-compat: route old action to reset-password instead.
+        $this->openResetPasswordModal($userId);
+    }
+
+    public function openResetPasswordModal(int $userId): void
+    {
+        $this->authorize('user-resetPassword');
 
         $user = User::find($userId);
         if (! $user) {
@@ -622,35 +635,88 @@ public function createUser()
             return;
         }
 
-        // Audit log (note: we do not log the hash itself)
         EventLog::create([
             'user_id'        => auth()->id(),
             'event_tab'      => 'User',
             'event_entry_id' => $user->id,
-            'event_type'     => 'User Password Hash Viewed',
-            'description'    => 'Opened password hash view modal for user.',
+            'event_type'     => 'User Password Reset Modal Opened',
+            'description'    => 'Opened reset password modal for user.',
             'event_data'     => [
-                'viewed_user_id' => $user->id,
-                'viewed_email'   => $user->email,
+                'reset_user_id' => $user->id,
+                'reset_email'   => $user->email,
             ],
             'ip_address'     => request()->ip(),
         ]);
 
-        $this->passwordViewUserId = $user->id;
-        $this->passwordViewUserName = $user->name;
-        $this->passwordViewHash = (string) $user->password;
-        $this->showPasswordModal = true;
+        $this->resetPasswordUserId = $user->id;
+        $this->resetPasswordUserName = $user->name;
+        $this->reset_password = '';
+        $this->reset_password_confirmation = '';
 
-        $this->dispatch('showPasswordViewModal');
+        $this->showResetPasswordModal = true;
+        $this->dispatch('showResetPasswordModal');
+    }
+
+    public function closeResetPasswordModal(): void
+    {
+        $this->showResetPasswordModal = false;
+        $this->resetPasswordUserId = null;
+        $this->resetPasswordUserName = null;
+        $this->reset_password = '';
+        $this->reset_password_confirmation = '';
+
+        $this->dispatch('closeResetPasswordModal');
+    }
+
+    public function resetUserPassword(): void
+    {
+        $this->authorize('user-resetPassword');
+
+        $validated = $this->validate([
+            'resetPasswordUserId' => 'required|integer|exists:users,id',
+            'reset_password' => 'required|string|min:6|same:reset_password_confirmation',
+            'reset_password_confirmation' => 'required|string|min:6',
+        ], [
+            'reset_password.same' => 'Passwords do not match.',
+        ]);
+
+        $user = User::find($validated['resetPasswordUserId']);
+        if (! $user) {
+            session()->flash('error', 'User not found.');
+            return;
+        }
+
+        $user->password = Hash::make($validated['reset_password']);
+        $user->save();
+
+        EventLog::create([
+            'user_id'        => auth()->id(),
+            'event_tab'      => 'User',
+            'event_entry_id' => $user->id,
+            'event_type'     => 'User Password Reset',
+            'description'    => 'Password was reset for user.',
+            'event_data'     => [
+                'reset_user_id' => $user->id,
+                'reset_email'   => $user->email,
+            ],
+            'ip_address'     => request()->ip(),
+        ]);
+
+        $this->dispatch('swal', [
+            'title' => 'Password Reset',
+            'text' => 'The password has been reset successfully.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Ok',
+            'confirmButton' => 'btn btn-primary',
+        ]);
+
+        $this->closeResetPasswordModal();
     }
 
     public function closePasswordViewModal(): void
     {
-        $this->showPasswordModal = false;
-        $this->passwordViewUserId = null;
-        $this->passwordViewUserName = null;
-        $this->passwordViewHash = null;
-
-        $this->dispatch('closePasswordViewModal');
+        // Backwards-compat: ensure any old JS listeners don't break.
+        $this->closeResetPasswordModal();
     }
 }
