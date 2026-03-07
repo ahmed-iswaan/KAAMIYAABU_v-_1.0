@@ -50,8 +50,11 @@ class BulkProvisionalPledgeForm extends Component
             $this->directoryNid = (string) ($dir->id_card_number ?? '');
         }
 
-        // Load users list
+        // Load users list (only users with role: Provisional Pledge OR Admin)
         $this->userOptions = User::query()
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['Provisional Pledge', 'Admin']);
+            })
             ->orderBy('name')
             ->limit(500)
             ->get(['id', 'name'])
