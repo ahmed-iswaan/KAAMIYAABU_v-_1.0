@@ -1,4 +1,6 @@
 @section('title', $pageTitle)
+
+<div>
 <!--begin::Content-->
 	<div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
 		<!--begin::Toolbar-->
@@ -271,3 +273,4 @@
   .symbol.symbol-circle { overflow: hidden; }
 </style>
 @endpush
+</div>
