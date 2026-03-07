@@ -150,43 +150,35 @@
                                             </div>
                                         </td>
                                         <td data-order="2023-12-20T20:43:00+05:00">{{ \Carbon\Carbon::parse($user->created_at)->format('d M Y, g:i a') }}</td>
-                                        <td class="text-end">
-                                            <div class="dropdown">
-                                                <button type="button" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    Actions
-                                                    <i class="ki-duotone ki-down fs-5 ms-1"></i>
-                                                </button>
+                                        <td class="text-end position-relative">
+                                            <a href="javascript:void(0)" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">
+                                                Actions
+                                                <i class="ki-duotone ki-down fs-5 ms-1"></i>
+                                            </a>
 
-                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                                    <li>
-                                                        <button type="button" class="dropdown-item" wire:click.prevent="editUser({{ $user->id }})">
-                                                            Edit
-                                                        </button>
-                                                    </li>
+                                            <!--begin::Menu-->
+                                            <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-180px py-4" data-kt-menu="true">
+                                                <div class="menu-item px-3">
+                                                    <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="editUser({{ $user->id }})">Edit</a>
+                                                </div>
 
-                                                    @can('user-resetPassword')
-                                                        <li>
-                                                            <button type="button" class="dropdown-item" wire:click.prevent="openResetPasswordModal({{ $user->id }})">
-                                                                Reset Password
-                                                            </button>
-                                                        </li>
-                                                    @endcan
+                                                @can('user-resetPassword')
+                                                    <div class="menu-item px-3">
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openResetPasswordModal({{ $user->id }})">Reset Password</a>
+                                                    </div>
+                                                @endcan
 
-                                                    @if(! $user->roles->isEmpty())
-                                                        <li>
-                                                            <button type="button" class="dropdown-item" wire:click.prevent="removeRole({{ $user->id }})">
-                                                                Remove Role
-                                                            </button>
-                                                        </li>
-                                                    @endif
+                                                @if(! $user->roles->isEmpty())
+                                                    <div class="menu-item px-3">
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="removeRole({{ $user->id }})">Remove Role</a>
+                                                    </div>
+                                                @endif
 
-                                                    <li>
-                                                        <button type="button" class="dropdown-item" wire:click.prevent="openSubconsiteModal({{ $user->id }})">
-                                                            Manage Sub Consites
-                                                        </button>
-                                                    </li>
-                                                </ul>
+                                                <div class="menu-item px-3">
+                                                    <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openSubconsiteModal({{ $user->id }})">Manage Sub Consites</a>
+                                                </div>
                                             </div>
+                                            <!--end::Menu-->
                                         </td>
                                     </tr>
                                     @endforeach
@@ -282,8 +274,13 @@
   /* Keep avatar circles crisp */
   .symbol.symbol-circle { overflow: hidden; }
 
-  /* Guard: keep dropdown menus from stretching full width in the table */
-  #kt_table_users_wrapper .dropdown-menu { width: auto !important; min-width: 12rem; }
+  /* KT Menu guard: keep submenu from stretching and ensure it overlays */
+  #kt_table_users_wrapper td.position-relative .menu-sub-dropdown {
+    width: 180px;
+    min-width: 180px;
+    position: absolute;
+    z-index: 105;
+  }
 </style>
 @endpush
 </div>
