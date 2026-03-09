@@ -526,10 +526,8 @@ class CallCenter extends Component
         $q2 = trim((string)($this->ccForm['q2_reason'] ?? ''));
         $q3 = trim((string)($this->ccForm['q3_support'] ?? ''));
 
-        // Q2 is only required when Q1 is NOT "kamudhey" (per Blade condition)
-        $formIsComplete = ($q1 !== '')
-            && ($q3 !== '')
-            && ($q1 === 'kamudhey' || $q2 !== '');
+        // Q2 is optional. Only Q1 and Q3 are required for completion.
+        $formIsComplete = ($q1 !== '') && ($q3 !== '');
 
         if ($formIsComplete) {
             $this->directoryCallStatus = ElectionDirectoryCallStatus::STATUS_COMPLETED;
