@@ -239,7 +239,7 @@
                                                 default => 'secondary',
                                             };
                                         @endphp
-                                        <tr>
+                                        <tr wire:key="voter-row-{{ $entry->id }}">
                                             <td class="d-flex align-items-center cursor-pointer" wire:click="viewVoter('{{ $entry->id }}')" style="user-select:none;">
                                                 @php
                                                     $g = strtolower($entry->gender ?? '');
@@ -318,34 +318,41 @@
                                             <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
                                             @endcan
                                   
-                                            <td class="text-end">
-                                                <a href="#" class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-end">Actions
+                                            <td class="text-end position-relative" wire:key="voter-actions-{{ $entry->id }}">
+                                                <a href="javascript:void(0)"
+                                                   class="btn btn-light btn-active-light-primary btn-flex btn-center btn-sm"
+                                                   data-kt-menu-trigger="click"
+                                                   data-kt-menu-placement="bottom-end"
+                                                   wire:key="voter-actions-btn-{{ $entry->id }}">Actions
                                                     <i class="ki-duotone ki-down fs-5 ms-1"></i>
                                                 </a>
-                                                <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-175px py-4" data-kt-menu="true">
+
+                                                <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-semibold fs-7 w-175px py-4"
+                                                     data-kt-menu="true"
+                                                     wire:key="voter-actions-menu-{{ $entry->id }}">
                                                     @can('voters-viewVoter')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click.prevent="viewVoter('{{ $entry->id }}')">View</a>
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="viewVoter('{{ $entry->id }}')">View</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-openProvisionalPledge')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openProvisionalPledgeModal('{{ $entry->id }}')">Provisional Pledge</a>
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openProvisionalPledgeModal('{{ $entry->id }}')">Provisional Pledge</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-viewProvisionalHistory')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openProvisionalHistory('{{ $entry->id }}')">Provisional History</a>
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openProvisionalHistory('{{ $entry->id }}')">Provisional History</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-openFinalPledge')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openFinalPledgeModal('{{ $entry->id }}')">Final Pledge</a>
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openFinalPledgeModal('{{ $entry->id }}')">Final Pledge</a>
                                                     </div>
                                                     @endcan
                                                     @can('voters-bulkProvisionalPledge')
                                                     <div class="menu-item px-3">
-                                                        <a href="#" class="menu-link px-3" wire:click.prevent="openBulkProvisionalPledgeModalForDirectory('{{ $entry->id }}')">Bulk Provisional Pledge</a>
+                                                        <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openBulkProvisionalPledgeModalForDirectory('{{ $entry->id }}')">Bulk Provisional Pledge</a>
                                                     </div>
                                                     @endcan
                                                 </div>
@@ -421,6 +428,58 @@
                 setTimeout(cleanupBootstrapBackdrop, 50);
             });
         })();
+
+        (function () {
+            // Single source of truth for re-initializing Metronic menus after Livewire DOM updates.
+            function closeAnyOpenMenus() {
+                try {
+                    // Remove any visible menu states that might carry over after DOM replacement
+                    document.querySelectorAll('.menu.show, .menu-sub-dropdown.show').forEach(el => {
+                        el.classList.remove('show');
+                    });
+                } catch (e) {}
+            }
+
+            function initKtMenus() {
+                try {
+                    if (window.KTMenu && typeof window.KTMenu.createInstances === 'function') {
+                        window.KTMenu.createInstances();
+                    }
+                } catch (e) {}
+            }
+
+            let scheduled = false;
+            function scheduleInit() {
+                if (scheduled) return;
+                scheduled = true;
+
+                // wait until after Livewire paints + browser layout
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        scheduled = false;
+                        closeAnyOpenMenus();
+                        initKtMenus();
+                    }, 0);
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', scheduleInit);
+            document.addEventListener('livewire:init', () => {
+                scheduleInit();
+
+                // Livewire v3+ hook (runs after DOM morph is applied)
+                if (window.Livewire && typeof window.Livewire.hook === 'function') {
+                    window.Livewire.hook('morph.updated', () => scheduleInit());
+
+                    // Other hooks (keep as fallback)
+                    window.Livewire.hook('commit', () => scheduleInit());
+                    window.Livewire.hook('message.processed', () => scheduleInit());
+                }
+
+                // navigate plugin
+                document.addEventListener('livewire:navigated', scheduleInit);
+            });
+        })();
     </script>
     @endpush
 
@@ -439,5 +498,3 @@
     .symbol.symbol-50px img { object-fit:cover; }
     </style>
     @endpush
-       @stack('scripts')
-</div>
