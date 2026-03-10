@@ -37,6 +37,11 @@ class CallCenter extends Component
     public string $filterStatus = 'pending';
     public int $perPage = 25;
 
+    /**
+     * If true, exclude directories that have no phone numbers.
+     */
+    public bool $hideWithoutPhone = true;
+
     // Modal state
     public bool $showDetailsModal = false;
     public ?Directory $selectedDirectory = null;
@@ -118,12 +123,14 @@ class CallCenter extends Component
         'filterSubConsiteId' => ['except' => ''],
         'filterStatus' => ['except' => 'pending'],
         'perPage' => ['except' => 25],
+        'hideWithoutPhone' => ['except' => true],
     ];
 
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingFilterSubConsiteId(): void { $this->resetPage(); }
     public function updatingFilterStatus(): void { $this->resetPage(); }
     public function updatedPerPage(): void { $this->resetPage(); }
+    public function updatedHideWithoutPhone(): void { $this->resetPage(); }
 
     public function mount(): void
     {
@@ -1200,6 +1207,18 @@ class CallCenter extends Component
                 ->where('status', 'Active')
                 ->whereIn('sub_consite_id', $allowed)
                 ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
+                ->when($this->hideWithoutPhone, function ($q) {
+                    // phones appears stored as JSON/text. Exclude null/empty and common empty-json variants.
+                    // Also require at least one digit to ensure there is a real phone number.
+                    $q->whereNotNull('phones')
+                      ->whereRaw("TRIM(phones) <> ''")
+                      ->whereRaw("TRIM(phones) <> '[]'")
+                      ->whereRaw("TRIM(phones) <> '[ ]'")
+                      ->whereRaw("TRIM(phones) <> '[null]'")
+                      ->whereRaw("TRIM(phones) <> 'null'")
+                      ->whereRaw("TRIM(phones) <> '{}' ")
+                      ->whereRaw("phones REGEXP '[0-9]'");
+                })
                 ->when($this->search, function ($q) {
                     $term = trim($this->search);
                     $q->where(function ($qq) use ($term) {
@@ -1237,6 +1256,16 @@ class CallCenter extends Component
             ->where('status', 'Active')
             ->whereIn('sub_consite_id', $allowed)
             ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
+            ->when($this->hideWithoutPhone, function ($q) {
+                $q->whereNotNull('phones')
+                  ->whereRaw("TRIM(phones) <> ''")
+                  ->whereRaw("TRIM(phones) <> '[]'")
+                  ->whereRaw("TRIM(phones) <> '[ ]'")
+                  ->whereRaw("TRIM(phones) <> '[null]'")
+                  ->whereRaw("TRIM(phones) <> 'null'")
+                  ->whereRaw("TRIM(phones) <> '{}' ")
+                  ->whereRaw("phones REGEXP '[0-9]'");
+            })
             ->when($this->filterStatus === 'completed' && $this->activeElectionId, function ($q) {
                 $q->whereIn('id', ElectionDirectoryCallStatus::query()
                     ->where('election_id', (string) $this->activeElectionId)

@@ -68,8 +68,13 @@
                                 </select>
                             </div>
 
-                            <div class="ms-auto d-flex align-items-center gap-2">
-                                 <select class="form-select form-select-sm w-auto" wire:model.live="perPage">
+                            <div class="ms-auto d-flex align-items-center gap-3">
+                                <div class="form-check form-check-sm form-check-custom form-check-solid mb-0">
+                                    <input class="form-check-input" type="checkbox" id="cc_hide_no_phone" wire:model.live="hideWithoutPhone">
+                                    <label class="form-check-label text-muted" for="cc_hide_no_phone">Hide without phone number</label>
+                                </div>
+
+                                <select class="form-select form-select-sm w-auto" wire:model.live="perPage">
                                     <option value="10">10</option>
                                     <option value="25">25</option>
                                     <option value="50">50</option>
