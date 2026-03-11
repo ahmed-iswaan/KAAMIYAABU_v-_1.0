@@ -495,7 +495,7 @@ class CallCenter extends Component
         $this->validate([
             'ccForm.q1_performance' => ['nullable', 'in:kamudhey,kamunudhey,neyngey,mixed'],
             'ccForm.q2_reason' => ['nullable', 'string', 'max:4000'],
-            'ccForm.q3_support' => ['nullable', 'in:aanekey,noonekay,neyngey'],
+            'ccForm.q3_support' => ['nullable', 'in:aanekey,noonekay,neyngey,vote_laan_nudhaanan'],
             'ccForm.q4_voting_area' => ['nullable', 'in:male,vilimale,hulhumale_phase1,hulhumale_phase2,other,unknown'],
             'ccForm.q4_other_text' => ['nullable', 'string', 'max:255'],
             'ccForm.q5_help_needed' => ['nullable', 'in:yes,no,maybe'],

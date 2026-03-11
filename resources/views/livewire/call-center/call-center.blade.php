@@ -844,6 +844,7 @@
                                                     <option value="aanekey">އާނއެކޭ</option>
                                                     <option value="noonekay">ނޫނެކޭ</option>
                                                     <option value="neyngey">ނޭނގޭ</option>
+                                                    <option value="vote_laan_nudhaanan">ވޯޓު ލާން ނޫދާނަން</option>
                                                 </select>
                                             </div>
 
