@@ -1,4 +1,46 @@
 <div>
+    @php
+        // Shared maps/helpers (avoid redefining twice per render)
+        $dirStatusLabelMap = [
+            'not_started' => 'Pending',
+            'in_progress' => 'In progress',
+            'callback' => 'Call back',
+            'unreachable' => 'Unreachable',
+            'wrong_number' => 'Wrong number',
+            'do_not_call' => 'Do not call',
+            'completed' => 'Completed',
+        ];
+        $badgeForDirStatus = function($v){
+            return match($v){
+                'completed' => 'success',
+                'in_progress' => 'primary',
+                'callback' => 'info',
+                'unreachable' => 'warning',
+                'wrong_number' => 'danger',
+                'do_not_call' => 'danger',
+                default => 'secondary'
+            };
+        };
+        $subStatusLabelMap = ($activeSubStatuses ?? []) + [
+            // fallback for legacy string codes (if any old rows exist)
+            'unreachable' => 'Unreachable',
+            'wrong_number' => 'Wrong number',
+            'callback' => 'Call back',
+            'do_not_call' => 'Do not call',
+        ];
+        $badgeForSubStatus = function($v){
+            // If we now store SubStatus UUIDs, keep a neutral badge.
+            // Legacy values still get their colors.
+            return match($v){
+                'callback' => 'info',
+                'unreachable' => 'warning',
+                'wrong_number' => 'danger',
+                'do_not_call' => 'dark',
+                default => 'secondary'
+            };
+        };
+    @endphp
+
     <div class="content fs-6 d-flex flex-column flex-column-fluid" id="kt_content">
         <div class="toolbar" id="kt_toolbar">
             <div class="container-fluid d-flex flex-stack flex-wrap flex-sm-nowrap">
@@ -54,14 +96,14 @@
                     <div class="card-header border-0 pt-6">
                         <div class="card-title d-flex flex-wrap gap-3 align-items-center w-100">
                             <div class="d-flex align-items-center gap-3">
-                                <input type="text" class="form-control form-control-sm" style="min-width: 260px;" placeholder="Search name / NID / SERIAL / phone" wire:model.live="search" />
-                                <select class="form-select form-select-sm" style="min-width: 220px;" wire:model.live="filterSubConsiteId">
+                                <input type="text" class="form-control form-control-sm" style="min-width: 260px;" placeholder="Search name / NID / SERIAL / phone" wire:model.live.debounce.500ms="search" />
+                                <select class="form-select form-select-sm" style="min-width: 220px;" wire:model.live.debounce.250ms="filterSubConsiteId">
                                     <option value="">All Sub Consites</option>
                                     @foreach($subConsites as $sc)
                                         <option value="{{ $sc->id }}">{{ $sc->code }}{{ $sc->name ? ' - '.$sc->name : '' }}</option>
                                     @endforeach
                                 </select>
-                                <select class="form-select form-select-sm" style="min-width: 160px;" wire:model.live="filterStatus">
+                                <select class="form-select form-select-sm" style="min-width: 160px;" wire:model.live.debounce.250ms="filterStatus">
                                     <option value="pending">Pending</option>
                                     <option value="completed">Completed</option>
                                     <option value="all">All</option>
@@ -70,11 +112,11 @@
 
                             <div class="ms-auto d-flex align-items-center gap-3">
                                 <div class="form-check form-check-sm form-check-custom form-check-solid mb-0">
-                                    <input class="form-check-input" type="checkbox" id="cc_hide_no_phone" wire:model.live="hideWithoutPhone">
+                                    <input class="form-check-input" type="checkbox" id="cc_hide_no_phone" wire:model.live.debounce.250ms="hideWithoutPhone">
                                     <label class="form-check-label text-muted" for="cc_hide_no_phone">Hide without phone number</label>
                                 </div>
 
-                                <select class="form-select form-select-sm w-auto" wire:model.live="perPage">
+                                <select class="form-select form-select-sm w-auto" wire:model.live.debounce.250ms="perPage">
                                     <option value="10">10</option>
                                     <option value="25">25</option>
                                     <option value="50">50</option>
@@ -87,47 +129,6 @@
                     <div class="card-body pt-0">
                         <!-- Mobile card list -->
                         <div class="d-block d-md-none pt-4">
-                            @php
-                                $dirStatusLabelMap = [
-                                    'not_started' => 'Pending',
-                                    'in_progress' => 'In progress',
-                                    'callback' => 'Call back',
-                                    'unreachable' => 'Unreachable',
-                                    'wrong_number' => 'Wrong number',
-                                    'do_not_call' => 'Do not call',
-                                    'completed' => 'Completed',
-                                ];
-                                $badgeForDirStatus = function($v){
-                                    return match($v){
-                                        'completed' => 'success',
-                                        'in_progress' => 'primary',
-                                        'callback' => 'info',
-                                        'unreachable' => 'warning',
-                                        'wrong_number' => 'danger',
-                                        'do_not_call' => 'danger',
-                                        default => 'secondary'
-                                    };
-                                };
-                                $subStatusLabelMap = ($activeSubStatuses ?? []) + [
-                                    // fallback for legacy string codes (if any old rows exist)
-                                    'unreachable' => 'Unreachable',
-                                    'wrong_number' => 'Wrong number',
-                                    'callback' => 'Call back',
-                                    'do_not_call' => 'Do not call',
-                                ];
-                                $badgeForSubStatus = function($v){
-                                    // If we now store SubStatus UUIDs, keep a neutral badge.
-                                    // Legacy values still get their colors.
-                                    return match($v){
-                                        'callback' => 'info',
-                                        'unreachable' => 'warning',
-                                        'wrong_number' => 'danger',
-                                        'do_not_call' => 'dark',
-                                        default => 'secondary'
-                                    };
-                                };
-                            @endphp
-
                             <div class="d-flex flex-column gap-4">
                                 @forelse($directories as $d)
                                     @php
@@ -197,47 +198,6 @@
 
                         <!-- Desktop table -->
                         <div class="table-responsive d-none d-md-block">
-                            @php
-                                $dirStatusLabelMap = [
-                                    'not_started' => 'Pending',
-                                    'in_progress' => 'In progress',
-                                    'callback' => 'Call back',
-                                    'unreachable' => 'Unreachable',
-                                    'wrong_number' => 'Wrong number',
-                                    'do_not_call' => 'Do not call',
-                                    'completed' => 'Completed',
-                                ];
-                                $badgeForDirStatus = function($v){
-                                    return match($v){
-                                        'completed' => 'success',
-                                        'in_progress' => 'primary',
-                                        'callback' => 'info',
-                                        'unreachable' => 'warning',
-                                        'wrong_number' => 'danger',
-                                        'do_not_call' => 'danger',
-                                        default => 'secondary'
-                                    };
-                                };
-                                $subStatusLabelMap = ($activeSubStatuses ?? []) + [
-                                    // fallback for legacy string codes (if any old rows exist)
-                                    'unreachable' => 'Unreachable',
-                                    'wrong_number' => 'Wrong number',
-                                    'callback' => 'Call back',
-                                    'do_not_call' => 'Do not call',
-                                ];
-                                $badgeForSubStatus = function($v){
-                                    // If we now store SubStatus UUIDs, keep a neutral badge.
-                                    // Legacy values still get their colors.
-                                    return match($v){
-                                        'callback' => 'info',
-                                        'unreachable' => 'warning',
-                                        'wrong_number' => 'danger',
-                                        'do_not_call' => 'dark',
-                                        default => 'secondary'
-                                    };
-                                };
-                            @endphp
-
                             <table class="table align-middle table-row-dashed fs-7">
                                 <thead>
                                     <tr class="text-gray-600 fw-semibold">
