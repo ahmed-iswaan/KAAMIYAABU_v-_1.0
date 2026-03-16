@@ -8,7 +8,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                @php $options=['yes'=>'Yes','no'=>'No','neutral'=>'Undecided']; @endphp
+                @php $options=['yes'=>'Yes','no'=>'No','neutral'=>'Undecided','not_voting'=>'Not voting']; @endphp
                 <div class="vstack gap-3">
                     @foreach($options as $val=>$label)
                         <label class="form-check form-check-custom form-check-solid">

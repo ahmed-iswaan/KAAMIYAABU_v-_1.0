@@ -17,7 +17,8 @@ class VoterPledge extends Model
     public const TYPE_FINAL = 'final';
 
     public const STATUSES = [
-        'strong_yes','yes','neutral','no','strong_no'
+        'strong_yes','yes','neutral','no','strong_no',
+        'not_voting',
     ];
 
     public function voter(){ return $this->belongsTo(Directory::class,'directory_id'); }

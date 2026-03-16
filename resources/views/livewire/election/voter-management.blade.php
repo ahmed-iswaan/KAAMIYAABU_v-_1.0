@@ -26,6 +26,7 @@
                                     <span class="badge badge-light-primary">Yes: {{ $totalsProv['yes'] ?? 0 }}</span>
                                     <span class="badge badge-light-warning">No: {{ $totalsProv['no'] ?? 0 }}</span>
                                     <span class="badge badge-light-secondary">Undecided: {{ $totalsProv['neutral'] ?? 0 }}</span>
+                                    <span class="badge badge-light-dark">Not voting: {{ $totalsProv['not_voting'] ?? 0 }}</span>
                                     <span class="badge badge-light">Pending: {{ $totalsProv['pending'] ?? 0 }}</span>
                                 </div>
                             </div>
@@ -44,6 +45,7 @@
                                     <span class="badge badge-light-primary">Yes: {{ $totalsFinal['yes'] ?? 0 }}</span>
                                     <span class="badge badge-light-warning">No: {{ $totalsFinal['no'] ?? 0 }}</span>
                                     <span class="badge badge-light-secondary">Undecided: {{ $totalsFinal['neutral'] ?? 0 }}</span>
+                                    <span class="badge badge-light-dark">Not voting: {{ $totalsFinal['not_voting'] ?? 0 }}</span>
                                     <span class="badge badge-light">Pending: {{ $totalsFinal['pending'] ?? 0 }}</span>
                                 </div>
                             </div>
@@ -145,9 +147,10 @@
                                                 'neutral' => 'Neutral',
                                                 'no' => 'No',
                                                 'strong_no' => 'Strong No',
+                                                'not_voting' => 'Not voting',
                                             ];
                                             $colorMap = [
-                                                'pending'=>'secondary','strong_yes'=>'success','yes'=>'primary','neutral'=>'warning','no'=>'danger','strong_no'=>'dark'
+                                                'pending'=>'secondary','strong_yes'=>'success','yes'=>'primary','neutral'=>'warning','no'=>'danger','strong_no'=>'dark','not_voting'=>'dark'
                                             ];
                                         @endphp
                                         <ul class="list-unstyled m-0">
@@ -210,19 +213,22 @@
                                                 'yes' => 'YES',
                                                 'no' => 'NO',
                                                 'neutral' => 'UNDECIDED',
+                                                'not_voting' => 'NOT VOTING',
                                                 null => 'PENDING',
                                                 default => strtoupper(str_replace('_',' ', $pledgeProv))
                                             };
                                             // Colors
-                                            $colorMapFinal = ['strong_yes'=>'success','yes'=>'primary','neutral'=>'secondary','no'=>'warning','strong_no'=>'danger'];
+                                            $colorMapFinal = ['strong_yes'=>'success','yes'=>'primary','neutral'=>'secondary','no'=>'warning','strong_no'=>'danger','not_voting'=>'dark'];
                                             $colorFinal = $pledgeFinal ? ($colorMapFinal[$pledgeFinal] ?? 'secondary') : 'light';
                                             $colorProv = match($pledgeProv){
                                                 'yes' => 'primary',
                                                 'no' => 'warning',
                                                 'neutral' => 'secondary',
+                                                'not_voting' => 'dark',
                                                 null => 'light',
                                                 default => 'secondary'
                                             };
+
                                             $mayorQ3 = $entry->mayor_q3_answer ?? null;
                                             $mayorText = match($mayorQ3){
                                                 'yes' => 'YES',

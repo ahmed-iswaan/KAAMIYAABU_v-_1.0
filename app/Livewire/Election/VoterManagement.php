@@ -596,8 +596,8 @@ class VoterManagement extends Component
     {
         Log::info('PledgeTotals: start', ['electionId'=>$this->electionId]);
         if (! $this->electionId) {
-            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
-            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
+            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
             Log::info('PledgeTotals: no electionId');
             return;
         }
@@ -606,8 +606,8 @@ class VoterManagement extends Component
         $allowedSubconsiteIds = $user ? $user->subConsites()->pluck('sub_consites.id')->all() : [];
         Log::info('PledgeTotals: allowed subconsite ids', ['count'=>count($allowedSubconsiteIds),'ids'=>$allowedSubconsiteIds]);
         if (empty($allowedSubconsiteIds)) {
-            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
-            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
+            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
             Log::warning('PledgeTotals: user has no assigned sub consites');
             return;
         }
@@ -633,8 +633,8 @@ class VoterManagement extends Component
         ]);
 
         if (empty($dirIds)) {
-            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
-            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+            $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
+            $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
             Log::warning('PledgeTotals: no directories matched filters');
             return;
         }
@@ -659,10 +659,10 @@ class VoterManagement extends Component
             ->selectRaw('LOWER(TRIM(COALESCE(status, "pending"))) as s, COUNT(*) as c')
             ->groupBy('s')
             ->get();
-        $tp = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+        $tp = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
         $countWithProvPledge = 0;
         foreach ($provSummary as $r) {
-            $key = in_array($r->s, ['yes','no','neutral','pending'], true) ? $r->s : 'pending';
+            $key = in_array($r->s, ['yes','no','neutral','not_voting','pending'], true) ? $r->s : 'pending';
             $tp[$key] = ($tp[$key] ?? 0) + (int)$r->c;
             $countWithProvPledge += (int)$r->c;
         }
@@ -677,10 +677,10 @@ class VoterManagement extends Component
             ->selectRaw('LOWER(TRIM(COALESCE(status, "pending"))) as s, COUNT(*) as c')
             ->groupBy('s')
             ->get();
-        $tf = ['yes'=>0,'no'=>0,'neutral'=>0,'pending'=>0];
+        $tf = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
         $countWithFinalPledge = 0;
         foreach ($finalRows as $r) {
-            $key = in_array($r->s, ['yes','no','neutral','pending'], true) ? $r->s : 'pending';
+            $key = in_array($r->s, ['yes','no','neutral','not_voting','pending'], true) ? $r->s : 'pending';
             $tf[$key] = ($tf[$key] ?? 0) + (int)$r->c;
             $countWithFinalPledge += (int)$r->c;
         }
