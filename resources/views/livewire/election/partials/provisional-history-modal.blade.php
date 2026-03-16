@@ -22,7 +22,7 @@
                                 <tr>
                                     <td>{{ $item['user'] ?? '—' }}</td>
                                     <td>
-                                        @php $cm=['yes'=>'primary','no'=>'warning','neutral'=>'secondary','pending'=>'light']; $lbl= strtoupper($item['status']); @endphp
+                                        @php $cm=['yes'=>'primary','no'=>'warning','neutral'=>'secondary','not_voting'=>'dark','pending'=>'light']; $lbl= strtoupper($item['status']); @endphp
                                         <span class="badge badge-{{ $cm[$item['status']] ?? 'light' }} fw-bold">{{ $lbl }}</span>
                                     </td>
                                     <td class="text-muted">{{ $item['updated_at'] ?? '—' }}</td>

@@ -316,9 +316,33 @@
                                                         <small class="text-muted">BK{{ $entry->block }}</small>
                                                     @endif
                                             </td>
-                                            <td><span class="badge badge-{{ $colorProv }} fw-bold">{{ $labelProv }}</span></td>
-                                               @can('voters-openFinalPledge')
-                                                         <td>
+                                            <td>
+                                                @can('voters-openProvisionalPledge')
+                                                    @php
+                                                        $provOptions = [
+                                                            '' => 'Pending',
+                                                            'yes' => 'Yes',
+                                                            'no' => 'No',
+                                                            'neutral' => 'Undecided',
+                                                            'not_voting' => 'Not voting',
+                                                        ];
+                                                    @endphp
+                                                    <select
+                                                        class="form-select form-select-sm form-select-solid"
+                                                        wire:change="updateProvisionalPledgeFromTable('{{ $entry->id }}', $event.target.value)"
+                                                        onclick="event.stopPropagation();"
+                                                    >
+                                                        @foreach($provOptions as $val=>$text)
+                                                            <option value="{{ $val }}" @selected(($pledgeProv ?? '') === $val)>{{ $text }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                @else
+                                                    <span class="badge badge-light-{{ $colorProv }}">{{ $labelProv }}</span>
+                                                @endcan
+                                            </td>
+
+                                            @can('voters-openFinalPledge')
+                                                <td>
                                                 <span class="badge badge-light-{{ $mayorColor }}">{{ $mayorText }}</span>
                                             </td>
                                             <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
