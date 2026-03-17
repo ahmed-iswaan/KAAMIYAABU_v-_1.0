@@ -160,6 +160,8 @@
                                         <th class="text-center">Completed (Assigned)</th>
                                         <th class="text-center">Completed By User</th>
                                         <th class="text-center">Completed Today</th>
+                                        <th class="text-center">Attempts Today</th>
+                                        <th class="text-center">Attempts Total</th>
                                         <th class="text-end pe-3" style="min-width:160px;">Completion %</th>
                                     </tr>
                                 </thead>
@@ -180,6 +182,8 @@
                                             <td class="text-center"><span class="badge badge-light-success fw-semibold">{{ $row['completed_assigned'] ?? 0 }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-primary fw-semibold" title="Completed by this user (election_directory_call_statuses.updated_by)">{{ $row['completed_by_user'] }}</span></td>
                                             <td class="text-center"><span class="badge badge-light-dark fw-semibold" title="Completed by this user today (election_directory_call_statuses.updated_by)">{{ $row['completed_by_user_today'] ?? 0 }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-primary fw-semibold" title="Attempts today (election_directory_call_sub_statuses)">{{ $row['attempts_today'] ?? 0 }}</span></td>
+                                            <td class="text-center"><span class="badge badge-light-dark fw-semibold" title="Total attempts (distinct directory_id:attempt)">{{ $row['attempts_total'] ?? 0 }}</span></td>
                                             <td class="text-end pe-3">
                                                 <div class="d-flex align-items-center justify-content-end gap-3">
                                                     <div class="progress w-100" style="max-width:120px;height:6px;">
@@ -190,7 +194,7 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="8" class="text-muted fst-italic py-10 text-center">No data found.</td></tr>
+                                        <tr><td colspan="10" class="text-muted fst-italic py-10 text-center">No data found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
