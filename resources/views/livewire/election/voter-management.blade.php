@@ -205,7 +205,10 @@
                                     @forelse($voters as $entry)
                                         @php
                                             $pledgeFinal = $entry->final_pledge_status;
-                                            $pledgeProv = $entry->provisional_pledge_status;
+                                            $pledgeProvDb = $entry->provisional_pledge_status;
+                                            $pledgeProv = array_key_exists((string)$entry->id, $optimisticProvPledge ?? [])
+                                                ? ($optimisticProvPledge[(string)$entry->id] ?? null)
+                                                : $pledgeProvDb;
                                             // Map to labels for table display
                                             $labelFinal = $pledgeFinal ? strtoupper(str_replace('_',' ', $pledgeFinal)) : 'PENDING';
                                             // Restrict provisional labels to YES / NO / UNDECIDED
@@ -326,16 +329,27 @@
                                                             'neutral' => 'Undecided',
                                                             'not_voting' => 'Not voting',
                                                         ];
+                                                        $isSavingProv = (string)($savingProvPledgeDirectoryId ?? '') === (string)$entry->id;
                                                     @endphp
-                                                    <select
-                                                        class="form-select form-select-sm form-select-solid"
-                                                        wire:change="updateProvisionalPledgeFromTable('{{ $entry->id }}', $event.target.value)"
-                                                        onclick="event.stopPropagation();"
-                                                    >
-                                                        @foreach($provOptions as $val=>$text)
-                                                            <option value="{{ $val }}" @selected(($pledgeProv ?? '') === $val)>{{ $text }}</option>
-                                                        @endforeach
-                                                    </select>
+                                                    <div class="d-flex align-items-center gap-2" wire:key="prov-dd-{{ $entry->id }}">
+                                                        <select
+                                                            class="form-select form-select-sm form-select-solid"
+                                                            wire:change="updateProvisionalPledgeFromTable('{{ $entry->id }}', $event.target.value)"
+                                                            onclick="event.stopPropagation();"
+                                                            @disabled($isSavingProv)
+                                                        >
+                                                            @foreach($provOptions as $val=>$text)
+                                                                <option value="{{ $val }}" @selected(($pledgeProv ?? '') === $val)>{{ $text }}</option>
+                                                            @endforeach
+                                                        </select>
+
+                                                        @if($isSavingProv)
+                                                            <div class="d-inline-flex align-items-center gap-2">
+                                                                <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                                                <span class="text-muted small">Saving...</span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                 @else
                                                     <span class="badge badge-light-{{ $colorProv }}">{{ $labelProv }}</span>
                                                 @endcan

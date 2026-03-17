@@ -1187,56 +1187,77 @@ class VoterManagement extends Component
         $this->authorize('voters-openProvisionalPledge');
         if (! $this->electionId) return;
 
+        $directoryId = (string) $directoryId;
         $status = ($status === '' || $status === null) ? null : (string) $status;
-        if ($status !== null && !in_array($status, ['yes','no','neutral','not_voting'], true)) {
-            return;
-        }
 
-        $user = Auth::user();
-        if (! $user) return;
+        // optimistic: update immediately
+        $this->optimisticProvPledge[$directoryId] = $status;
 
-        // Ensure voter is within allowed subconsites for current user
-        $allowed = $user->subConsites()->select('sub_consites.id');
-        $dir = Directory::query()
-            ->where('status', 'Active')
-            ->whereIn('sub_consite_id', $allowed)
-            ->find($directoryId);
-        if (! $dir) return;
+        $this->savingProvPledgeDirectoryId = $directoryId;
+        $startedAt = null;
 
-        $prev = VoterProvisionalUserPledge::where('directory_id', $directoryId)
-            ->where('election_id', $this->electionId)
-            ->where('user_id', Auth::id())
-            ->value('status');
+        try {
+            if ($status !== null && !in_array($status, ['yes','no','neutral','not_voting'], true)) {
+                return;
+            }
 
-        $pledge = VoterProvisionalUserPledge::firstOrNew([
-            'directory_id' => $directoryId,
-            'election_id' => $this->electionId,
-            'user_id' => Auth::id(),
-        ]);
-        $pledge->status = $status;
-        $pledge->save();
+            $user = Auth::user();
+            if (! $user) return;
 
-        EventLog::create([
-            'user_id' => auth()->id(),
-            'event_tab' => 'Election',
-            'event_entry_id' => $directoryId,
-            'event_type' => 'Provisional Pledge Updated (Table Dropdown)',
-            'description' => 'User-specific provisional pledge changed from voters table',
-            'event_data' => [
-                'election_id' => $this->electionId,
+            // Ensure voter is within allowed subconsites for current user
+            $allowed = $user->subConsites()->select('sub_consites.id');
+            $dir = Directory::query()
+                ->where('status', 'Active')
+                ->whereIn('sub_consite_id', $allowed)
+                ->find($directoryId);
+            if (! $dir) return;
+
+            $prev = VoterProvisionalUserPledge::where('directory_id', $directoryId)
+                ->where('election_id', $this->electionId)
+                ->where('user_id', Auth::id())
+                ->value('status');
+
+            $pledge = VoterProvisionalUserPledge::firstOrNew([
                 'directory_id' => $directoryId,
-                'previous_status' => $prev,
-                'new_status' => $status,
-            ],
-            'ip_address' => request()->ip(),
-        ]);
+                'election_id' => $this->electionId,
+                'user_id' => Auth::id(),
+            ]);
+            $pledge->status = $status;
+            $pledge->save();
 
-        // Refresh totals (and list will re-render)
-        $this->calculatePledgeTotals();
+            // ensure optimistic cache matches persisted value
+            $this->optimisticProvPledge[$directoryId] = $status;
 
-        // Keep modal data in sync if it is open on same voter
-        if ($this->viewingVoter && (string) $this->viewingVoter->id === (string) $directoryId) {
-            $this->loadVoterRelations();
+            EventLog::create([
+                'user_id' => auth()->id(),
+                'event_tab' => 'Election',
+                'event_entry_id' => $directoryId,
+                'event_type' => 'Provisional Pledge Updated (Table Dropdown)',
+                'description' => 'User-specific provisional pledge changed from voters table',
+                'event_data' => [
+                    'election_id' => $this->electionId,
+                    'directory_id' => $directoryId,
+                    'previous_status' => $prev,
+                    'new_status' => $status,
+                ],
+                'ip_address' => request()->ip(),
+            ]);
+
+            // Refresh totals
+            $this->calculatePledgeTotals();
+
+            // Keep modal data in sync if it is open on same voter
+            if ($this->viewingVoter && (string) $this->viewingVoter->id === (string) $directoryId) {
+                $this->loadVoterRelations();
+            }
+        } finally {
+            $this->savingProvPledgeDirectoryId = null;
         }
     }
+
+    /**
+     * Optimistic UI cache for provisional pledge status selected in the table.
+     * Key = directory_id, value = status string (yes/no/neutral/not_voting) or null for pending.
+     */
+    public $optimisticProvPledge = [];
 }
