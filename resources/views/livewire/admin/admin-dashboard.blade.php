@@ -216,6 +216,21 @@
             </div>
         </div>
     </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Call Center by SubConsite</div>
+            <div class="fs-7 text-muted">Completed / Attempts / Pending (one bucket per directory)</div>
+        </div>
+        <div style="height: 360px;">
+            <canvas id="ccCompletedAttemptsBySub" wire:ignore></canvas>
+        </div>
+        <div class="d-flex flex-wrap gap-6 mt-4">
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#50cd89;"></span><span class="fs-7 text-muted">Completed</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#3e97ff;"></span><span class="fs-7 text-muted">Attempts</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f6c000;"></span><span class="fs-7 text-muted">Pending</span></div>
+        </div>
+    </div>
 </div>
 
 <!-- Load Chart.js first -->
@@ -702,6 +717,61 @@ const TotalsAboveBarsPlugin = {
             if(window.Chart){
                 clearInterval(t);
                 buildQPosCharts();
+            }
+        }, 50);
+        setTimeout(()=>clearInterval(t), 5000);
+    }
+})();
+</script>
+
+<!-- Call Center Completed / Attempts / Pending by SubConsite chart -->
+<script>
+(function(){
+    function buildCompletedAttemptsBySub(){
+        const el = document.getElementById('ccCompletedAttemptsBySub');
+        if(!el || !window.Chart) return;
+
+        const labels = @json($ccSubConsiteBarLabels ?? []);
+        const completed = @json($ccSubConsiteBarCompleted ?? []);
+        const attempts = @json($ccSubConsiteBarAttempts ?? []);
+        const pending = @json($ccSubConsiteBarPending ?? []);
+
+        if (!labels || !labels.length) return;
+
+        if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+        el.__chart = new Chart(el, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Completed', data: completed, backgroundColor: '#50cd89', stack: 's1' },
+                    { label: 'Attempts', data: attempts, backgroundColor: '#3e97ff', stack: 's1' },
+                    { label: 'Pending', data: pending, backgroundColor: '#f6c000', stack: 's1' },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, ticks: { autoSkip: false, maxRotation: 60, minRotation: 0 } },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    totalsAboveBars: { mode: 'above' }
+                }
+            },
+            plugins: [TotalsAboveBarsPlugin]
+        });
+    }
+
+    if (window.Chart) {
+        buildCompletedAttemptsBySub();
+    } else {
+        const t = setInterval(function(){
+            if(window.Chart){
+                clearInterval(t);
+                buildCompletedAttemptsBySub();
             }
         }, 50);
         setTimeout(()=>clearInterval(t), 5000);

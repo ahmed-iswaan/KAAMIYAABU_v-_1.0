@@ -105,12 +105,19 @@ class AdminDashboard extends Component
     public ?int $selectedUserPerformanceCsvUserId = null;
     public array $userPerformanceUsersForSelect = []; // [['id'=>..,'name'=>..], ...]
 
+    // Completed / Attempts / Pending by SubConsite (one bucket per directory)
+    public array $ccSubConsiteBarLabels = [];
+    public array $ccSubConsiteBarCompleted = [];
+    public array $ccSubConsiteBarAttempts = [];
+    public array $ccSubConsiteBarPending = [];
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
         $this->computeStats();
         $this->computeElectionDirectoryPie();
         $this->computeElectionPendingCompletedBySubConsite();
+        $this->computeCallCenterCompletedAttemptsBySubConsite();
 
         $this->pledgeElectionId = Election::orderBy('start_date','desc')->value('id');
         $this->computePledgeBySubConsite();
@@ -648,6 +655,58 @@ class AdminDashboard extends Component
             $t = (int)($r->total_active ?? 0);
             $c = (int)($r->completed ?? 0);
             return max(0, $t - $c);
+        })->toArray();
+    }
+
+    protected function computeCallCenterCompletedAttemptsBySubConsite(): void
+    {
+        $this->ccSubConsiteBarLabels = [];
+        $this->ccSubConsiteBarCompleted = [];
+        $this->ccSubConsiteBarAttempts = [];
+        $this->ccSubConsiteBarPending = [];
+
+        $activeElectionId = Election::query()
+            ->where('status', Election::STATUS_ACTIVE)
+            ->value('id');
+
+        if (! $activeElectionId) {
+            return;
+        }
+
+        // Completed = directories with main call status completed (distinct directory)
+        // Attempts = directories with ANY sub-status attempt row (distinct directory)
+        // Pending = total active - completed - attempts (clamped)
+        // Note: a directory can be both completed and attempted; we count it as completed (so attempts excludes completed).
+        $rows = DB::table('sub_consites')
+            ->leftJoin('directories as d', function ($join) {
+                $join->on('d.sub_consite_id', '=', 'sub_consites.id')
+                    ->where('d.status', '=', 'Active');
+            })
+            ->leftJoin('election_directory_call_statuses as edcs', function ($join) use ($activeElectionId) {
+                $join->on('edcs.directory_id', '=', 'd.id')
+                    ->where('edcs.election_id', '=', (string) $activeElectionId);
+            })
+            ->leftJoin('election_directory_call_sub_statuses as edcss', function ($join) use ($activeElectionId) {
+                $join->on('edcss.directory_id', '=', 'd.id')
+                    ->where('edcss.election_id', '=', (string) $activeElectionId);
+            })
+            ->select('sub_consites.code')
+            ->selectRaw('COUNT(DISTINCT d.id) as total_active')
+            ->selectRaw("COUNT(DISTINCT CASE WHEN edcs.status = 'completed' THEN d.id END) as completed")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN edcs.status <> 'completed' OR edcs.status IS NULL THEN NULLIF(edcss.directory_id, '') END) as attempts_raw")
+            ->groupBy('sub_consites.code')
+            ->orderBy('sub_consites.code')
+            ->get();
+
+        // attempts_raw counts distinct directories that have any attempt sub-status row AND are not completed
+        $this->ccSubConsiteBarLabels = $rows->pluck('code')->toArray();
+        $this->ccSubConsiteBarCompleted = $rows->pluck('completed')->map(fn ($v) => (int) $v)->toArray();
+        $this->ccSubConsiteBarAttempts = $rows->pluck('attempts_raw')->map(fn ($v) => (int) $v)->toArray();
+        $this->ccSubConsiteBarPending = $rows->map(function ($r) {
+            $t = (int) ($r->total_active ?? 0);
+            $c = (int) ($r->completed ?? 0);
+            $a = (int) ($r->attempts_raw ?? 0);
+            return max(0, $t - $c - $a);
         })->toArray();
     }
 
