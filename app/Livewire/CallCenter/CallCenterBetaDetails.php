@@ -8,6 +8,7 @@ use App\Models\DirectoryPhoneStatus;
 use App\Models\Election;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\ElectionDirectoryCallSubStatus;
+use App\Models\EventLog;
 use App\Models\SubStatus;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
@@ -199,6 +200,12 @@ class CallCenterBetaDetails extends Component
                 'completed_at' => now(),
             ]);
         }
+
+        $this->logEvent('call-center-form-saved', 'Call center form saved', [
+            'directory_id' => $this->directoryId,
+            'election_id' => $this->activeElectionId,
+            'form_data' => $this->ccForm,
+        ]);
     }
 
     /**
@@ -332,6 +339,13 @@ class CallCenterBetaDetails extends Component
             'updated_by' => auth()->id(),
         ]);
 
+        $this->logEvent('Attempt Sub-Status Updated', 'Attempt sub-status updated', [
+            'election_id' => (string) $this->activeElectionId,
+            'directory_id' => (string) $this->directoryId,
+            'attempt' => (int) $attemptInt,
+            'current' => ['sub_status_id' => $status, 'notes' => $notes, 'phone_number' => $phone],
+        ]);
+
         // Update phone status if phone number is set
         if ($phone !== '') {
             $phoneNorm = DirectoryPhoneStatus::normalizePhone($phone);
@@ -460,6 +474,12 @@ class CallCenterBetaDetails extends Component
         $this->subStatusAttempts[(string)$attemptInt]['sub_status_id'] = '';
         $this->subStatusAttempts[(string)$attemptInt]['notes'] = '';
         $this->subStatusAttempts[(string)$attemptInt]['phone_number'] = '';
+
+        $this->logEvent('Attempt Sub-Status Cleared', 'Attempt sub-status cleared', [
+            'election_id' => (string) $this->activeElectionId,
+            'directory_id' => (string) $this->directoryId,
+            'attempt' => (int) $attemptInt,
+        ]);
     }
 
     /**
@@ -630,5 +650,22 @@ class CallCenterBetaDetails extends Component
             'subStatusAttempts' => $this->subStatusAttempts,
             'phoneStatuses' => $this->phoneStatuses,
         ])->layout('layouts.master');
+    }
+
+    private function logEvent(string $type, ?string $description = null, array $data = []): void
+    {
+        try {
+            EventLog::create([
+                'user_id' => auth()->id(),
+                'event_tab' => 'Call Center',
+                'event_entry_id' => (string) $this->directoryId,
+                'event_type' => $type,
+                'description' => $description,
+                'event_data' => $data ?: null,
+                'ip_address' => request()->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            // Never break flow if logging fails.
+        }
     }
 }
