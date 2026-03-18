@@ -231,6 +231,106 @@
             <div class="d-flex align-items-center gap-2"><span class="badge" style="width:12px;height:12px;background:#f6c000;"></span><span class="fs-7 text-muted">Pending</span></div>
         </div>
     </div>
+
+    <!-- Users Performance (Chart) -->
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Users Performance (Chart)</div>
+            <div class="fs-7 text-muted">Completed vs Attempts (active election)</div>
+        </div>
+        <div style="height: 520px;">
+            <canvas id="usersPerformanceBar" wire:ignore></canvas>
+        </div>
+
+        @php
+            $upLabels = collect($userPerformanceRows ?? [])->pluck('name')->values()->all();
+            $upCompleted = collect($userPerformanceRows ?? [])->pluck('completed')->values()->all();
+            $upAttempts = collect($userPerformanceRows ?? [])->pluck('attempts')->values()->all();
+        @endphp
+
+        <script>
+            document.addEventListener('livewire:init', () => {
+                const initUsersPerformanceBar = () => {
+                    if (!window.Chart) return;
+                    const el = document.getElementById('usersPerformanceBar');
+                    if (!el) return;
+
+                    const labels = @json($upLabels);
+                    const completed = @json($upCompleted);
+                    const attempts = @json($upAttempts);
+
+                    if (el._chart) {
+                        el._chart.destroy();
+                        el._chart = null;
+                    }
+
+                    el._chart = new Chart(el.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Attempts',
+                                    data: attempts,
+                                    backgroundColor: 'rgba(62, 151, 255, 0.85)',
+                                    borderColor: 'rgba(62, 151, 255, 1)',
+                                    borderWidth: 1,
+                                    stack: 'stack1',
+                                },
+                                {
+                                    label: 'Completed',
+                                    data: completed,
+                                    backgroundColor: 'rgba(255, 159, 64, 0.85)',
+                                    borderColor: 'rgba(255, 159, 64, 1)',
+                                    borderWidth: 1,
+                                    stack: 'stack1',
+                                },
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Users Performance',
+                                    font: { size: 18, weight: '600' },
+                                    padding: { top: 10, bottom: 10 },
+                                },
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { boxWidth: 14, boxHeight: 14 },
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                }
+                            },
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    ticks: { autoSkip: false },
+                                    grid: { display: false },
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    ticks: { precision: 0 },
+                                }
+                            }
+                        }
+                    });
+                };
+
+                initUsersPerformanceBar();
+                Livewire.hook('morph.updated', () => initUsersPerformanceBar());
+            });
+        </script>
+    </div>
 </div>
 
 <!-- Load Chart.js first -->
