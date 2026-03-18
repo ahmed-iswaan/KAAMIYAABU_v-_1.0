@@ -87,4 +87,13 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/call-center', \App\Livewire\CallCenter\CallCenter::class)
         ->name('call-center.index')
         ->middleware('permission:call-center-render');
+
+    // Call Center Beta (fast directory list)
+    Route::get('/call-center-beta', \App\Livewire\CallCenter\CallCenterBeta::class)
+        ->name('call-center.beta')
+        ->middleware('permission:call-center-render');
+
+    Route::get('/call-center-beta/directory/{directory}', \App\Livewire\CallCenter\CallCenterBetaDetails::class)
+        ->name('call-center.beta.directory')
+        ->middleware('permission:call-center-render');
 });

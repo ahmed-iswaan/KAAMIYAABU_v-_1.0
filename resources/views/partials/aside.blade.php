@@ -71,6 +71,24 @@
                                 </div>
                                 <!--end:Menu item (Call Center) -->
                                 @endcan
+                                @can('call-center-render')
+                                <!--begin:Menu item (Call Center) -->
+                                <div class="menu-item">
+                                    <a class="menu-link {{ request()->is('call-center-beta') ? 'active' : '' }}" href="{{ route('call-center.beta') }}">
+                                        <span class="menu-icon">
+                                            <i class="ki-duotone ki-call fs-2">
+                                                <span class="path1"></span>
+                                                <span class="path2"></span>
+                                                <span class="path3"></span>
+                                            </i>
+                                        </span>
+                                        <span class="menu-title">Call Center
+                                            <span class="badge badge-changelog badge-light-info bg-hover-info text-hover-white fw-bold fs-9 px-2 ms-2">Beta</span>
+                                        </span>
+                                    </a>
+                                </div>
+                                <!--end:Menu item (Call Center) -->
+                                @endcan
                                   @can('agent-render')                               <!--begin:Menu item (Agents) -->
                                  <div class="menu-item">
                                     <a class="menu-link {{ request()->is('agents') ? 'active' : '' }}" href="/agents">
