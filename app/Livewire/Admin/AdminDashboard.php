@@ -922,6 +922,12 @@ class AdminDashboard extends Component
             ->groupBy('edcs.updated_by');
 
         $rows = DB::table('users as u')
+            ->whereExists(function($q){
+                $q->select(DB::raw(1))
+                    ->from('model_has_roles as mhr')
+                    ->whereColumn('mhr.model_id', 'u.id')
+                    ->where('mhr.model_type', '=', 'App\\Models\\User');
+            })
             ->leftJoinSub($attemptsByUser, 'a', function($join){
                 $join->on('a.updated_by', '=', 'u.id');
             })
