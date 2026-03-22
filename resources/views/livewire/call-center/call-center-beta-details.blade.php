@@ -201,7 +201,7 @@
                                             }
                                         @endphp
 
-                                        <div class="p-4 rounded border {{ $isSet ? 'border-primary border-dashed bg-light-primary' : 'border-gray-300 border-dashed bg-light' }}">
+                                        <div wire:key="beta-attempt-{{ $directory->id }}-{{ $a }}" class="p-4 rounded border {{ $isSet ? 'border-primary border-dashed bg-light-primary' : 'border-gray-300 border-dashed bg-light' }}">
                                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                                                 <div class="fw-bold {{ $isSet ? 'text-primary' : 'text-gray-700' }}">Attempt {{ $a }}</div>
                                                 @if($isSet)
@@ -213,14 +213,12 @@
                                                 <div class="col-12 col-md-3">
                                                     <label class="form-label fw-semibold fs-7 mb-1">Phone</label>
                                                     <select class="form-select form-select-sm" @disabled(!$activeElectionId || !count($phonesForAttemptsNorm))
-                                                            wire:model="subStatusAttempts.{{ $a }}.phone_number">
+                                                            wire:model.live="subStatusAttempts.{{ $a }}.phone_number">
                                                         @if(!count($phonesForAttemptsNorm))
                                                             <option value="">No phone numbers</option>
                                                         @else
                                                             @foreach($phonesForAttemptsNorm as $idx => $p)
-                                                                <option value="{{ $p }}" @selected((string)$selPhone === (string)$p)>
-                                                                    {{ $phonesForAttempts[$idx] ?? $p }}
-                                                                </option>
+                                                                <option value="{{ $p }}">{{ $phonesForAttempts[$idx] ?? $p }}</option>
                                                             @endforeach
                                                         @endif
                                                     </select>
@@ -229,9 +227,9 @@
                                                 <div class="col-12 col-md-3">
                                                     <label class="form-label fw-semibold fs-7 mb-1">Sub status</label>
                                                     <select class="form-select form-select-sm" @disabled(!$activeElectionId)
-                                                            wire:model="subStatusAttempts.{{ $a }}.sub_status_id">
+                                                            wire:model.live="subStatusAttempts.{{ $a }}.sub_status_id">
                                                         @foreach($subStatusOptions as $val => $label)
-                                                            <option value="{{ $val }}" @selected($ss === (string) $val)>{{ $label }}</option>
+                                                            <option value="{{ $val }}">{{ $label }}</option>
                                                         @endforeach
                                                     </select>
                                                 </div>
@@ -239,9 +237,8 @@
                                                 <div class="col-12 col-md-6">
                                                      <label class="form-label fw-semibold fs-7 mb-1">Notes</label>
                                                      <input type="text" class="form-control form-control-sm" @disabled(!$activeElectionId)
-                                                            wire:model="subStatusAttempts.{{ $a }}.notes"
-                                                            placeholder="What happened on attempt {{ $a }}?"
-                                                           />
+                                                            wire:model.live.debounce.200ms="subStatusAttempts.{{ $a }}.notes"
+                                                            placeholder="What happened on attempt {{ $a }}?" />
                                                  </div>
                                              </div>
 
