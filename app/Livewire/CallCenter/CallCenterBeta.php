@@ -210,18 +210,16 @@ class CallCenterBeta extends Component
                     ->whereColumn('directory_id', 'directories.id')
             )->count();
 
-            // Attempts totals from sub-status attempts table
-            $dirIdsForFilters = (clone $baseQuery)->pluck('id')->map(fn($v) => (string) $v)->all();
-            if (count($dirIdsForFilters)) {
-                $attemptsQuery = ElectionDirectoryCallSubStatus::query()
-                    ->where('election_id', (string) $this->activeElectionId)
-                    ->whereIn('directory_id', $dirIdsForFilters);
+            // Attempts totals: avoid plucking all directory IDs (slow on large datasets).
+            // Instead, count attempts by joining filtered directories.
+            $attemptsBase = (clone $baseQuery)
+                ->join('election_directory_call_sub_statuses as edcss', 'edcss.directory_id', '=', 'directories.id')
+                ->where('edcss.election_id', (string) $this->activeElectionId);
 
-                $totalsAttemptsTotal = (clone $attemptsQuery)->count();
-                $totalsAttemptsToday = (clone $attemptsQuery)
-                    ->whereDate('updated_at', now()->toDateString())
-                    ->count();
-            }
+            $totalsAttemptsTotal = (clone $attemptsBase)->count('edcss.id');
+            $totalsAttemptsToday = (clone $attemptsBase)
+                ->whereDate('edcss.updated_at', now()->toDateString())
+                ->count('edcss.id');
         }
 
         // Apply status filter to LIST (totals intentionally ignore filterStatus)
@@ -333,8 +331,9 @@ class CallCenterBeta extends Component
         if ($this->activeElectionId && $electionId && $electionId !== (string)$this->activeElectionId) {
             return;
         }
-        // Refresh the list view
-        $this->resetPage();
-        $this->render();
+
+        // Do NOT reset pagination here; it forces users back to page 1.
+        // Just refresh the dataset while keeping the current page.
+        $this->dispatch('$refresh');
     }
 }
