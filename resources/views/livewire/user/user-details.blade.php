@@ -41,6 +41,11 @@
                         <div class="card card-flush">
                             <div class="card-header">
                                 <div class="card-title fw-bold">Attempts ({{ $attempts->total() ?? 0 }})</div>
+                                <div class="card-toolbar">
+                                    <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadAttemptsCsv">
+                                        Download CSV
+                                    </button>
+                                </div>
                             </div>
                             <div class="card-body pt-0">
                                 <div class="table-responsive">
@@ -95,6 +100,11 @@
                         <div class="card card-flush">
                             <div class="card-header">
                                 <div class="card-title fw-bold">Completed Directories ({{ $completed->total() ?? 0 }})</div>
+                                <div class="card-toolbar">
+                                    <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadCompletedCsv">
+                                        Download CSV
+                                    </button>
+                                </div>
                             </div>
                             <div class="card-body pt-0">
                                 <div class="table-responsive">
