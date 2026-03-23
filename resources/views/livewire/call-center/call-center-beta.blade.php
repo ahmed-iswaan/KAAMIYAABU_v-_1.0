@@ -84,6 +84,7 @@
                     <div class="d-flex align-items-center gap-3 flex-wrap">
                         <h1 class="text-dark fw-bold my-1 fs-2 mb-0">Call Center <span class="badge badge-light-primary ms-2">BETA</span></h1>
                         <a href="{{ route('call-center.index') }}" class="btn btn-sm btn-light">Open Classic</a>
+                        <a href="{{ route('call-center.beta.completed-daily') }}" class="btn btn-sm btn-light-primary">Daily Completed</a>
                     </div>
                     <ul class="breadcrumb fw-semibold fs-base my-1">
                         <li class="breadcrumb-item text-muted"><a href="#" class="text-muted text-hover-primary">Operations</a></li>

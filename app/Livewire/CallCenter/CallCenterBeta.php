@@ -253,6 +253,16 @@ class CallCenterBeta extends Component
                 'property:id,name',
                 'currentProperty:id,name',
             ])
+            ->when($this->activeElectionId, function ($q) {
+                // Not attempted first:
+                // attempted_flag = 0 when NO rows exist in election_directory_call_sub_statuses for this directory + election
+                // attempted_flag = 1 when at least one attempt exists
+                $attemptExists = ElectionDirectoryCallSubStatus::query()
+                    ->where('election_id', (string) $this->activeElectionId)
+                    ->whereColumn('directory_id', 'directories.id');
+
+                $q->orderByRaw('CASE WHEN EXISTS (' . $attemptExists->toSql() . ') THEN 1 ELSE 0 END asc', $attemptExists->getBindings());
+            })
             ->orderByRaw("COALESCE(NULLIF(address,''), 'zzz') asc")
             ->orderBy('name')
             ->paginate($this->perPage);

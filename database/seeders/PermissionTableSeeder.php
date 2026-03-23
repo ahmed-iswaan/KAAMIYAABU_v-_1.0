@@ -97,7 +97,10 @@ class PermissionTableSeeder extends Seeder
             // 'voters-bulkProvisionalPledge',
 
             // Users (security)
-            'user-resetPassword',
+            // 'user-resetPassword',
+
+            // Call Center Beta - daily completed directories page
+            'call-center-daily-completed-render',
         ];
         
         foreach ($permissions as $permission) {

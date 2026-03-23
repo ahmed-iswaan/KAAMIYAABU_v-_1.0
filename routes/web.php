@@ -98,4 +98,9 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/call-center-beta/directory/{directory}', \App\Livewire\CallCenter\CallCenterBetaDetails::class)
         ->name('call-center.beta.directory')
         ->middleware('permission:call-center-render');
+
+    // Daily completed directories (with phones + completed-by user)
+    Route::get('/call-center-beta/completed-daily', \App\Livewire\CallCenter\DailyCompletedDirectories::class)
+        ->name('call-center.beta.completed-daily')
+        ->middleware('permission:call-center-daily-completed-render');
 });
