@@ -37,6 +37,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/dashboard', DashboardOverview::class)->name('dashboard');
     Route::get('/roles', RolesManagement::class)->name('roles');
     Route::get('/users', UserManagement::class)->name('users');
+    Route::get('/users/{user}', \App\Livewire\User\UserDetails::class)
+        ->name('users.details');
     Route::get('/directory', DirectoryManagement::class)->name('directory');
     Route::get('/properties', PropertyManagement::class)->name('properties');
     // Route::get('properties/{property}', ViewProperty::class)
