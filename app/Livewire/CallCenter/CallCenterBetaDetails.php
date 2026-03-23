@@ -321,24 +321,26 @@ class CallCenterBetaDetails extends Component
         $notes = (string)($this->subStatusAttempts[(string)$attemptInt]['notes'] ?? '');
         $phone = (string)($this->subStatusAttempts[(string)$attemptInt]['phone_number'] ?? '');
 
+        // Ensure we always store a normalized phone (and default to first phone if none selected)
+        $phoneNorm = DirectoryPhoneStatus::normalizePhone($phone);
+        if ($phoneNorm === '') {
+            $phoneNorm = $this->defaultAttemptPhone();
+        }
+        $this->subStatusAttempts[(string)$attemptInt]['phone_number'] = $phoneNorm;
+
         ElectionDirectoryCallSubStatus::query()->updateOrCreate([
             'election_id' => (string) $this->activeElectionId,
             'directory_id' => (string) $this->directoryId,
             'attempt' => $attemptInt,
         ], [
             'sub_status_id' => $status ?: null,
-            'phone_number' => $phone ?: null,
+            'phone_number' => $phoneNorm !== '' ? $phoneNorm : null,
             'notes' => $notes ?: null,
             'updated_by' => auth()->id(),
         ]);
 
         // Update phone status if phone number is set
-        if ($phone !== '') {
-            $phoneNorm = DirectoryPhoneStatus::normalizePhone($phone);
-            if ($phoneNorm === '') {
-                return;
-            }
-
+        if ($phoneNorm !== '') {
             // $status is expected to be a SubStatus UUID. Some old values may be legacy codes.
             $subStatusId = $status;
             $subStatusName = '';
@@ -406,7 +408,7 @@ class CallCenterBetaDetails extends Component
             [
                 'attempt' => $attemptInt,
                 'sub_status_id' => $status,
-                'phone_number' => $phone,
+                'phone_number' => $phoneNorm,
                 'notes' => $notes,
             ]
         ));
