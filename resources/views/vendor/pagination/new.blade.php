@@ -1,4 +1,9 @@
 @if ($paginator->hasPages())
+    @php
+        // Support Livewire named paginators (e.g. attemptsPage, completedPage)
+        $pageName = method_exists($paginator, 'getPageName') ? $paginator->getPageName() : 'page';
+    @endphp
+
     <div class="dataTables_paginate paging_simple_numbers" id="kt_table_users_paginate">
         <ul class="pagination">
             {{-- Previous Page Link --}}
@@ -10,7 +15,7 @@
                 </li>
             @else
                 <li class="paginate_button page-item previous" id="kt_table_users_previous" aria-label="@lang('pagination.previous')">
-                    <a href="#" wire:click="previousPage" aria-controls="kt_table_users" data-dt-idx="0" tabindex="0" class="page-link">
+                    <a href="#" wire:click="previousPage('{{ $pageName }}')" aria-controls="kt_table_users" data-dt-idx="0" tabindex="0" class="page-link">
                         <i class="previous"></i>
                     </a>
                 </li>
@@ -34,7 +39,7 @@
                             </li>
                         @else
                             <li class="paginate_button page-item">
-                                <a href="#" wire:click="gotoPage({{ $page }})" aria-controls="kt_table_users" data-dt-idx="{{ $page }}" tabindex="0" class="page-link">{{ $page }}</a>
+                                <a href="#" wire:click="gotoPage({{ $page }}, '{{ $pageName }}')" aria-controls="kt_table_users" data-dt-idx="{{ $page }}" tabindex="0" class="page-link">{{ $page }}</a>
                             </li>
                         @endif
                     @endforeach
@@ -44,7 +49,7 @@
             {{-- Next Page Link --}}
             @if ($paginator->hasMorePages())
                 <li class="paginate_button page-item next" id="kt_table_users_next">
-                    <a href="#" wire:click="nextPage" aria-controls="kt_table_users" data-dt-idx="4" tabindex="0" class="page-link" aria-label="@lang('pagination.next')">
+                    <a href="#" wire:click="nextPage('{{ $pageName }}')" aria-controls="kt_table_users" data-dt-idx="4" tabindex="0" class="page-link" aria-label="@lang('pagination.next')">
                         <i class="next"></i>
                     </a>
                 </li>

@@ -19,6 +19,12 @@ class UserDetails extends Component
 
     protected $paginationTheme = 'bootstrap';
 
+    /**
+     * Use a dedicated paginator name as the default for this component.
+     * The second paginator will use its own query-string key.
+     */
+    protected string $pageName = 'attemptsPage';
+
     public int $userId;
 
     public ?string $activeElectionId = null;
