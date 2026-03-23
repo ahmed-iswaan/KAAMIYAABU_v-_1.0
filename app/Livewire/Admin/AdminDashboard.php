@@ -192,7 +192,7 @@ class AdminDashboard extends Component
             $completedToday = (int) ElectionDirectoryCallStatus::query()
                 ->where('election_id', (string) $activeElectionId)
                 ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
-                ->whereDate('completed_at', now()->toDateString())
+                ->whereRaw('DATE(COALESCE(completed_at, updated_at)) = ?', [now()->toDateString()])
                 ->distinct('directory_id')
                 ->count('directory_id');
 

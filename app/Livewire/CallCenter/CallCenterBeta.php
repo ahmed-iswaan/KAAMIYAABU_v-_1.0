@@ -206,7 +206,7 @@ class CallCenterBeta extends Component
                 ElectionDirectoryCallStatus::query()
                     ->where('election_id', (string) $this->activeElectionId)
                     ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
-                    ->whereDate('completed_at', now()->toDateString())
+                    ->whereRaw('DATE(COALESCE(completed_at, updated_at)) = ?', [now()->toDateString()])
                     ->whereColumn('directory_id', 'directories.id')
             )->count();
 
