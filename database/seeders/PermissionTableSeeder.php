@@ -99,8 +99,11 @@ class PermissionTableSeeder extends Seeder
             // Users (security)
             // 'user-resetPassword',
 
+            // Call Center / Call Center Beta - allow showing directories without phone numbers
+            'call-center-show-without-phone',
+
             // Call Center Beta - daily completed directories page
-            'call-center-daily-completed-render',
+            // 'call-center-daily-completed-render',
         ];
         
         foreach ($permissions as $permission) {

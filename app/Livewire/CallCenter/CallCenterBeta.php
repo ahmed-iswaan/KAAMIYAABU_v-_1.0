@@ -65,6 +65,11 @@ class CallCenterBeta extends Component
             ->get(['id', 'name'])
             ->mapWithKeys(fn($s) => [(string) $s->id => (string) $s->name])
             ->all();
+
+        // Permission gate: if user cannot show directories without phone, force filter ON.
+        if (!auth()->user()?->can('call-center-show-without-phone')) {
+            $this->hideWithoutPhone = true;
+        }
     }
 
     protected function allowedSubConsiteIds(): array
@@ -128,6 +133,11 @@ class CallCenterBeta extends Component
     public function render()
     {
         $this->authorize('call-center-render');
+
+        // Hard enforce on every request as well, in case querystring tries to bypass.
+        if (!auth()->user()?->can('call-center-show-without-phone')) {
+            $this->hideWithoutPhone = true;
+        }
 
         $allowed = $this->allowedSubConsiteIds();
 

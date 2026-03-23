@@ -111,10 +111,17 @@
                             </div>
 
                             <div class="ms-auto d-flex align-items-center gap-3">
-                                <div class="form-check form-check-sm form-check-custom form-check-solid mb-0">
-                                    <input class="form-check-input" type="checkbox" id="cc_hide_no_phone" wire:model.live.debounce.250ms="hideWithoutPhone">
-                                    <label class="form-check-label text-muted" for="cc_hide_no_phone">Hide without phone number</label>
-                                </div>
+                                @if(auth()->user()?->can('call-center-show-without-phone'))
+                                    <div class="form-check form-check-sm form-check-custom form-check-solid mb-0">
+                                        <input class="form-check-input" type="checkbox" id="cc_hide_no_phone" wire:model.live.debounce.250ms="hideWithoutPhone">
+                                        <label class="form-check-label text-muted" for="cc_hide_no_phone">Hide without phone number</label>
+                                    </div>
+                                @else
+                                    <div class="form-check form-check-sm form-check-custom form-check-solid mb-0" style="opacity:.65">
+                                        <input class="form-check-input" type="checkbox" id="cc_hide_no_phone" checked disabled>
+                                        <label class="form-check-label text-muted" for="cc_hide_no_phone">Hide without phone number</label>
+                                    </div>
+                                @endif
 
                                 <select class="form-select form-select-sm w-auto" wire:model.live.debounce.250ms="perPage">
                                     <option value="10">10</option>

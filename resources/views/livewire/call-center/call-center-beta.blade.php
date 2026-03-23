@@ -189,8 +189,8 @@
                                     <option value="100">100</option>
                                 </select>
 
-                                <div class="form-check form-check-custom form-check-solid mb-0 align-self-center">
-                                    <input class="form-check-input" type="checkbox" id="cc_beta_hide_no_phone" wire:model.live.debounce.250ms="hideWithoutPhone">
+                                <div class="form-check form-check-custom form-check-solid mb-0 align-self-center" style="opacity:.65">
+                                    <input class="form-check-input" type="checkbox" id="cc_beta_hide_no_phone" checked disabled>
                                     <label class="form-check-label text-muted" for="cc_beta_hide_no_phone">Hide no phone</label>
                                 </div>
                             </div>
@@ -218,11 +218,11 @@
                                         <div class="card-body p-4">
                                             <div class="d-flex justify-content-between align-items-start gap-3">
                                                 <div class="d-flex align-items-start gap-3 min-w-0">
-                                                    <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" class="symbol symbol-45px symbol-circle flex-shrink-0">
+                                                    <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" target="_blank" rel="noopener" class="symbol symbol-45px symbol-circle flex-shrink-0">
                                                         <img src="{{ $imgUrl ?: $fallback }}" alt="{{ $dir->name }}" class="w-45px h-45px object-fit-cover" />
                                                     </a>
                                                     <div class="min-w-0">
-                                                        <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" class="fw-bold text-gray-900 text-hover-primary text-truncate d-block">{{ $dir->name }}</a>
+                                                        <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" target="_blank" rel="noopener" class="fw-bold text-gray-900 text-hover-primary text-truncate d-block">{{ $dir->name }}</a>
                                                         <div class="text-muted fs-8">{{ $dir->subConsite?->code }}</div>
                                                     </div>
                                                 </div>
@@ -286,11 +286,11 @@
                                             <tr>
                                                 <td>
                                                     <div class="d-flex align-items-center gap-3">
-                                                        <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" class="symbol symbol-40px symbol-circle flex-shrink-0">
+                                                        <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" target="_blank" rel="noopener" class="symbol symbol-40px symbol-circle flex-shrink-0">
                                                             <img src="{{ $imgUrl ?: $fallback }}" alt="{{ $dir->name }}" class="w-40px h-40px object-fit-cover" />
                                                         </a>
                                                         <div class="min-w-0">
-                                                            <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" class="text-dark fw-semibold text-hover-primary text-truncate d-block">{{ $dir->name }}</a>
+                                                            <a href="{{ route('call-center.beta.directory', ['directory' => $dir->id]) }}" target="_blank" rel="noopener" class="text-dark fw-semibold text-hover-primary text-truncate d-block">{{ $dir->name }}</a>
                                                             <div class="text-muted fs-8 text-truncate">{{ $dir->subConsite?->code }}</div>
                                                         </div>
                                                     </div>

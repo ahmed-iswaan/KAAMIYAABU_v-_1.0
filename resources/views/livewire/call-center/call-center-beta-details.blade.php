@@ -34,6 +34,7 @@
                 <div class="d-flex flex-column align-items-start justify-content-center flex-wrap me-2 mb-4 mb-sm-0">
                     <div class="d-flex align-items-center gap-3 flex-wrap">
                         <a href="{{ route('call-center.beta') }}" class="btn btn-sm btn-light">Back</a>
+                        <button type="button" class="btn btn-sm btn-light-danger" onclick="window.close();">Close Tab</button>
                         <h1 class="text-dark fw-bold my-1 fs-2 mb-0">Directory Details</h1>
                     </div>
                     <ul class="breadcrumb fw-semibold fs-base my-1">

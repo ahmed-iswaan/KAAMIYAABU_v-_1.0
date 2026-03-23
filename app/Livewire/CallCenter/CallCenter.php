@@ -130,13 +130,27 @@ class CallCenter extends Component
     public function updatingFilterSubConsiteId(): void { $this->resetPage(); }
     public function updatingFilterStatus(): void { $this->resetPage(); }
     public function updatedPerPage(): void { $this->resetPage(); }
-    public function updatedHideWithoutPhone(): void { $this->resetPage(); }
+    public function updatedHideWithoutPhone(): void
+    {
+        // Permission gate: user is not allowed to unhide "no phone" directories.
+        if (!auth()->user()?->can('call-center-show-without-phone')) {
+            $this->hideWithoutPhone = true;
+            return;
+        }
+
+        $this->resetPage();
+    }
 
     public function mount(): void
     {
         $this->activeElectionId = Election::query()
             ->where('status', Election::STATUS_ACTIVE)
             ->value('id');
+
+        // Permission gate: if user cannot show directories without phone, force filter ON.
+        if (!auth()->user()?->can('call-center-show-without-phone')) {
+            $this->hideWithoutPhone = true;
+        }
 
         $this->requestTypes = RequestType::query()
             ->where('active', true)
@@ -1242,6 +1256,11 @@ class CallCenter extends Component
     public function render()
     {
         $this->authorize('call-center-render');
+
+        // Hard enforce on every request as well, in case querystring tries to bypass.
+        if (!auth()->user()?->can('call-center-show-without-phone')) {
+            $this->hideWithoutPhone = true;
+        }
 
         $allowed = $this->allowedSubConsiteIds();
 
