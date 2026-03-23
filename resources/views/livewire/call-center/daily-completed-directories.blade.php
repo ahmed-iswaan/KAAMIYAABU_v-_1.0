@@ -50,11 +50,13 @@
                                 </select>
                             </div>
 
-                            <div class="align-self-end">
-                                <div class="form-check form-check-custom form-check-solid mb-0">
-                                    <input class="form-check-input" type="checkbox" id="dcc_hide_no_phone" wire:model.live.debounce.250ms="hideWithoutPhone">
-                                    <label class="form-check-label text-muted" for="dcc_hide_no_phone">Hide no phone</label>
-                                </div>
+                            <div>
+                                <label class="form-label text-muted mb-1">Phones</label>
+                                <select class="form-select form-select-solid" style="min-width: 170px;" wire:model.live.debounce.250ms="phoneFilter">
+                                    <option value="all">All</option>
+                                    <option value="with_phone">With phone</option>
+                                    <option value="no_phone">No phone</option>
+                                </select>
                             </div>
                         </div>
                     </div>

@@ -24,6 +24,15 @@ class DailyCompletedDirectories extends Component
     public string $filterSubConsiteId = '';
     public int $perPage = 25;
 
+    /**
+     * Phone filter:
+     * - all: show all directories
+     * - with_phone: only directories that have at least one phone-like digit
+     * - no_phone: only directories that do NOT have a phone
+     */
+    public string $phoneFilter = 'all';
+
+    // Backwards-compat (kept so old URLs still work). Prefer $phoneFilter moving forward.
     public bool $hideWithoutPhone = false;
 
     public ?string $activeElectionId = null;
@@ -33,6 +42,7 @@ class DailyCompletedDirectories extends Component
         'search' => ['except' => ''],
         'filterSubConsiteId' => ['except' => ''],
         'perPage' => ['except' => 25],
+        'phoneFilter' => ['except' => 'all'],
         'hideWithoutPhone' => ['except' => false],
     ];
 
@@ -40,7 +50,14 @@ class DailyCompletedDirectories extends Component
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingFilterSubConsiteId(): void { $this->resetPage(); }
     public function updatedPerPage(): void { $this->resetPage(); }
-    public function updatedHideWithoutPhone(): void { $this->resetPage(); }
+    public function updatedPhoneFilter(): void { $this->resetPage(); }
+
+    // If someone uses the old checkbox, translate it into phoneFilter.
+    public function updatedHideWithoutPhone(): void
+    {
+        $this->phoneFilter = $this->hideWithoutPhone ? 'with_phone' : 'all';
+        $this->resetPage();
+    }
 
     public function mount(): void
     {
@@ -52,6 +69,11 @@ class DailyCompletedDirectories extends Component
 
         if (!$this->date) {
             $this->date = now()->toDateString();
+        }
+
+        // initialize phoneFilter from legacy hideWithoutPhone if present
+        if ($this->phoneFilter === 'all' && $this->hideWithoutPhone) {
+            $this->phoneFilter = 'with_phone';
         }
     }
 
@@ -93,7 +115,7 @@ class DailyCompletedDirectories extends Component
                 ->where('d.status', 'Active')
                 ->whereIn('d.sub_consite_id', $allowed)
                 ->when($this->filterSubConsiteId, fn($q) => $q->where('d.sub_consite_id', $this->filterSubConsiteId))
-                ->when($this->hideWithoutPhone, function ($q) {
+                ->when($this->phoneFilter === 'with_phone', function ($q) {
                     $q->whereNotNull('d.phones')
                         ->whereRaw("TRIM(d.phones) <> ''")
                         ->whereRaw("TRIM(d.phones) <> '[]'")
@@ -102,6 +124,18 @@ class DailyCompletedDirectories extends Component
                         ->whereRaw("TRIM(d.phones) <> 'null'")
                         ->whereRaw("TRIM(d.phones) <> '{}' ")
                         ->whereRaw("d.phones REGEXP '[0-9]'");
+                })
+                ->when($this->phoneFilter === 'no_phone', function ($q) {
+                    $q->where(function ($qq) {
+                        $qq->whereNull('d.phones')
+                            ->orWhereRaw("TRIM(d.phones) = ''")
+                            ->orWhereRaw("TRIM(d.phones) = '[]'")
+                            ->orWhereRaw("TRIM(d.phones) = '[ ]'")
+                            ->orWhereRaw("TRIM(d.phones) = '[null]'")
+                            ->orWhereRaw("TRIM(d.phones) = 'null'")
+                            ->orWhereRaw("TRIM(d.phones) = '{}' ")
+                            ->orWhereRaw("d.phones NOT REGEXP '[0-9]'");
+                    });
                 })
                 ->when($this->search, function ($q) {
                     $term = trim($this->search);
