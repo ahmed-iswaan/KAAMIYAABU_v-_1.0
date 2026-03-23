@@ -210,16 +210,22 @@ class CallCenterBeta extends Component
                     ->whereColumn('directory_id', 'directories.id')
             )->count();
 
-            // Attempts totals: avoid plucking all directory IDs (slow on large datasets).
-            // Instead, count attempts by joining filtered directories.
+            // Attempts totals:
+            // - Total attempts (Directories) = distinct directories that have at least one attempt
+            // - Attempts Today (Directories) = distinct directories attempted today
+            // (If you want raw call attempts count instead, revert to counting edcss.id.)
             $attemptsBase = (clone $baseQuery)
                 ->join('election_directory_call_sub_statuses as edcss', 'edcss.directory_id', '=', 'directories.id')
                 ->where('edcss.election_id', (string) $this->activeElectionId);
 
-            $totalsAttemptsTotal = (clone $attemptsBase)->count('edcss.id');
+            $totalsAttemptsTotal = (clone $attemptsBase)
+                ->distinct('edcss.directory_id')
+                ->count('edcss.directory_id');
+
             $totalsAttemptsToday = (clone $attemptsBase)
                 ->whereDate('edcss.updated_at', now()->toDateString())
-                ->count('edcss.id');
+                ->distinct('edcss.directory_id')
+                ->count('edcss.directory_id');
         }
 
         // Apply status filter to LIST (totals intentionally ignore filterStatus)
