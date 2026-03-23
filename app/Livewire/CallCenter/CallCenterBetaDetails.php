@@ -276,10 +276,33 @@ class CallCenterBetaDetails extends Component
         $this->visibleAttempts = max($maxAttemptWithData, 1);
     }
 
+    /**
+     * Check if an attempt is considered 'submitted' (has a selected sub status).
+     */
+    private function attemptIsSubmitted(int $attempt): bool
+    {
+        $ss = (string)($this->subStatusAttempts[(string)$attempt]['sub_status_id'] ?? '');
+        return trim($ss) !== '';
+    }
+
     public function addAttempt(): void
     {
         $this->authorize('call-center-render');
         if (!$this->directoryId || !$this->activeElectionId) return;
+
+        // Must submit the current last attempt before adding a new one
+        $current = (int) ($this->visibleAttempts ?? 1);
+        if ($current >= 1 && $current <= 10 && !$this->attemptIsSubmitted($current)) {
+            $this->dispatch('swal', [
+                'title' => 'Submit current attempt first',
+                'text' => 'Please select a Sub status and click Save for the current attempt before adding a new attempt.',
+                'icon' => 'warning',
+                'buttonsStyling' => false,
+                'confirmButtonText' => 'Ok',
+                'confirmButton' => 'btn btn-primary',
+            ]);
+            return;
+        }
 
         if ($this->visibleAttempts < 10) {
             $this->visibleAttempts++;
