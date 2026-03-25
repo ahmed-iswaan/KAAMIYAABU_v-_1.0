@@ -468,29 +468,7 @@ class VoterManagement extends Component
                     ->latest()
                     ->limit(1),
 
-                // NEW: Specific form question answer (map labels to Yes/No/Undecided/Pending)
-                'mayor_q3_answer' => DB::table('form_submission_answers as fsa')
-                    ->join('form_questions as fq', 'fq.id', '=', 'fsa.form_question_id')
-                    ->leftJoin('form_question_options as fqo', function($join){
-                        $join->on('fqo.form_question_id', '=', 'fq.id');
-                        // compare stored answer to option.value (string) OR option.id (uuid) if stored that way
-                        $join->whereRaw("(fsa.value_text = fqo.value OR fsa.value_text = fqo.id)");
-                    })
-                    ->join('form_submissions as fs', 'fs.id', '=', 'fsa.form_submission_id')
-                    ->whereColumn('fs.directory_id', 'directories.id')
-                    ->where('fs.election_id', $electionId)
-                    ->where('fq.question_text', "3.\tމާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟")
-                    ->whereNotNull('fsa.value_text')
-                    ->orderByDesc('fs.created_at')
-                    ->limit(1)
-                    ->selectRaw(
-                        "CASE\n".
-                        " WHEN fqo.label = N'ފެނޭ (5)' THEN 'yes'\n".
-                        " WHEN fqo.label = N'ނުފެނޭ (4)' THEN 'no'\n".
-                        " WHEN fqo.label = N'ނޭނގޭ (4)' THEN 'undecided'\n".
-                        " ELSE NULL\n".
-                        "END"
-                    ),
+                // Call Center status removed (previously mayor_q3_answer)
             ]);
 
         // Limit to sub consites that the current user has access to
@@ -781,8 +759,8 @@ class VoterManagement extends Component
         }
         $incomingVoterId = $payload['voter_id'] ?? null;
         $changeType = $payload['change_type'] ?? '';
-        // Refresh pagination dataset (list) only; pagination object is computed so triggering re-render is enough
-        $this->resetPage();
+        // Refresh list without changing current pagination page
+        $this->dispatch('$refresh');
         if($this->viewingVoter && $incomingVoterId && (string)$incomingVoterId === (string)$this->viewingVoter->id){
             $this->refreshViewingVoter($this->viewingVoter->id);
             $this->loadVoterRelations();

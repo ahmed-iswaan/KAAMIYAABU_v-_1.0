@@ -194,7 +194,6 @@
                                         <th class="min-w-200px">Permanent Address</th>
                                         <th class="min-w-120px">Prov. Pledge</th>
                                         @can('voters-openFinalPledge')
-                                            <th class="min-w-140px">Call Center</th>
                                             <th class="min-w-120px">Final Pledge</th>
                                         @endcan
                                         
@@ -356,10 +355,7 @@
                                             </td>
 
                                             @can('voters-openFinalPledge')
-                                                <td>
-                                                <span class="badge badge-light-{{ $mayorColor }}">{{ $mayorText }}</span>
-                                            </td>
-                                            <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
+                                                <td><span class="badge badge-{{ $colorFinal }} fw-bold">{{ $labelFinal }}</span></td>
                                             @endcan
                                   
                                             <td class="text-end position-relative" wire:key="voter-actions-{{ $entry->id }}">
