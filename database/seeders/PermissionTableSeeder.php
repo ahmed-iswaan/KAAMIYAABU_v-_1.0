@@ -96,11 +96,14 @@ class PermissionTableSeeder extends Seeder
             // Voters (bulk provisional pledges)
             // 'voters-bulkProvisionalPledge',
 
+            // Voters (import provisional pledges)
+            'voters-importProvisionalPledgesCsv',
+
             // Users (security)
             // 'user-resetPassword',
 
             // Call Center / Call Center Beta - allow showing directories without phone numbers
-            'call-center-show-without-phone',
+            // 'call-center-show-without-phone',
 
             // Call Center Beta - daily completed directories page
             // 'call-center-daily-completed-render',

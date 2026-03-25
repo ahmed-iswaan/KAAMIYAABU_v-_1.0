@@ -69,6 +69,15 @@
                                 @endif
                             </div>
 
+                            {{-- Import button (opens Bulk Provisional Pledge modal where CSV import is available) --}}
+                            @can('voters-importProvisionalPledgesCsv')
+                                <div class="flex-grow-0" style="min-width:220px;">
+                                    <button type="button" class="btn btn-light-success w-100" wire:click="openImportProvisionalPledgeModal">
+                                        Import Prov. Pledge CSV
+                                    </button>
+                                </div>
+                            @endcan
+
                             {{-- Export button --}}
                             @can('voters-exportProvisionalPledgesCsv')
                                 <div class="flex-grow-0" style="min-width:220px;">
@@ -415,6 +424,26 @@
     @include('livewire.election.partials.pledge-provisional-modal')
     @include('livewire.election.partials.pledge-final-modal')
     @include('livewire.election.partials.provisional-history-modal')
+
+    {{-- Import Provisional Pledge CSV Modal --}}
+    @if($showImportProvisionalPledgeModal)
+        <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);" role="dialog" aria-modal="true" wire:ignore.self>
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Import Provisional Pledges (CSV)</h5>
+                        <button type="button" class="btn-close" aria-label="Close" wire:click="closeImportProvisionalPledgeModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <livewire:import-provisional-pledge-csv wire:key="import-prov-pledge-{{ $electionId }}" />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeImportProvisionalPledgeModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Bulk Provisional Pledge Modal --}}
     @if($showBulkProvisionalPledgeModal)

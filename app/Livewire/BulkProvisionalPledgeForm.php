@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,8 @@ use App\Models\User;
 
 class BulkProvisionalPledgeForm extends Component
 {
+    use WithFileUploads;
+
     public string $electionId;
 
     /**
@@ -33,6 +36,12 @@ class BulkProvisionalPledgeForm extends Component
 
     /** Options for users */
     public array $userOptions = [];
+
+    /** Import file (CSV). XLSX requires PHP zip extension + extra package; CSV is supported out-of-box. */
+    public $importFile = null;
+
+    public array $importErrors = [];
+    public int $importedCount = 0;
 
     public function mount(?string $electionId = null, array $selectedDirectoryIds = []): void
     {
@@ -146,6 +155,149 @@ class BulkProvisionalPledgeForm extends Component
         ]);
 
         $this->dispatch('bulk-prov-pledges-saved');
+    }
+
+    public function import(): void
+    {
+        $this->authorizeCanImport();
+
+        $this->importErrors = [];
+        $this->importedCount = 0;
+
+        $this->validate([
+            'importFile' => ['required', 'file', 'max:5120'], // 5MB
+        ]);
+
+        $path = $this->importFile->getRealPath();
+        if (! $path || ! is_file($path)) {
+            $this->importErrors[] = 'Upload failed: file was not available on server.';
+            return;
+        }
+
+        $ext = strtolower((string) $this->importFile->getClientOriginalExtension());
+        if ($ext !== 'csv') {
+            $this->importErrors[] = 'Only CSV import is enabled on this server. (XLSX requires PHP zip extension.)';
+            return;
+        }
+
+        $rows = $this->parseCsv($path);
+        if (count($rows) === 0) {
+            $this->importErrors[] = 'No data rows found in file.';
+            return;
+        }
+
+        // Expect headers: NID, Pledge, user_id (case-insensitive)
+        $now = now();
+        $electionId = Election::where('status', Election::STATUS_ACTIVE)->value('id');
+        if (! $electionId) {
+            $this->importErrors[] = 'No active election found.';
+            return;
+        }
+
+        $payload = [];
+        $lineNo = 1; // data line counter (after header)
+
+        foreach ($rows as $r) {
+            $lineNo++;
+            $nid = trim((string) ($r['nid'] ?? $r['NID'] ?? $r['id_card_number'] ?? ''));
+            $pledge = strtolower(trim((string) ($r['pledge'] ?? $r['Pledge'] ?? $r['status'] ?? '')));
+            $userId = (int) ($r['user_id'] ?? $r['User_ID'] ?? $r['user'] ?? 0);
+
+            if ($nid === '') {
+                $this->importErrors[] = "Line {$lineNo}: NID is required.";
+                continue;
+            }
+
+            if (! in_array($pledge, ['yes','no','neutral','pending',''], true)) {
+                $this->importErrors[] = "Line {$lineNo}: Invalid pledge '{$pledge}'. Allowed: yes, no, neutral, pending.";
+                continue;
+            }
+
+            if ($userId <= 0 || ! DB::table('users')->where('id', $userId)->exists()) {
+                $this->importErrors[] = "Line {$lineNo}: Invalid user_id '{$userId}'.";
+                continue;
+            }
+
+            $dirId = Directory::where('id_card_number', $nid)->value('id');
+            if (! $dirId) {
+                $this->importErrors[] = "Line {$lineNo}: NID '{$nid}' not found.";
+                continue;
+            }
+
+            $payload[] = [
+                'election_id' => $electionId,
+                'user_id' => $userId,
+                'directory_id' => (string) $dirId,
+                'status' => ($pledge === '' || $pledge === 'pending') ? null : $pledge,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if (count($payload) === 0) {
+            if (count($this->importErrors) === 0) {
+                $this->importErrors[] = 'No valid rows to import.';
+            }
+            return;
+        }
+
+        DB::transaction(function () use ($payload) {
+            DB::table('voter_provisional_user_pledges')->upsert(
+                $payload,
+                ['election_id', 'user_id', 'directory_id'],
+                ['status', 'updated_at']
+            );
+        });
+
+        $this->importedCount = count($payload);
+
+        $this->dispatch('swal', [
+            'icon' => 'success',
+            'title' => 'Imported',
+            'text' => "Imported {$this->importedCount} provisional pledges." ,
+            'showConfirmButton' => false,
+            'timer' => 1500,
+        ]);
+
+        $this->dispatch('bulk-prov-pledges-saved');
+    }
+
+    private function authorizeCanImport(): void
+    {
+        // Same permission as bulk provisional pledge entry
+        if (! Auth::user()?->can('voters-bulkProvisionalPledge')) {
+            abort(403);
+        }
+    }
+
+    private function parseCsv(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        if (! $handle) return [];
+
+        $header = null;
+        $out = [];
+
+        while (($data = fgetcsv($handle)) !== false) {
+            // skip empty lines
+            if (! is_array($data) || count(array_filter($data, fn($v) => trim((string)$v) !== '')) === 0) {
+                continue;
+            }
+
+            if ($header === null) {
+                $header = array_map(fn($h) => strtolower(trim((string) $h)), $data);
+                continue;
+            }
+
+            $row = [];
+            foreach ($header as $i => $key) {
+                $row[$key] = $data[$i] ?? null;
+            }
+            $out[] = $row;
+        }
+
+        fclose($handle);
+        return $out;
     }
 
     public function render()
