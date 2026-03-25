@@ -1170,4 +1170,54 @@ class VoterManagement extends Component
         $this->showImportProvisionalPledgeModal = false;
         $this->dispatch('$refresh');
     }
+
+    public ?string $savingProvPledgeDirectoryId = null;
+
+    /**
+     * Update provisional pledge directly from the table dropdown.
+     */
+    public function updateProvisionalPledgeFromTable(string $directoryId, ?string $status): void
+    {
+        $this->authorize('voters-openProvisionalPledge');
+
+        if (! $this->electionId) return;
+
+        $status = $status !== null ? trim((string) $status) : '';
+        $allowed = ['', 'yes', 'no', 'neutral', 'not_voting'];
+        if (! in_array($status, $allowed, true)) {
+            return;
+        }
+
+        $this->savingProvPledgeDirectoryId = $directoryId;
+
+        // Save per-user provisional pledge
+        $now = now();
+        DB::table('voter_provisional_user_pledges')->upsert([
+            [
+                'election_id' => $this->electionId,
+                'user_id' => Auth::id(),
+                'directory_id' => $directoryId,
+                'status' => ($status === '') ? null : $status,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        ], ['election_id','user_id','directory_id'], ['status','updated_at']);
+
+        // Optimistic UI update (if property exists)
+        if (property_exists($this, 'optimisticProvPledge')) {
+            $this->optimisticProvPledge[(string) $directoryId] = ($status === '') ? null : $status;
+        }
+
+        // Refresh totals
+        $this->calculatePledgeTotals();
+
+        // Broadcast
+        VoterDataChanged::dispatch('provisional_pledge_updated', $directoryId, $this->electionId, [
+            'status' => ($status === '') ? null : $status,
+            'type' => 'provisional_table',
+            'user_id' => Auth::id(),
+        ]);
+
+        $this->savingProvPledgeDirectoryId = null;
+    }
 }
