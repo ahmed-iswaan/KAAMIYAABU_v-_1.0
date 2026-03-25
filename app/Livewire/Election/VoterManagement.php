@@ -1165,9 +1165,8 @@ class VoterManagement extends Component
 
     public function handleBulkProvPledgesSaved(): void
     {
-        // Close both modals if open
+        // Close only manual bulk entry modal; keep import modal open after import
         $this->showBulkProvisionalPledgeModal = false;
-        $this->showImportProvisionalPledgeModal = false;
         $this->dispatch('$refresh');
     }
 
