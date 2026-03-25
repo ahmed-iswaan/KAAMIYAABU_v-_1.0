@@ -132,6 +132,8 @@
         @endcan
 
         @can('dashboard-task-performance')
+        {{-- Disabled: Users Task Performance section was commented out to improve /dashboard performance. --}}
+        {{--
         <!-- Users Task Performance separate row -->
         <div class="row gx-6 gx-xl-9 mt-6">
             <div class="col-12">
@@ -203,6 +205,7 @@
                 </div>
             </div>
         </div>
+        --}}
         @endcan
     </div>
 </div>

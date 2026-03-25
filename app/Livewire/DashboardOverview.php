@@ -60,7 +60,11 @@ class DashboardOverview extends Component
     public function mount()
     {
         $this->computeDirectoryStats();
-        $this->computeTaskStats();
+
+        // Disabled: Users Task Performance is heavy and slows /dashboard
+        // $this->computeTaskStats();
+        $this->userTaskStats = [];
+
         $this->computeDashboardTaskDirectoryCharts();
         $this->computeOverviewCallCenterTotals();
         $this->computeElectionDirectoryPie();
@@ -99,126 +103,22 @@ class DashboardOverview extends Component
     }
     protected function computeTaskStats(): void
     {
-        // Logged in user summary (exclude deleted)
-        $taskRows = DB::table('tasks')
-            ->join('task_user','tasks.id','=','task_user.task_id')
-            ->where('task_user.user_id', auth()->id())
-            ->where('tasks.deleted', false)
-            ->selectRaw("COUNT(*) as total")
-            ->selectRaw("SUM(CASE WHEN tasks.status='pending' THEN 1 ELSE 0 END) as pending")
-            ->selectRaw("SUM(CASE WHEN tasks.status='follow_up' THEN 1 ELSE 0 END) as follow_up")
-            ->selectRaw("SUM(CASE WHEN tasks.status='completed' THEN 1 ELSE 0 END) as completed")
-            ->first();
-        if($taskRows){
-            $this->taskTotal = (int)$taskRows->total;
-            $this->taskPending = (int)$taskRows->pending;
-            $this->taskFollowUp = (int)$taskRows->follow_up;
-            $this->taskCompleted = (int)$taskRows->completed;
-        } else {
-            $this->taskTotal = $this->taskPending = $this->taskFollowUp = $this->taskCompleted = 0;
-        }
+        // Disabled: Users Task Performance is heavy and slows /dashboard
+        // (kept method for compatibility with existing refresh hooks)
+        $this->userTaskStats = [];
+        return;
 
-        // Users performance (by election call status + user sub consites)
-        $today = now()->toDateString();
-
-        $activeElectionId = Election::query()
-            ->where('status', Election::STATUS_ACTIVE)
-            ->value('id');
-
-        // Viewer can only see users in their allowed SubConsites
-        $viewerAllowedSubConsiteIds = auth()->user()?->subConsites()->pluck('sub_consites.id')->all() ?? [];
-
-        // Attempts (total + today) by user, within viewer allowed subconsite directories
-        $attemptsByUser = DB::table('election_directory_call_sub_statuses as edcss')
-            ->join('directories as d2', 'd2.id', '=', 'edcss.directory_id')
-            ->where('edcss.election_id', (string) $activeElectionId)
-            ->where('d2.status', 'Active')
-            ->when(count($viewerAllowedSubConsiteIds), fn($q) => $q->whereIn('d2.sub_consite_id', $viewerAllowedSubConsiteIds))
-            ->select('edcss.updated_by')
-            ->selectRaw('COUNT(DISTINCT CONCAT(edcss.directory_id, ":", edcss.attempt)) as attempts_total')
-            ->groupBy('edcss.updated_by');
-
-        $attemptsTodayByUser = DB::table('election_directory_call_sub_statuses as edcss')
-            ->join('directories as d2', 'd2.id', '=', 'edcss.directory_id')
-            ->where('edcss.election_id', (string) $activeElectionId)
-            ->whereDate('edcss.updated_at', $today)
-            ->where('d2.status', 'Active')
-            ->when(count($viewerAllowedSubConsiteIds), fn($q) => $q->whereIn('d2.sub_consite_id', $viewerAllowedSubConsiteIds))
-            ->select('edcss.updated_by')
-            ->selectRaw('COUNT(DISTINCT CONCAT(edcss.directory_id, ":", edcss.attempt)) as attempts_today')
-            ->groupBy('edcss.updated_by');
-
-        $userRows = DB::table('users')
-            ->join('users_sub_consites as usc', 'usc.user_id', '=', 'users.id')
-            ->join('directories as d', function($join){
-                $join->on('d.sub_consite_id', '=', 'usc.sub_consite_id')
-                    ->where('d.status', '=', 'Active');
-            })
-            ->leftJoin('election_directory_call_statuses as edcs', function($join) use ($activeElectionId){
-                $join->on('edcs.directory_id', '=', 'd.id');
-                if ($activeElectionId) {
-                    $join->where('edcs.election_id', '=', (string) $activeElectionId);
-                } else {
-                    $join->whereRaw('1=0');
-                }
-            })
-            ->leftJoinSub($attemptsByUser, 'att', fn($join) => $join->on('att.updated_by', '=', 'users.id'))
-            ->leftJoinSub($attemptsTodayByUser, 'attd', fn($join) => $join->on('attd.updated_by', '=', 'users.id'))
-            ->when(count($viewerAllowedSubConsiteIds), function($q) use ($viewerAllowedSubConsiteIds){
-                $q->whereIn('usc.sub_consite_id', $viewerAllowedSubConsiteIds);
-            })
-            ->select('users.id','users.name',
-                DB::raw('COUNT(DISTINCT d.id) as total'),
-                // Completed within assigned directories (by anyone)
-                DB::raw("COUNT(DISTINCT CASE WHEN edcs.status = 'completed' THEN d.id END) as completed_assigned"),
-                DB::raw("COUNT(DISTINCT CASE WHEN edcs.status = 'completed' AND DATE(edcs.completed_at) = '{$today}' THEN d.id END) as completed_assigned_today"),
-                // Completed performed by this user
-                DB::raw("SUM(CASE WHEN edcs.status = 'completed' AND edcs.updated_by = users.id THEN 1 ELSE 0 END) as completed_by_user"),
-                DB::raw("SUM(CASE WHEN edcs.status = 'completed' AND edcs.updated_by = users.id AND DATE(edcs.completed_at) = '{$today}' THEN 1 ELSE 0 END) as completed_by_user_today"),
-                DB::raw('COALESCE(att.attempts_total, 0) as attempts_total'),
-                DB::raw('COALESCE(attd.attempts_today, 0) as attempts_today')
-            )
-            ->groupBy('users.id','users.name','att.attempts_total','attd.attempts_today')
-            ->orderByRaw("COUNT(DISTINCT CASE WHEN edcs.status = 'completed' THEN d.id END) DESC")
-            ->orderBy('users.name')
-            ->get();
-
-        $rank = 1;
-        $this->userTaskStats = $userRows
-            ->filter(fn($r) => (int)($r->completed_by_user ?? 0) > 0)
-            ->filter(function ($r) {
-                // Only include users who have at least one Spatie role assigned
-                return DB::table('model_has_roles')
-                    ->where('model_type', 'App\\Models\\User')
-                    ->where('model_id', $r->id)
-                    ->exists();
-            })
-             ->map(function($r) use (&$rank){
-                 $total = (int)($r->total ?? 0);
-                 $completedAssigned = (int)($r->completed_assigned ?? 0);
-                 $pending = max(0, $total - $completedAssigned);
-                 $pct = $total ? round(($completedAssigned / $total) * 100) : 0;
-
-                 return [
-                     'rank' => $rank++,
-                     'user_id' => $r->id,
-                     'name' => $r->name,
-                     'total' => $total,
-                     'pending' => $pending,
-                     'completed_assigned' => $completedAssigned,
-                     'completed_assigned_today' => (int)($r->completed_assigned_today ?? 0),
-                     'completed_by_user' => (int)($r->completed_by_user ?? 0),
-                     'completed_by_user_today' => (int)($r->completed_by_user_today ?? 0),
-                     'completed_pct' => $pct,
-                     'attempts_total' => (int)($r->attempts_total ?? 0),
-                     'attempts_today' => (int)($r->attempts_today ?? 0),
-                 ];
-             })->toArray();
+        /*
+        // Original heavy implementation removed/disabled.
+        */
     }
 
     public function refreshStats(): void
     {
-        $this->computeTaskStats();
+        // Disabled: Users Task Performance is heavy and slows /dashboard
+        // $this->computeTaskStats();
+        $this->userTaskStats = [];
+
         $this->computeDashboardTaskDirectoryCharts();
         $this->computeOverviewCallCenterTotals();
         $this->computeElectionDirectoryPie();
