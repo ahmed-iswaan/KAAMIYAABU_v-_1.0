@@ -189,8 +189,13 @@
                                     <option value="100">100</option>
                                 </select>
 
+                                @php
+                                    $canShowWithoutPhone = auth()->user()?->can('call-center-show-without-phone');
+                                @endphp
                                 <div class="form-check form-check-custom form-check-solid mb-0 align-self-center" style="opacity:.65">
-                                    <input class="form-check-input" type="checkbox" id="cc_beta_hide_no_phone" checked disabled>
+                                    <input class="form-check-input" type="checkbox" id="cc_beta_hide_no_phone"
+                                           wire:model.live.debounce.250ms="hideWithoutPhone"
+                                           @disabled(!$canShowWithoutPhone)>
                                     <label class="form-check-label text-muted" for="cc_beta_hide_no_phone">Hide no phone</label>
                                 </div>
                             </div>
