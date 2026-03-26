@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Directory;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\ElectionDirectoryCallSubStatus;
+use App\Models\EventLog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -81,13 +82,40 @@ class CleanupCallCenterAttemptsAndStatusesSeeder extends Seeder
                 ->whereIn('directory_id', $attemptDirIds)
                 ->delete();
 
+            // Audit log (only if anything was removed)
+            $attemptRowsDeleted = (int) $attemptRowsDeleted;
+            $statusRowsDeleted = (int) $statusRowsDeleted;
+            if ($attemptRowsDeleted > 0 || $statusRowsDeleted > 0) {
+                $sampleDirIds = array_slice($attemptDirIds, 0, 200);
+                EventLog::create([
+                    'user_id' => auth()->id(),
+                    'event_type' => 'data_cleanup',
+                    'event_tab' => 'call_center',
+                    'event_entry_id' => null,
+                    'description' => 'Cleanup: removed call center attempts and statuses for directories with no phones.',
+                    'event_data' => [
+                        'directories_no_phones' => count($directoryIdsNoPhones),
+                        'directories_matched' => count($attemptDirIds),
+                        'attempt_rows_found' => $attemptRowsFound,
+                        'status_rows_found' => $statusRowsFound,
+                        'attempt_rows_deleted' => $attemptRowsDeleted,
+                        'status_rows_deleted' => $statusRowsDeleted,
+                        'directory_ids_sample' => $sampleDirIds,
+                        'directory_ids_sample_count' => count($sampleDirIds),
+                        'directory_ids_total' => count($attemptDirIds),
+                    ],
+                    'ip_address' => request()?->ip(),
+                    'task_id' => null,
+                ]);
+            }
+
             return [
                 'directories_no_phones' => count($directoryIdsNoPhones),
                 'directories_matched' => $directoriesMatched,
                 'attempt_rows_found' => $attemptRowsFound,
                 'status_rows_found' => $statusRowsFound,
-                'attempt_rows_deleted' => (int) $attemptRowsDeleted,
-                'status_rows_deleted' => (int) $statusRowsDeleted,
+                'attempt_rows_deleted' => $attemptRowsDeleted,
+                'status_rows_deleted' => $statusRowsDeleted,
             ];
         });
 
