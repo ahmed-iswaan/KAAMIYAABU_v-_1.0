@@ -9,6 +9,8 @@ use App\Models\Election;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\ElectionDirectoryCallSubStatus;
 use App\Models\SubStatus;
+use App\Models\RequestType;
+use App\Models\VoterRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -50,6 +52,13 @@ class CallCenterBetaDetails extends Component
      */
     public array $phoneStatuses = [];
 
+    /** Request form + list */
+    public array $requestTypes = [];
+    public array $voterRequests = [];
+    public string $request_type_id = '';
+    public $request_amount = null;
+    public string $request_note = '';
+
     public function mount(string $directory): void
     {
         $this->authorize('call-center-render');
@@ -86,6 +95,14 @@ class CallCenterBetaDetails extends Component
             }
         }
         $this->phoneStatuses = $map;
+
+        // Load request types (active)
+        $this->requestTypes = RequestType::where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->toArray();
+
+        $this->loadVoterRequests();
 
         $this->modalPresentUsers = [];
         $this->modalRenderTick = 0;
@@ -487,6 +504,65 @@ class CallCenterBetaDetails extends Component
         $this->subStatusAttempts[(string)$attemptInt]['phone_number'] = '';
     }
 
+    private function loadVoterRequests(): void
+    {
+        if (! $this->activeElectionId || ! $this->directoryId) {
+            $this->voterRequests = [];
+            return;
+        }
+
+        $this->voterRequests = VoterRequest::with(['type:id,name', 'author:id,name'])
+            ->where('directory_id', $this->directoryId)
+            ->where('election_id', $this->activeElectionId)
+            ->latest()
+            ->get()
+            ->toArray();
+    }
+
+    public function saveRequest(): void
+    {
+        $this->authorize('call-center-render');
+
+        if (! $this->activeElectionId || ! $this->directoryId) return;
+
+        $this->validate([
+            'request_type_id' => ['required', 'exists:request_types,id'],
+            'request_amount' => ['nullable', 'numeric', 'min:0'],
+            'request_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        VoterRequest::create([
+            'directory_id' => $this->directoryId,
+            'election_id' => $this->activeElectionId,
+            'request_type_id' => $this->request_type_id,
+            'amount' => $this->request_amount,
+            'note' => $this->request_note,
+            'created_by' => Auth::id(),
+        ]);
+
+        $this->request_type_id = '';
+        $this->request_amount = null;
+        $this->request_note = '';
+
+        $this->loadVoterRequests();
+
+        // Optional realtime update
+        event(new \App\Events\VoterDataChanged(
+            'request_created',
+            (string) $this->directoryId,
+            (string) $this->activeElectionId,
+            ['user_id' => Auth::id()]
+        ));
+
+        $this->dispatch('swal', [
+            'icon' => 'success',
+            'title' => 'Saved',
+            'text' => 'Request submitted.',
+            'showConfirmButton' => false,
+            'timer' => 1200,
+        ]);
+    }
+
     /**
      * Websocket listeners (via Laravel Echo + Livewire).
      * When any user updates a voter in Call Center, other users will refresh.
@@ -654,6 +730,8 @@ class CallCenterBetaDetails extends Component
             'visibleAttempts' => $this->visibleAttempts,
             'subStatusAttempts' => $this->subStatusAttempts,
             'phoneStatuses' => $this->phoneStatuses,
+            'voterRequests' => $this->voterRequests,
+            'requestTypes' => $this->requestTypes,
         ])->layout('layouts.master');
     }
 }

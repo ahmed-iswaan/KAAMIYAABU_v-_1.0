@@ -160,6 +160,88 @@
                     </div>
                 @endif
 
+                                        {{-- Voter Requests --}}
+                        <div class="card border border-gray-200 shadow-sm mt-6">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap align-items-end gap-4">
+                                    <div style="min-width:260px;" class="flex-grow-1">
+                                        <label class="form-label fw-semibold">Request Type</label>
+                                        <select class="form-select" wire:model="request_type_id">
+                                            <option value="">Select type</option>
+                                            @foreach(($requestTypes ?? []) as $t)
+                                                <option value="{{ $t['id'] ?? $t->id }}">{{ $t['name'] ?? $t->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('request_type_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <div style="min-width:360px;" class="flex-grow-1">
+                                        <label class="form-label fw-semibold">Note (optional)</label>
+                                        <input type="text" class="form-control" wire:model.defer="request_note" placeholder="Details..." />
+                                        @error('request_note')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <div class="flex-grow-0" style="min-width:220px;">
+                                        <button type="button" class="btn btn-primary w-100" wire:click="saveRequest" wire:loading.attr="disabled" wire:target="saveRequest">
+                                            <span wire:loading.remove wire:target="saveRequest">Submit Request</span>
+                                            <span wire:loading wire:target="saveRequest">Submitting...</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="separator my-6"></div>
+
+                                @php
+                                    $reqs = $voterRequests;
+                                    if ($reqs instanceof \Illuminate\Support\Collection) $reqs = $reqs->all();
+                                    if (!is_array($reqs)) $reqs = [];
+                                @endphp
+
+                                @if(!empty($reqs))
+                                     <div class="d-flex flex-column gap-4">
+                                         @foreach($reqs as $r)
+                                            @php
+                                                $typeName = $r['type']['name'] ?? ($r['type_name'] ?? '');
+                                                $number = $r['request_number'] ?? '';
+                                                $status = $r['status'] ?? 'pending';
+                                                $author = $r['author']['name'] ?? '';
+                                                $note = $r['note'] ?? '';
+                                                $createdAt = $r['created_at'] ?? null;
+                                            @endphp
+                                            <div class="border rounded p-4">
+                                                <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                                    <div>
+                                                        <div class="fw-bold">{{ $typeName ?: 'Request' }}
+                                                            @if($number)
+                                                                <span class="text-muted">#{{ $number }}</span>
+                                                            @endif
+                                                        </div>
+                                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                                            <span class="badge badge-light">Status: {{ $status }}</span>
+                                                            @if($author)
+                                                                <span class="badge badge-light">By: {{ $author }}</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-muted small">
+                                                        @if($createdAt)
+                                                            {{ \Illuminate\Support\Carbon::parse($createdAt)->diffForHumans() }}
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                @if($note)
+                                                    <div class="mt-3">{{ $note }}</div>
+                                                @endif
+                                            </div>
+                                         @endforeach
+                                     </div>
+                                @else
+                                    <div class="text-muted">No requests yet.</div>
+                                @endif
+                            </div>
+                        </div>
+                        <br>
+
                 <!-- Attempts History + Call Center Form -->
                 <div class="row g-6 align-items-start">
                     <div class="col-12 col-xl-5">
@@ -386,6 +468,8 @@
                                 </div>
                             </div>
                         </div>
+
+
                     </div>
                 </div>
 
