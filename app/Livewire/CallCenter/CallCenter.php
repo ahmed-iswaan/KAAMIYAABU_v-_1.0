@@ -1268,6 +1268,11 @@ class CallCenter extends Component
         $baseQuery = Directory::query()
             ->where('status', 'Active')
             ->whereIn('sub_consite_id', $allowed)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('voter_provisional_user_pledges as vpup')
+                    ->whereColumn('vpup.directory_id', 'directories.id');
+            })
             ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
             ->when($this->hideWithoutPhone, function ($q) {
                 // Keep existing semantics, but avoid repeating the same raw expressions elsewhere.

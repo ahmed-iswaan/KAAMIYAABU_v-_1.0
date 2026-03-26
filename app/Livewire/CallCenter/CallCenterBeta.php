@@ -7,6 +7,7 @@ use App\Models\Election;
 use App\Models\ElectionDirectoryCallStatus;
 use App\Models\ElectionDirectoryCallSubStatus;
 use App\Models\SubConsite;
+use App\Models\VoterProvisionalUserPledge;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -165,6 +166,11 @@ class CallCenterBeta extends Component
             ])
             ->where('status', 'Active')
             ->whereIn('sub_consite_id', $allowed)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('voter_provisional_user_pledges as vpup')
+                    ->whereColumn('vpup.directory_id', 'directories.id');
+            })
             ->when($this->filterSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->filterSubConsiteId))
             ->when($this->hideWithoutPhone, function ($q) {
                 $q->whereNotNull('phones')
