@@ -14,7 +14,7 @@
         <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
             <div class="container-xxl">
                 <div class="row g-6 mb-6">
-                        @can('voters-bulkProvisionalPledge')
+                        @can('voters-openProvisionalPledge')
                     <div class="col-md-6">
                         <div class="card card-bordered shadow-sm">
                             <div class="card-body py-4">
