@@ -950,30 +950,30 @@ class VoterManagement extends Component
         $allowedSubconsiteIds = $user->subConsites()->pluck('sub_consites.id')->all();
 
         $q = Directory::query()
-            ->where('directories.status', 'Active')
-            ->whereIn('directories.sub_consite_id', $allowedSubconsiteIds)
-            ->whereIn('directories.sub_consite_id', function ($sub) {
-                $sub->select('sub_consite_id')
-                    ->from('participants')
-                    ->where('election_id', $this->electionId);
-            })
-            ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
-            ->leftJoin('voter_pledges as vp_final', function ($join) {
-                $join->on('vp_final.directory_id', '=', 'directories.id')
-                    ->where('vp_final.election_id', '=', $this->electionId)
-                    ->where('vp_final.type', '=', \App\Models\VoterPledge::TYPE_FINAL);
-            })
-            ->select([
-                'directories.id',
-                'directories.name',
-                'directories.id_card_number',
-                'directories.phones',
-                'directories.street_address',
-                'directories.address',
-                'sub_consites.code as sub_consite_code',
-                'sub_consites.name as sub_consite_name',
-                'vp_final.status as final_pledge_status',
-            ]);
+             ->where('directories.status', 'Active')
+             ->whereIn('directories.sub_consite_id', $allowedSubconsiteIds)
+             ->whereIn('directories.sub_consite_id', function ($sub) {
+                 $sub->select('sub_consite_id')
+                     ->from('participants')
+                     ->where('election_id', $this->electionId);
+             })
+             ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
+             ->leftJoin('voter_pledges as vp_final', function ($join) {
+                 $join->on('vp_final.directory_id', '=', 'directories.id')
+                     ->where('vp_final.election_id', '=', $this->electionId)
+                     ->where('vp_final.type', '=', \App\Models\VoterPledge::TYPE_FINAL);
+             })
+             ->select([
+                 'directories.id',
+                 'directories.name',
+                 'directories.id_card_number',
+                 'directories.phones',
+                 'directories.street_address',
+                 'directories.address',
+                 'sub_consites.code as sub_consite_code',
+                 'sub_consites.name as sub_consite_name',
+                 'vp_final.status as final_pledge_status',
+             ]);
 
         // Apply current filters
         if ($this->filterSubConsiteId) {
@@ -1035,34 +1035,35 @@ class VoterManagement extends Component
 
             fputcsv($out, $header);
 
-            $q->orderBy('sub_consites.code')
-                ->orderBy('directories.name')
-                ->chunk(1000, function ($rows) use ($out, $maxPledges) {
-                    $dirIds = $rows->pluck('id')->all();
+            // Use a stable ordering that works well with chunking.
+            // Smaller chunks reduce memory and latency on shared hosting / reverse proxies.
+            $q->orderBy('directories.id')
+                ->chunk(250, function ($rows) use ($out, $maxPledges) {
+                    $dirIds = $rows->pluck('id')->map(fn($v) => (string) $v)->all();
 
-                    $pledges = DB::table('voter_provisional_user_pledges as vpp')
-                        ->leftJoin('users', 'users.id', '=', 'vpp.user_id')
-                        ->where('vpp.election_id', $this->electionId)
-                        ->whereIn('vpp.directory_id', $dirIds)
-                        ->orderBy('vpp.updated_at', 'desc')
-                        ->get([
-                            'vpp.directory_id',
-                            'vpp.status',
-                            'vpp.updated_at',
-                            'users.name as pledge_by',
-                        ])
-                        ->groupBy('directory_id');
+                     $pledges = DB::table('voter_provisional_user_pledges as vpp')
+                         ->leftJoin('users', 'users.id', '=', 'vpp.user_id')
+                         ->where('vpp.election_id', $this->electionId)
+                         ->whereIn('vpp.directory_id', $dirIds)
+                         ->orderBy('vpp.updated_at', 'desc')
+                         ->get([
+                             'vpp.directory_id',
+                             'vpp.status',
+                             'vpp.updated_at',
+                             'users.name as pledge_by',
+                         ])
+                         ->groupBy('directory_id');
 
-                    foreach ($rows as $r) {
-                        $phones = $r->phones;
-                        if (is_array($phones)) {
-                            $phones = implode(', ', array_filter($phones));
-                        } elseif (is_string($phones)) {
-                            $decoded = json_decode($phones, true);
-                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                     foreach ($rows as $r) {
+                         $phones = $r->phones;
+                         if (is_array($phones)) {
+                             $phones = implode(', ', array_filter($phones));
+                         } elseif (is_string($phones)) {
+                             $decoded = json_decode($phones, true);
+                             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                                 $phones = implode(', ', array_filter($decoded));
-                            }
-                        }
+                             }
+                         }
 
                         $p = ($pledges->get($r->id) ?? collect())->values();
 
@@ -1088,8 +1089,8 @@ class VoterManagement extends Component
                             $r->sub_consite_name,
                             $final,
                         ], $cells));
-                    }
-                });
+                     }
+                 });
 
             fclose($out);
         }, $file, [
