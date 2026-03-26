@@ -200,8 +200,13 @@ class CallCenterBeta extends Component
         $totalsCompletedToday = 0;
         $totalsAttemptsToday = 0;
         $totalsAttemptsTotal = 0;
+        $totalsCompletedTodayByMe = 0;
+        $totalsAttemptsTodayByMe = 0;
+        $totalsAttemptsTotalByMe = 0;
 
         if ($this->activeElectionId && count($allowed)) {
+            $myUserId = (string) \Illuminate\Support\Facades\Auth::id();
+
             $completedExists = ElectionDirectoryCallStatus::query()
                 ->where('election_id', (string) $this->activeElectionId)
                 ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
@@ -211,17 +216,26 @@ class CallCenterBeta extends Component
             $totalsPending = (clone $baseQuery)->whereNotExists($completedExists)->count();
 
             $totalsCompletedByMe = (clone $baseQuery)->whereExists(
-                ElectionDirectoryCallStatus::query()
-                    ->where('election_id', (string) $this->activeElectionId)
-                    ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
-                    ->where('updated_by', (string) auth()->id())
-                    ->whereColumn('directory_id', 'directories.id')
-            )->count();
+                 ElectionDirectoryCallStatus::query()
+                     ->where('election_id', (string) $this->activeElectionId)
+                     ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                     ->where('updated_by', $myUserId)
+                     ->whereColumn('directory_id', 'directories.id')
+             )->count();
 
             $totalsCompletedToday = (clone $baseQuery)->whereExists(
                 ElectionDirectoryCallStatus::query()
                     ->where('election_id', (string) $this->activeElectionId)
                     ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                    ->whereRaw('DATE(COALESCE(completed_at, updated_at)) = ?', [now()->toDateString()])
+                    ->whereColumn('directory_id', 'directories.id')
+            )->count();
+
+            $totalsCompletedTodayByMe = (clone $baseQuery)->whereExists(
+                ElectionDirectoryCallStatus::query()
+                    ->where('election_id', (string) $this->activeElectionId)
+                    ->where('status', ElectionDirectoryCallStatus::STATUS_COMPLETED)
+                    ->where('updated_by', $myUserId)
                     ->whereRaw('DATE(COALESCE(completed_at, updated_at)) = ?', [now()->toDateString()])
                     ->whereColumn('directory_id', 'directories.id')
             )->count();
@@ -236,6 +250,16 @@ class CallCenterBeta extends Component
             $totalsAttemptsTotal = (clone $attemptsBase)->count('edcss.id');
 
             $totalsAttemptsToday = (clone $attemptsBase)
+                ->whereDate('edcss.updated_at', now()->toDateString())
+                ->count('edcss.id');
+
+            // My attempts (by updated_by on attempt rows)
+            $totalsAttemptsTotalByMe = (clone $attemptsBase)
+                ->where('edcss.updated_by', $myUserId)
+                ->count('edcss.id');
+
+            $totalsAttemptsTodayByMe = (clone $attemptsBase)
+                ->where('edcss.updated_by', $myUserId)
                 ->whereDate('edcss.updated_at', now()->toDateString())
                 ->count('edcss.id');
         }
@@ -322,6 +346,9 @@ class CallCenterBeta extends Component
             'totalsCompletedToday' => $totalsCompletedToday,
             'totalsAttemptsToday' => $totalsAttemptsToday,
             'totalsAttemptsTotal' => $totalsAttemptsTotal,
+            'totalsCompletedTodayByMe' => $totalsCompletedTodayByMe,
+            'totalsAttemptsTodayByMe' => $totalsAttemptsTodayByMe,
+            'totalsAttemptsTotalByMe' => $totalsAttemptsTotalByMe,
         ])->layout('layouts.master');
     }
 

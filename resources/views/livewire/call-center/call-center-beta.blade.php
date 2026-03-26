@@ -132,6 +132,12 @@
                                 </div>
                             </div>
                             <div class="col-6 col-md-4 col-xl-2">
+                                <div class="p-3 rounded bg-light-primary">
+                                    <div class="text-muted fs-8">Completed Today (User)</div>
+                                    <div class="fw-bold fs-2 text-gray-900">{{ (int)($totalsCompletedTodayByMe ?? 0) }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl-2">
                                 <div class="p-3 rounded bg-light-info">
                                     <div class="text-muted fs-8">Completed Today</div>
                                     <div class="fw-bold fs-2 text-gray-900">{{ (int)($totalsCompletedToday ?? 0) }}</div>
@@ -144,9 +150,21 @@
                                 </div>
                             </div>
                             <div class="col-6 col-md-4 col-xl-2">
+                                <div class="p-3 rounded bg-light-danger">
+                                    <div class="text-muted fs-8">Attempts Today (User)</div>
+                                    <div class="fw-bold fs-2 text-gray-900">{{ (int)($totalsAttemptsTodayByMe ?? 0) }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl-2">
                                 <div class="p-3 rounded bg-light">
                                     <div class="text-muted fs-8">Attempts Total</div>
                                     <div class="fw-bold fs-2 text-gray-900">{{ (int)($totalsAttemptsTotal ?? 0) }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl-2">
+                                <div class="p-3 rounded bg-light">
+                                    <div class="text-muted fs-8">Attempts Total (User)</div>
+                                    <div class="fw-bold fs-2 text-gray-900">{{ (int)($totalsAttemptsTotalByMe ?? 0) }}</div>
                                 </div>
                             </div>
                         </div>
