@@ -8,7 +8,7 @@
             <div class="text-muted">
                 Upload a CSV with columns: <code>NID</code>, <code>Pledge</code>, <code>user_id</code>.
                 (In <code>user_id</code> you can put the user's <strong>email</strong> or numeric id.)
-                Allowed pledge values: <code>yes</code>, <code>no</code>, <code>neutral</code>, <code>pending</code>.
+                Allowed pledge values: <code>Yes</code>, <code>No</code>, <code>Undecided</code>, <code>Not voting</code>.
             </div>
             <div class="flex-grow-0">
                 <a class="btn btn-light-primary" href="{{ asset('templates/provisional_pledges_import_sample.csv') }}" download>

@@ -62,7 +62,23 @@ class ImportProvisionalPledgeCsv extends Component
         foreach ($rows as $r) {
             $lineNo++;
             $nid = trim((string) ($r['nid'] ?? $r['id_card_number'] ?? ''));
-            $pledge = strtolower(trim((string) ($r['pledge'] ?? $r['status'] ?? '')));
+            $pledgeRaw = trim((string) ($r['pledge'] ?? $r['status'] ?? ''));
+            $pledgeNorm = strtolower(trim($pledgeRaw));
+
+            // Accept human-friendly pledge values and map to stored codes
+            // Yes -> yes
+            // No -> no
+            // Undecided -> neutral
+            // Not voting -> not_voting
+            $pledgeMap = [
+                'yes' => 'yes',
+                'no' => 'no',
+                'undecided' => 'neutral',
+                'neutral' => 'neutral',
+                'not voting' => 'not_voting',
+                'not_voting' => 'not_voting',
+            ];
+            $pledge = $pledgeMap[$pledgeNorm] ?? null;
 
             // Accept either numeric user id OR email in the user_id column
             $userRaw = trim((string) ($r['user_id'] ?? $r['user'] ?? $r['email'] ?? ''));
@@ -72,8 +88,13 @@ class ImportProvisionalPledgeCsv extends Component
                 continue;
             }
 
-            if (! in_array($pledge, ['yes', 'no', 'neutral', 'pending', ''], true)) {
-                $this->importErrors[] = "Line {$lineNo}: Invalid pledge '{$pledge}'. Allowed: yes, no, neutral, pending.";
+            if ($pledgeNorm === '') {
+                $this->importErrors[] = "Line {$lineNo}: Pledge is required.";
+                continue;
+            }
+
+            if ($pledge === null) {
+                $this->importErrors[] = "Line {$lineNo}: Invalid pledge '{$pledgeRaw}'. Allowed: Yes, No, Undecided, Not voting.";
                 continue;
             }
 
@@ -93,7 +114,7 @@ class ImportProvisionalPledgeCsv extends Component
                 'election_id' => $electionId,
                 'user_id' => $userId,
                 'directory_id' => (string) $dirId,
-                'status' => ($pledge === '' || $pledge === 'pending') ? null : $pledge,
+                'status' => $pledge,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
