@@ -1058,6 +1058,7 @@ class AdminDashboard extends Component
 
             fputcsv($out, [
                 'Directory Name',
+                'NID Number',
                 'Phone 1',
                 'Phone 2',
                 'Phone 3',
@@ -1076,6 +1077,7 @@ class AdminDashboard extends Component
                 })
                 ->select([
                     'd.name as directory_name',
+                    'd.id_card_number as id_card_number',
                     'd.phones as phones',
                     'd.sub_consite_id',
                     'd.address',
@@ -1129,6 +1131,7 @@ class AdminDashboard extends Component
 
                         fputcsv($out, [
                             (string)($r->directory_name ?? ''),
+                            (string)($r->id_card_number ?? ''),
                             (string)($phones[0] ?? ''),
                             (string)($phones[1] ?? ''),
                             (string)($phones[2] ?? ''),
