@@ -111,6 +111,10 @@ class AdminDashboard extends Component
     public array $ccSubConsiteBarAttempts = [];
     public array $ccSubConsiteBarPending = [];
 
+    // Provisional pledge totals pie (per directory, precedence-based)
+    public array $provTotalsPieLabels = [];
+    public array $provTotalsPieCounts = [];
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
@@ -121,6 +125,7 @@ class AdminDashboard extends Component
 
         $this->pledgeElectionId = Election::orderBy('start_date','desc')->value('id');
         $this->computePledgeBySubConsite();
+        $this->computeProvisionalTotalsPie();
 
         $this->forms = Form::orderBy('title')->get(['id','title']);
         // Preselect first form/question
@@ -325,6 +330,56 @@ class AdminDashboard extends Component
         $this->finalNo = $rowsFinal->pluck('no')->map(fn($v)=> (int)$v)->toArray();
         $this->finalUndecided = $rowsFinal->pluck('undecided')->map(fn($v)=> (int)$v)->toArray();
         $this->finalPending = $rowsFinal->map(fn($r)=> max(0, (int)($r->active_dirs ?? 0) - (int)($r->pledged_dirs ?? 0)))->toArray();
+    }
+
+    private function computeProvisionalTotalsPie(): void
+    {
+        $this->provTotalsPieLabels = ['Yes', 'No', 'Undecided', 'Not voting', 'Pending'];
+        $counts = array_fill_keys($this->provTotalsPieLabels, 0);
+
+        $eId = $this->pledgeElectionId;
+
+        // Get per-directory aggregated flags from voter_provisional_user_pledges
+        $rows = DB::table('directories as d')
+            ->leftJoin('voter_provisional_user_pledges as vpup', function ($join) use ($eId) {
+                $join->on('vpup.directory_id', '=', 'd.id');
+                if ($eId) {
+                    $join->where('vpup.election_id', $eId);
+                }
+            })
+            ->where('d.status', 'Active')
+            ->groupBy('d.id')
+            ->select('d.id')
+            ->selectRaw("MAX(CASE WHEN LOWER(vpup.status)='yes' THEN 1 ELSE 0 END) as has_yes")
+            ->selectRaw("MAX(CASE WHEN LOWER(vpup.status)='no' THEN 1 ELSE 0 END) as has_no")
+            ->selectRaw("MAX(CASE WHEN LOWER(vpup.status) IN ('neutral','undecided') THEN 1 ELSE 0 END) as has_undecided")
+            ->selectRaw("MAX(CASE WHEN LOWER(vpup.status) IN ('not voting','not_voting','notvoting') THEN 1 ELSE 0 END) as has_not_voting")
+            ->selectRaw("MAX(CASE WHEN vpup.id IS NOT NULL THEN 1 ELSE 0 END) as has_any")
+            ->get();
+
+        foreach ($rows as $r) {
+            $hasAny = (int)($r->has_any ?? 0) === 1;
+            if (!$hasAny) {
+                $counts['Pending']++;
+                continue;
+            }
+
+            // precedence: Yes > No > Undecided > Not voting
+            if ((int)($r->has_yes ?? 0) === 1) {
+                $counts['Yes']++;
+            } elseif ((int)($r->has_no ?? 0) === 1) {
+                $counts['No']++;
+            } elseif ((int)($r->has_undecided ?? 0) === 1) {
+                $counts['Undecided']++;
+            } elseif ((int)($r->has_not_voting ?? 0) === 1) {
+                $counts['Not voting']++;
+            } else {
+                // Any other status values count as Pending
+                $counts['Pending']++;
+            }
+        }
+
+        $this->provTotalsPieCounts = array_values($counts);
     }
 
     public function updatedSelectedFormId(): void

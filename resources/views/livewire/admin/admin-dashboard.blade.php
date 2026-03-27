@@ -343,550 +343,213 @@
             });
         </script>
     </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Provisional Pledges (Total by Directory)</div>
+            <div class="fs-7 text-muted">Each directory is counted once (Yes &gt; No &gt; Undecided &gt; Not voting &gt; Pending)</div>
+        </div>
+        <div class="position-relative" style="height: 320px;">
+            <canvas id="provTotalsPie" wire:ignore class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+        </div>
+        <div class="d-flex flex-wrap gap-4 mt-4">
+            @foreach(($provTotalsPieLabels ?? []) as $i => $lbl)
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge badge-light">{{ $lbl }}</span>
+                    <span class="fs-7 text-muted">{{ (int) (($provTotalsPieCounts[$i] ?? 0)) }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
 </div>
 
 <!-- Load Chart.js first -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-// Enable legend click-to-toggle for all charts (global default)
-// Works for both Chart.js v3/v4
 (function(){
-    if (!window.Chart) return;
+    // Single source of truth initializer to avoid script collisions
+    window.initAllAdminDashboardCharts = function initAllAdminDashboardCharts(){
+        if (!window.Chart) return;
 
-    const handler = function(e, legendItem, legend){
-        const ci = legend.chart;
-        const index = legendItem.datasetIndex;
-        if (ci.isDatasetVisible(index)) {
-            ci.hide(index);
-            legendItem.hidden = true;
-        } else {
-            ci.show(index);
-            legendItem.hidden = false;
-        }
-    };
+        // 1) Directories Pending/Completed (pie)
+        (function(){
+            const el = document.getElementById('dashNoTaskPie');
+            if(!el) return;
 
-    try {
-        Chart.defaults.plugins = Chart.defaults.plugins || {};
-        Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
-        Chart.defaults.plugins.legend.onClick = handler;
-    } catch (e) {
-        // ignore
-    }
-})();
-</script>
+            const pending = parseInt(@json($pieElectionPendingDirs ?? 0), 10) || 0;
+            const completed = parseInt(@json($pieElectionCompletedDirs ?? 0), 10) || 0;
+            const total = pending + completed;
 
-<!-- Totals above bars plugin must be defined before charts use it -->
-<script>
-const TotalsAboveBarsPlugin = {
-    id: 'totalsAboveBars',
-    afterDatasetsDraw(chart) {
-        const {ctx, data} = chart;
-        const meta = chart.getDatasetMeta(0);
-        if (!meta || !meta.data) return;
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+            const totalEl = document.getElementById('dashNoTaskTotal');
+            if(totalEl) totalEl.textContent = total.toLocaleString();
 
-        const drawMode = chart?.options?.plugins?.totalsAboveBars?.mode || 'above';
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            el.__chart = new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending','Completed'],
+                    datasets: [{ data: [pending, completed], backgroundColor: ['#f6c000', '#50cd89'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false } } }
+            });
+        })();
 
-        data.labels.forEach((label, index) => {
-            let total = 0;
-            data.datasets.forEach(ds => { total += (parseFloat(ds.data[index]) || 0); });
-            const el = meta.data[index];
-            if (!el) return;
-            const x = el.x;
+        // 2) Directories by SubConsite (bar)
+        (function(){
+            const el = document.getElementById('dashSubConsiteStatusChart');
+            if(!el) return;
+            const labels = @json($dashSubConsiteLabels ?? []);
+            const pending = @json($dashSubConsitePending ?? []);
+            const completed = @json($dashSubConsiteCompleted ?? []);
+            if (!labels || !labels.length) return;
 
-            if (drawMode === 'inside') {
-                const yTop = chart.scales.y.getPixelForValue(total);
-                const yBase = chart.scales.y.getPixelForValue(0);
-                const y = (yTop + yBase) / 2;
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            el.__chart = new Chart(el, {
+                type: 'bar',
+                data: { labels, datasets: [
+                    { label: 'Pending', data: pending, backgroundColor: '#f6c000', stack: 's1' },
+                    { label: 'Completed', data: completed, backgroundColor: '#50cd89', stack: 's1' },
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+                plugins: (typeof TotalsAboveBarsPlugin !== 'undefined') ? [TotalsAboveBarsPlugin] : []
+            });
+        })();
 
-                const text = total.toLocaleString();
-                ctx.font = '700 12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-                ctx.strokeText(text, x, y);
-                ctx.fillStyle = '#111827';
-                ctx.fillText(text, x, y);
-            } else {
-                ctx.textBaseline = 'bottom';
-                ctx.fillStyle = '#5e6278';
-                ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
-                const yTop = chart.scales.y.getPixelForValue(total);
-                ctx.fillText(total.toLocaleString(), x, yTop - 6);
-            }
-        });
-        ctx.restore();
-    }
-};
-</script>
+        // 3) Call Center by SubConsite (bar)
+        (function(){
+            const el = document.getElementById('ccCompletedAttemptsBySub');
+            if(!el) return;
+            const labels = @json($ccSubConsiteBarLabels ?? []);
+            const completed = @json($ccSubConsiteBarCompleted ?? []);
+            const attempts = @json($ccSubConsiteBarAttempts ?? []);
+            const pending = @json($ccSubConsiteBarPending ?? []);
+            if (!labels || !labels.length) return;
 
-<!-- Total pie charts init -->
-<script>
-(function(){
-    const palette = ['#3e97ff','#50cd89','#f6c000','#f1416c','#7239ea','#00a3ef','#a1a5b7','#e4e6ef','#ff6b6b','#2d3250'];
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            el.__chart = new Chart(el, {
+                type: 'bar',
+                data: { labels, datasets: [
+                    { label: 'Completed', data: completed, backgroundColor: '#50cd89', stack: 's1' },
+                    { label: 'Attempts', data: attempts, backgroundColor: '#3e97ff', stack: 's1' },
+                    { label: 'Pending', data: pending, backgroundColor: '#f6c000', stack: 's1' },
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+                plugins: (typeof TotalsAboveBarsPlugin !== 'undefined') ? [TotalsAboveBarsPlugin] : []
+            });
+        })();
 
-    const DoughnutCenterTextPlugin = {
-        id: 'doughnutCenterText',
-        afterDraw(chart, args, options) {
-            const {ctx, chartArea} = chart;
-            if (!chartArea) return;
-            const dataset = chart.data?.datasets?.[0];
-            if (!dataset) return;
-            const total = (dataset.data || []).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
-            const text = (options && options.text) ? options.text : (total || 0).toLocaleString();
+        // 4) Q-position charts (Q1/Q3/Q4/Q5 by SubConsite)
+        (function(){
+            const charts = @json($qsBySubCharts ?? []);
+            if(!charts || !charts.length) return;
 
-            const x = (chartArea.left + chartArea.right) / 2;
-            const y = (chartArea.top + chartArea.bottom) / 2;
+            charts.forEach(function(c){
+                const el = document.getElementById('chart_qpos_' + c.position);
+                if(!el) return;
 
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = (options && options.color) ? options.color : '#181c32';
-            ctx.font = (options && options.font) ? options.font : '600 20px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
-            ctx.fillText(text, x, y);
-            if (options && options.subText) {
-                ctx.fillStyle = options.subColor || '#a1a5b7';
-                ctx.font = options.subFont || '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
-                ctx.fillText(options.subText, x, y + 18);
-            }
-            ctx.restore();
-        }
-    };
+                if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+                const datasets = (c.series || []).map(s => ({ label: s.label, data: s.data, backgroundColor: s.color, stack: 's1' }));
 
-    function buildPie(elId, labels, data){
-        const el = document.getElementById(elId);
-        if(!el) return;
-        if(!labels || !labels.length) return;
+                el.__chart = new Chart(el, {
+                    type: 'bar',
+                    data: { labels: c.labels || [], datasets },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
+                    plugins: (typeof TotalsAboveBarsPlugin !== 'undefined') ? [TotalsAboveBarsPlugin] : []
+                });
+            });
+        })();
 
-        if (el.__chart) {
-            try { el.__chart.destroy(); } catch(e) {}
-            el.__chart = null;
-        }
+        // 5) Provisional totals by directory (pie)
+        (function(){
+            const el = document.getElementById('provTotalsPie');
+            if(!el) return;
+            const labels = @json($provTotalsPieLabels ?? []);
+            const data = @json($provTotalsPieCounts ?? []);
+            if (!labels || !labels.length) return;
 
-        const vals = (data || []).map(v => parseInt(v, 10) || 0);
-        const colors = labels.map((_, i) => palette[i % palette.length]);
-        el.__chart = new Chart(el, {
-            type: 'doughnut',
-            data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '65%',
-                plugins: {
-                    legend: { position: 'bottom' },
-                    doughnutCenterText: { subText: 'Total' }
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            const vals = (data || []).map(v => parseInt(v, 10) || 0);
+            const colors = labels.map((_, i) => ['#3e97ff','#50cd89','#f6c000','#f1416c','#a1a5b7'][i % 5]);
+            el.__chart = new Chart(el, {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+            });
+        })();
+
+        // 6) Provisional pledges by SubConsite (stacked bar)
+        (function(){
+            const el = document.getElementById('provBySubConsite');
+            if(!el) return;
+            const labels = @json($pledgeLabels ?? []);
+            if (!labels || !labels.length) return;
+
+            const pledged = @json($provPledged ?? []);
+            const notPledged = @json($provNotPledged ?? []);
+
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            el.__chart = new Chart(el, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Not Pledged', data: notPledged, backgroundColor: '#1b84ff', stack: 's1' },
+                        { label: 'Pledged', data: pledged, backgroundColor: '#f6c000', stack: 's1' },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+                    plugins: { legend: { position: 'bottom' } }
+                },
+                plugins: (typeof TotalsAboveBarsPlugin !== 'undefined') ? [TotalsAboveBarsPlugin] : []
+            });
+        })();
+
+        // 7) Final pledges by SubConsite (stacked bar)
+        (function(){
+            const el = document.getElementById('finalBySubConsite');
+            if(!el) return;
+            const labels = @json($pledgeLabels ?? []);
+            if (!labels || !labels.length) return;
+
+            const yes = @json($finalYes ?? []);
+            const no = @json($finalNo ?? []);
+            const undecided = @json($finalUndecided ?? []);
+            const pending = @json($finalPending ?? []);
+
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            el.__chart = new Chart(el, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Yes', data: yes, backgroundColor: '#3e97ff', stack: 's1' },
+                        { label: 'No', data: no, backgroundColor: '#f6c000', stack: 's1' },
+                        { label: 'Undecided', data: undecided, backgroundColor: '#a1a5b7', stack: 's1' },
+                        { label: 'Pending', data: pending, backgroundColor: '#e4e6ef', stack: 's1' },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+                    plugins: { legend: { position: 'bottom' } }
                 }
-            },
-            plugins: [DoughnutCenterTextPlugin]
-        });
-    }
+            });
+        })();
+    };
 
     function init(){
-        const pies = @json($formTotalsPies ?? []);
-        pies.forEach(p => {
-            buildPie('pie_total_q_' + p.questionId, p.labels || [], p.counts || []);
-        });
+        try { window.initAllAdminDashboardCharts(); } catch(e) {}
     }
 
     document.addEventListener('DOMContentLoaded', init);
     document.addEventListener('livewire:navigated', init);
-})();
-</script>
-
-<!-- No Task pie chart (4 segments) -->
-<script>
-(function(){
-    const el = document.getElementById('noTaskPie');
-    if(!el) return;
-    const data = [
-        parseInt(@json($directoriesWithNoTasks ?? 0), 10) || 0,
-        parseInt(@json($piePendingDirs ?? 0), 10) || 0,
-        parseInt(@json($pieFollowUpDirs ?? 0), 10) || 0,
-        parseInt(@json($pieCompletedDirs ?? 0), 10) || 0,
-    ];
-    const labels = ['No Task','Pending','Follow-up','Completed'];
-    const colors = ['#f1416c','#f6c000','#3e97ff','#50cd89'];
-    new Chart(el, {
-        type: 'doughnut',
-        data: {
-            labels,
-            datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '65%',
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
-
-    // Center total = Active Directories
-    const totalEl = document.getElementById('noTaskTotal');
-    if (totalEl) {
-        const totalActive = parseInt(@json($activeDirectories ?? 0), 10) || 0;
-        totalEl.textContent = totalActive.toLocaleString();
-    }
-})();
-</script>
-
-<!-- SubConsite tasks chart -->
-<script>
-(function(){
-    const el = document.getElementById('subConsiteStatusChart');
-    if(!el) return;
-    const labels = @json($subConsiteLabels ?? []);
-    const pending = @json($subConsitePending ?? []);
-    const followUp = @json($subConsiteFollowUp ?? []);
-    const completed = @json($subConsiteCompleted ?? []);
-    const noTask = @json($subConsiteNoTask ?? []);
-    if (!labels.length) return; // avoid errors when no data
-    new Chart(el, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Pending', data: pending, backgroundColor: '#f6c000' },
-                { label: 'Follow-up', data: followUp, backgroundColor: '#3e97ff' },
-                { label: 'Completed', data: completed, backgroundColor: '#50cd89' },
-                { label: 'No Task', data: noTask, backgroundColor: '#f1416c' },
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-            plugins: { legend: { position: 'bottom' } }
-        },
-        plugins: [TotalsAboveBarsPlugin]
-    });
-})();
-</script>
-
-<!-- Provisional and Final Pledges by SubConsite charts -->
-<script>
-(function(){
-    const labels = @json($pledgeLabels ?? []);
-    if(!labels.length) return;
-
-    // Provisional pledged vs not pledged
-    const provPledged = @json($provPledged ?? []);
-    const provNotPledged = @json($provNotPledged ?? []);
-
-    // Draw segment values inside each stacked segment (centered per-segment)
-    const SegmentValuesPlugin = {
-        id: 'segmentValues',
-        afterDatasetsDraw(chart) {
-            const {ctx} = chart;
-            if (!chart?.data?.datasets?.length) return;
-
-            const minPx = chart?.options?.plugins?.segmentValues?.minSegmentPixelHeight ?? 18;
-
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
-
-            chart.data.datasets.forEach((ds, dsIndex) => {
-                const meta = chart.getDatasetMeta(dsIndex);
-                if (!meta || meta.hidden) return;
-
-                meta.data.forEach((bar, index) => {
-                    const v = parseFloat(ds.data?.[index]) || 0;
-                    if (v <= 0) return;
-
-                    // For stacked bars: each bar element has `y` (top) and `base` (bottom) for that segment
-                    const yTop = bar.y;
-                    const yBase = bar.base;
-                    if (!isFinite(yTop) || !isFinite(yBase)) return;
-
-                    // Skip very small segments to avoid clutter
-                    if (Math.abs(yBase - yTop) < minPx) return;
-
-                    const y = (yTop + yBase) / 2;
-                    const text = v.toLocaleString();
-
-                    ctx.lineWidth = 3;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-                    ctx.strokeText(text, bar.x, y);
-                    ctx.fillStyle = '#111827';
-                    ctx.fillText(text, bar.x, y);
-                });
-            });
-
-            ctx.restore();
-        }
-    };
-
-    const elProv = document.getElementById('provBySubConsite');
-    if(elProv){
-        new Chart(elProv, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Not Pledged', data: provNotPledged, backgroundColor: '#1b84ff' },
-                    { label: 'Pledged', data: provPledged, backgroundColor: '#f6c000' },
-                ]
-            },
-            options:
-                {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        // Put the TOTAL above the bar to avoid overlapping the segment values
-                        totalsAboveBars: { mode: 'above' },
-                        segmentValues: { minSegmentPixelHeight: 18 }
-                    }
-                },
-            plugins: [TotalsAboveBarsPlugin, SegmentValuesPlugin]
-        });
-    }
-
-    // Final chart remains Yes/No/Undecided/Pending
-    const final = {
-        yes: @json($finalYes ?? []),
-        no: @json($finalNo ?? []),
-        undecided: @json($finalUndecided ?? []),
-        pending: @json($finalPending ?? []),
-    };
-    const elFinal = document.getElementById('finalBySubConsite');
-    if(elFinal){
-        new Chart(elFinal, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Yes', data: final.yes, backgroundColor: '#3e97ff' },
-                    { label: 'No', data: final.no, backgroundColor: '#f6c000' },
-                    { label: 'Undecided', data: final.undecided, backgroundColor: '#a1a5b7' },
-                    { label: 'Pending', data: final.pending, backgroundColor: '#e4e6ef' },
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
-        });
-    }
-})();
-</script>
-
-<!-- Per-question charts init -->
-<script>
-(function(){
-    function buildChart(elId, labels, series){
-        const el = document.getElementById(elId);
-        if(!el) return;
-        if (!labels || !labels.length || !series || !series.length) return;
-        new Chart(el, {
-            type: 'bar',
-            data: { labels, datasets: series.map(s => ({ label: s.label, data: s.data, backgroundColor: s.color })) },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } },
-        });
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-        const charts = @json($fsAllCharts ?? []);
-        charts.forEach(c => { buildChart('chart_q_' + c.questionId, c.labels || [], c.series || []); });
-    });
-})();
-</script>
-
-<script>
-(function(){
-    function buildPendingCompletedPie(){
-        const el = document.getElementById('dashNoTaskPie');
-        if(!el || !window.Chart) return;
-
-        const pending = parseInt(@json($pieElectionPendingDirs ?? 0), 10) || 0;
-        const completed = parseInt(@json($pieElectionCompletedDirs ?? 0), 10) || 0;
-        const total = pending + completed;
-
-        const totalEl = document.getElementById('dashNoTaskTotal');
-        if(totalEl) totalEl.textContent = total.toLocaleString();
-
-        if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
-        el.__chart = new Chart(el, {
-            type: 'doughnut',
-            data: {
-                labels: ['Pending','Completed'],
-                datasets: [{
-                    data: [pending, completed],
-                    backgroundColor: ['#f6c000', '#50cd89'],
-                    borderWidth: 0,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
-                }
-            }
-        });
-    }
-
-    function buildSubConsiteBar(){
-        const el = document.getElementById('dashSubConsiteStatusChart');
-        if(!el || !window.Chart) return;
-
-        const labels = @json($dashSubConsiteLabels ?? []);
-        const pending = @json($dashSubConsitePending ?? []);
-        const completed = @json($dashSubConsiteCompleted ?? []);
-
-        if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
-        el.__chart = new Chart(el, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Pending', data: pending, backgroundColor: '#f6c000', stack: 's1' },
-                    { label: 'Completed', data: completed, backgroundColor: '#50cd89', stack: 's1' },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true, ticks: { autoSkip: false, maxRotation: 60, minRotation: 0 } },
-                    y: { stacked: true, beginAtZero: true }
-                },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    totalsAboveBars: { mode: 'above' }
-                }
-            },
-            plugins: [TotalsAboveBarsPlugin]
-        });
-    }
-
-    // Ensure Chart.js is loaded (already included above) then render
-    if (window.Chart) {
-        buildPendingCompletedPie();
-        buildSubConsiteBar();
-    } else {
-        const t = setInterval(function(){
-            if(window.Chart){
-                clearInterval(t);
-                buildPendingCompletedPie();
-                buildSubConsiteBar();
-            }
-        }, 50);
-        setTimeout(()=>clearInterval(t), 5000);
-    }
-})();
-</script>
-
-<script>
-(function(){
-    function buildQPosCharts(){
-        if(!window.Chart) return;
-        const charts = @json($qsBySubCharts ?? []);
-        if(!charts || !charts.length) return;
-
-        charts.forEach(function(c){
-            const el = document.getElementById('chart_qpos_' + c.position);
-            if(!el) return;
-
-            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
-
-            const datasets = (c.series || []).map(function(s){
-                return {
-                    label: s.label,
-                    data: s.data,
-                    backgroundColor: s.color,
-                    stack: 's1',
-                };
-            });
-
-            el.__chart = new Chart(el, {
-                type: 'bar',
-                data: { labels: c.labels || [], datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { stacked: true, ticks: { autoSkip: false, maxRotation: 60, minRotation: 0 } },
-                        y: { stacked: true, beginAtZero: true }
-                    },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        totalsAboveBars: { mode: 'above' }
-                    }
-                },
-                plugins: [TotalsAboveBarsPlugin]
-            });
-        });
-    }
-
-    // Render after Chart.js exists
-    if (window.Chart) {
-        buildQPosCharts();
-    } else {
-        const t = setInterval(function(){
-            if(window.Chart){
-                clearInterval(t);
-                buildQPosCharts();
-            }
-        }, 50);
-        setTimeout(()=>clearInterval(t), 5000);
-    }
-})();
-</script>
-
-<!-- Call Center Completed / Attempts / Pending by SubConsite chart -->
-<script>
-(function(){
-    function buildCompletedAttemptsBySub(){
-        const el = document.getElementById('ccCompletedAttemptsBySub');
-        if(!el || !window.Chart) return;
-
-        const labels = @json($ccSubConsiteBarLabels ?? []);
-        const completed = @json($ccSubConsiteBarCompleted ?? []);
-        const attempts = @json($ccSubConsiteBarAttempts ?? []);
-        const pending = @json($ccSubConsiteBarPending ?? []);
-
-        if (!labels || !labels.length) return;
-
-        if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
-        el.__chart = new Chart(el, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Completed', data: completed, backgroundColor: '#50cd89', stack: 's1' },
-                    { label: 'Attempts', data: attempts, backgroundColor: '#3e97ff', stack: 's1' },
-                    { label: 'Pending', data: pending, backgroundColor: '#f6c000', stack: 's1' },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true, ticks: { autoSkip: false, maxRotation: 60, minRotation: 0 } },
-                    y: { stacked: true, beginAtZero: true }
-                },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    totalsAboveBars: { mode: 'above' }
-                }
-            },
-            plugins: [TotalsAboveBarsPlugin]
-        });
-    }
-
-    if (window.Chart) {
-        buildCompletedAttemptsBySub();
-    } else {
-        const t = setInterval(function(){
-            if(window.Chart){
-                clearInterval(t);
-                buildCompletedAttemptsBySub();
-            }
-        }, 50);
-        setTimeout(()=>clearInterval(t), 5000);
+    if (window.Livewire?.hook) {
+        Livewire.hook('morph.updated', init);
     }
 })();
 </script>
