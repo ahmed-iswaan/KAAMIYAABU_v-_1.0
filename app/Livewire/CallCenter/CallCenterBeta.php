@@ -10,12 +10,16 @@ use App\Models\SubConsite;
 use App\Models\VoterProvisionalUserPledge;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\WithFileUploads;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CallCenterBeta extends Component
 {
-    use WithPagination, AuthorizesRequests;
+    use WithPagination, AuthorizesRequests, WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -350,6 +354,394 @@ class CallCenterBeta extends Component
             'totalsAttemptsTodayByMe' => $totalsAttemptsTodayByMe,
             'totalsAttemptsTotalByMe' => $totalsAttemptsTotalByMe,
         ])->layout('layouts.master');
+    }
+
+    /** Import modal */
+    public bool $showImportModal = false;
+    public $importCsvFile = null; // Livewire\Features\SupportFileUploads\TemporaryUploadedFile
+    public array $importErrors = [];
+    public int $importSuccessCount = 0;
+
+    public function openImportModal(): void
+    {
+        $this->showImportModal = true;
+        $this->importCsvFile = null;
+        $this->importErrors = [];
+        $this->importSuccessCount = 0;
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->showImportModal = false;
+    }
+
+    public function downloadImportSampleCsv(): StreamedResponse
+    {
+        $filename = 'call_center_beta_import_sample_' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            // Columns: user email, directory nid, q3 option, attempt phone, attempt status (sub status name), attempt note, directory status
+            fputcsv($out, [
+                'user_email',
+                'directory_nid',
+                'q3_support',
+                'attempt_phone_number',
+                'attempt_status',
+                'attempt_note',
+            ]);
+
+            fputcsv($out, [
+                'agent@example.com',
+                'A123456',
+                'aanekey',
+                '7777777',
+                'Unreachable',
+                'No answer',
+            ]);
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function normalizeImportHeader(string $h): string
+    {
+        $h = trim($h);
+        // Strip UTF-8 BOM if present (common in Excel-saved CSVs)
+        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h) ?? $h;
+
+        $h = mb_strtolower(trim($h));
+        $h = str_replace([' ', '-', '\t'], '_', $h);
+        $h = preg_replace('/_+/', '_', $h) ?: $h;
+        return $h;
+    }
+
+    private function headerAliases(): array
+    {
+        return [
+            // canonical => aliases
+            'user_email' => ['email', 'useremail', 'user_email', 'user email', 'agent_email', 'agent email'],
+            'directory_nid' => ['nid', 'nid_number', 'nid number', 'id_card_number', 'id card number', 'idcard', 'id_card'],
+            'q3_support' => ['q3', 'q3 option', 'q3_option', 'support', 'support_option'],
+            'attempt_phone_number' => ['attempt_phone', 'phone', 'phone_number', 'attempt phone number', 'attempt_phone'],
+            'attempt_status' => ['sub_status', 'sub status', 'attempt sub status', 'attempt_sub_status', 'substatus'],
+            'attempt_note' => ['note', 'notes', 'attempt_notes'],
+        ];
+    }
+
+    private function mapSubStatusNameToPhoneStatus(string $subStatusName): string
+    {
+        $n = mb_strtolower(trim($subStatusName));
+        if ($n === '') return \App\Models\DirectoryPhoneStatus::STATUS_NOT_CALLED;
+
+        if (str_contains($n, 'wrong number')) {
+            return \App\Models\DirectoryPhoneStatus::STATUS_WRONG_NUMBER;
+        }
+        if (str_contains($n, 'call back') || str_contains($n, 'callback')) {
+            return \App\Models\DirectoryPhoneStatus::STATUS_CALLBACK;
+        }
+        if (str_contains($n, 'busy')) {
+            return \App\Models\DirectoryPhoneStatus::STATUS_BUSY;
+        }
+        if (str_contains($n, 'switched off') || str_contains($n, 'switched_off')) {
+            return \App\Models\DirectoryPhoneStatus::STATUS_SWITCHED_OFF;
+        }
+        if (str_contains($n, 'no answer') || str_contains($n, 'no_answer') || str_contains($n, 'unreachable')) {
+            return \App\Models\DirectoryPhoneStatus::STATUS_NO_ANSWER;
+        }
+
+        return \App\Models\DirectoryPhoneStatus::STATUS_NOT_CALLED;
+    }
+
+    public function importDirectoryStatusAndAttempt(): void
+    {
+        $this->importErrors = [];
+        $this->importSuccessCount = 0;
+
+        if (!$this->activeElectionId) {
+            $this->importErrors[] = 'No active election found.';
+            return;
+        }
+
+        if (!$this->importCsvFile) {
+            $this->importErrors[] = 'Please choose a CSV file.';
+            return;
+        }
+
+        $this->validate([
+            'importCsvFile' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        $path = $this->importCsvFile->getRealPath();
+        if (!$path || !is_readable($path)) {
+            $this->importErrors[] = 'Unable to read uploaded file.';
+            return;
+        }
+
+        // Build sub-status lookup by name (case-insensitive)
+        $subStatusByName = DB::table('sub_statuses')
+            ->select('id', 'name')
+            ->where('active', true)
+            ->get()
+            ->mapWithKeys(fn ($r) => [mb_strtolower(trim((string) $r->name)) => ['id' => (string) $r->id, 'name' => (string) $r->name]])
+            ->all();
+
+        $completeOnAttemptStatus = array_flip([
+            'phone hung up',
+            'wrong number',
+            'would decide after speaking with mayor',
+            'deceased',
+        ]);
+
+        $validQ3 = array_flip(['aanekey','noonekay','neyngey','vote_laan_nudhaanan']);
+
+        $fh = fopen($path, 'r');
+        if ($fh === false) {
+            $this->importErrors[] = 'Unable to open uploaded file.';
+            return;
+        }
+
+        // Read header
+        $header = fgetcsv($fh);
+        if (!is_array($header)) {
+            fclose($fh);
+            $this->importErrors[] = 'CSV header missing.';
+            return;
+        }
+
+        $headerMap = [];
+        foreach ($header as $i => $col) {
+            $headerMap[$this->normalizeImportHeader((string) $col)] = $i;
+        }
+
+        // Resolve aliases to canonical names
+        $aliases = $this->headerAliases();
+        foreach ($aliases as $canonical => $list) {
+            if (isset($headerMap[$canonical])) continue;
+            foreach ($list as $a) {
+                $aNorm = $this->normalizeImportHeader((string) $a);
+                if (isset($headerMap[$aNorm])) {
+                    $headerMap[$canonical] = $headerMap[$aNorm];
+                    break;
+                }
+            }
+        }
+
+        $required = ['user_email', 'directory_nid'];
+        foreach ($required as $col) {
+            if (!array_key_exists($col, $headerMap)) {
+                $found = implode(', ', array_slice(array_keys($headerMap), 0, 50));
+                fclose($fh);
+                $this->importErrors[] = "Missing required column: {$col}. Found headers: {$found}";
+                return;
+            }
+        }
+
+        $line = 1;
+        while (($row = fgetcsv($fh)) !== false) {
+            $line++;
+            if (!is_array($row) || (count($row) === 1 && trim((string)($row[0] ?? '')) === '')) {
+                continue;
+            }
+
+            $get = function (string $col) use ($row, $headerMap) {
+                $idx = $headerMap[$col] ?? null;
+                return $idx === null ? '' : trim((string) ($row[$idx] ?? ''));
+            };
+
+            $userEmail = $get('user_email');
+            $nid = $get('directory_nid');
+            $q3 = $get('q3_support');
+            $attemptPhone = $get('attempt_phone_number');
+            $attemptStatusName = $get('attempt_status');
+            $attemptNote = $get('attempt_note');
+
+            if ($userEmail === '' || $nid === '') {
+                $this->importErrors[] = "Line {$line}: user_email and directory_nid are required.";
+                continue;
+            }
+
+            $hasQ3 = trim((string) $q3) !== '';
+            $hasAttempt = (trim((string) $attemptPhone) !== '' || trim((string) $attemptStatusName) !== '' || trim((string) $attemptNote) !== '');
+
+            // If neither Q3 nor attempt info is provided, do nothing
+            if (!$hasQ3 && !$hasAttempt) {
+                continue;
+            }
+
+            // Validate Q3 if present
+            if ($hasQ3) {
+                $q3Norm = mb_strtolower(trim($q3));
+                if (!isset($validQ3[$q3Norm])) {
+                    $this->importErrors[] = "Line {$line}: invalid q3_support '{$q3}'. Allowed: aanekey, noonekay, neyngey, vote_laan_nudhaanan.";
+                    continue;
+                }
+                $q3 = $q3Norm;
+            }
+
+            // Validate attempt fields if any attempt info is present: require both phone and status
+            $subStatusId = null;
+            $attemptStatusNorm = '';
+            $attemptStatusDisplayName = '';
+            if ($hasAttempt) {
+                if (trim((string) $attemptPhone) === '' || trim((string) $attemptStatusName) === '') {
+                    $this->importErrors[] = "Line {$line}: attempt_phone_number and attempt_status are required when importing an attempt.";
+                    continue;
+                }
+
+                $attemptStatusNorm = mb_strtolower(trim($attemptStatusName));
+                $sub = $subStatusByName[$attemptStatusNorm] ?? null;
+                $subStatusId = is_array($sub) ? ($sub['id'] ?? null) : null;
+                $attemptStatusDisplayName = is_array($sub) ? (string)($sub['name'] ?? '') : '';
+                if (!$subStatusId) {
+                    $this->importErrors[] = "Line {$line}: attempt_status '{$attemptStatusName}' not found in Sub Statuses.";
+                    continue;
+                }
+            }
+
+            $userId = (int) DB::table('users')->where('email', $userEmail)->value('id');
+            if ($userId <= 0) {
+                $this->importErrors[] = "Line {$line}: user not found for email {$userEmail}.";
+                continue;
+            }
+
+            $directoryId = DB::table('directories')->where('id_card_number', $nid)->value('id');
+            if (!$directoryId) {
+                $this->importErrors[] = "Line {$line}: directory not found for NID {$nid}.";
+                continue;
+            }
+
+            // Complete rule
+            $shouldComplete = $hasQ3 || ($hasAttempt && isset($completeOnAttemptStatus[$attemptStatusNorm]));
+
+            try {
+                DB::transaction(function () use (
+                    $directoryId,
+                    $userId,
+                    $q3,
+                    $hasQ3,
+                    $hasAttempt,
+                    $attemptPhone,
+                    $subStatusId,
+                    $attemptNote,
+                    $shouldComplete,
+                    $attemptStatusDisplayName,
+                    $attemptStatusNorm
+                ) {
+                    $electionId = (string) $this->activeElectionId;
+
+                    // Upsert Q3 support (call_center_forms)
+                    if ($hasQ3) {
+                        $existingFormId = DB::table('call_center_forms')
+                            ->where('election_id', $electionId)
+                            ->where('directory_id', (string) $directoryId)
+                            ->value('id');
+
+                        if ($existingFormId) {
+                            DB::table('call_center_forms')
+                                ->where('id', $existingFormId)
+                                ->update([
+                                    'q3_support' => $q3,
+                                    'updated_by' => $userId,
+                                    'updated_at' => now(),
+                                ]);
+                        } else {
+                            DB::table('call_center_forms')->insert([
+                                'id' => (string) Str::uuid(),
+                                'election_id' => $electionId,
+                                'directory_id' => (string) $directoryId,
+                                'q3_support' => $q3,
+                                'created_by' => $userId,
+                                'updated_by' => $userId,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+
+                    // Insert attempt only if provided
+                    if ($hasAttempt) {
+                        $nextAttempt = (int) DB::table('election_directory_call_sub_statuses')
+                            ->where('election_id', $electionId)
+                            ->where('directory_id', (string) $directoryId)
+                            ->max('attempt');
+                        $nextAttempt = $nextAttempt + 1;
+
+                        DB::table('election_directory_call_sub_statuses')->insert([
+                            'id' => (string) Str::uuid(),
+                            'election_id' => $electionId,
+                            'directory_id' => (string) $directoryId,
+                            'phone_number' => $attemptPhone,
+                            'attempt' => $nextAttempt,
+                            'sub_status_id' => (string) $subStatusId,
+                            'notes' => $attemptNote,
+                            'updated_by' => $userId,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        // Update per-phone status table to match attempt substatus selection
+                        $mappedPhoneStatus = $this->mapSubStatusNameToPhoneStatus($attemptStatusDisplayName !== '' ? $attemptStatusDisplayName : $attemptStatusNorm);
+                        $phoneNorm = \App\Models\DirectoryPhoneStatus::normalizePhone((string) $attemptPhone);
+                        if ($phoneNorm !== '') {
+                            \App\Models\DirectoryPhoneStatus::query()->updateOrCreate(
+                                [
+                                    'directory_id' => (string) $directoryId,
+                                    'phone' => $phoneNorm,
+                                ],
+                                [
+                                    'status' => $mappedPhoneStatus,
+                                    'sub_status_id' => (string) $subStatusId,
+                                    'notes' => $attemptNote ?: null,
+                                    'last_called_at' => now(),
+                                    'last_called_by' => $userId,
+                                ]
+                            );
+                        }
+                    }
+
+                    // Upsert completed status if rule triggers
+                    if ($shouldComplete) {
+                        $existingStatusId = DB::table('election_directory_call_statuses')
+                            ->where('election_id', $electionId)
+                            ->where('directory_id', (string) $directoryId)
+                            ->value('id');
+
+                        $update = [
+                            'status' => ElectionDirectoryCallStatus::STATUS_COMPLETED,
+                            'notes' => null,
+                            'updated_by' => $userId,
+                            'updated_at' => now(),
+                            'completed_at' => now(),
+                        ];
+
+                        if ($existingStatusId) {
+                            DB::table('election_directory_call_statuses')->where('id', $existingStatusId)->update($update);
+                        } else {
+                            DB::table('election_directory_call_statuses')->insert($update + [
+                                'id' => (string) Str::uuid(),
+                                'election_id' => $electionId,
+                                'directory_id' => (string) $directoryId,
+                                'created_at' => now(),
+                            ]);
+                        }
+                    }
+                });
+
+                $this->importSuccessCount++;
+            } catch (\Throwable $e) {
+                $this->importErrors[] = "Line {$line}: " . $e->getMessage();
+            }
+        }
+
+        fclose($fh);
+
+        if ($this->importSuccessCount > 0) {
+            // Refresh list
+            $this->dispatch('$refresh');
+        }
     }
 
     /**

@@ -97,7 +97,7 @@ class PermissionTableSeeder extends Seeder
             // 'voters-bulkProvisionalPledge',
 
             // Voters (import provisional pledges)
-            'voters-importProvisionalPledgesCsv',
+            // 'voters-importProvisionalPledgesCsv',
 
             // Users (security)
             // 'user-resetPassword',
@@ -107,6 +107,7 @@ class PermissionTableSeeder extends Seeder
 
             // Call Center Beta - daily completed directories page
             // 'call-center-daily-completed-render',
+            'call-center-import',
         ];
         
         foreach ($permissions as $permission) {

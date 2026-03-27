@@ -85,6 +85,9 @@
                         <h1 class="text-dark fw-bold my-1 fs-2 mb-0">Call Center <span class="badge badge-light-primary ms-2">BETA</span></h1>
                         <a href="{{ route('call-center.index') }}" class="btn btn-sm btn-light">Open Classic</a>
                         <a href="{{ route('call-center.beta.completed-daily') }}" class="btn btn-sm btn-light-primary">Daily Completed</a>
+                        @can('call-center-import')
+                            <button type="button" class="btn btn-sm btn-light-success" wire:click="openImportModal">Import CSV</button>
+                        @endcan
                     </div>
                     <ul class="breadcrumb fw-semibold fs-base my-1">
                         <li class="breadcrumb-item text-muted"><a href="#" class="text-muted text-hover-primary">Operations</a></li>
@@ -98,6 +101,69 @@
                 </div>
             </div>
         </div>
+
+        <!-- Import Modal -->
+        @can('call-center-import')
+            @if($showImportModal ?? false)
+                <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Import Directory Status + Attempt (CSV)</h5>
+                                <button type="button" class="btn-close" aria-label="Close" wire:click="closeImportModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                                    <div class="text-muted fs-8">
+                                        Required: <code>user_email</code>, <code>directory_nid</code>.
+                                        If importing an attempt, also include <code>attempt_phone_number</code> + <code>attempt_status</code>.
+                                        Q3 allowed: <code>aanekey</code>, <code>noonekay</code>, <code>neyngey</code>, <code>vote_laan_nudhaanan</code>.
+                                        Completion is automatic when Q3 is provided, or when attempt_status is one of: <code>phone hung up</code>, <code>wrong number</code>, <code>would decide after speaking with mayor</code>, <code>deceased</code>.
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadImportSampleCsv">Download sample CSV</button>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">CSV file</label>
+                                    <input type="file" class="form-control" wire:model="importCsvFile" accept=".csv,text/csv" />
+                                    @error('importCsvFile') <div class="text-danger fs-8 mt-1">{{ $message }}</div> @enderror
+                                </div>
+
+                                @if(($importSuccessCount ?? 0) > 0)
+                                    <div class="alert alert-success py-2">Imported {{ $importSuccessCount }} row(s) successfully.</div>
+                                @endif
+
+                                @if(!empty($importErrors))
+                                    <div class="alert alert-danger">
+                                        <div class="fw-bold mb-2">Import errors</div>
+                                        <ul class="mb-0">
+                                            @foreach($importErrors as $e)
+                                                <li class="fs-8">{{ $e }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" wire:click="closeImportModal">Close</button>
+
+                                <button type="button"
+                                        class="btn btn-success"
+                                        wire:click="importDirectoryStatusAndAttempt"
+                                        wire:loading.attr="disabled"
+                                        wire:target="importDirectoryStatusAndAttempt">
+                                    <span wire:loading.remove wire:target="importDirectoryStatusAndAttempt">Import</span>
+                                    <span wire:loading wire:target="importDirectoryStatusAndAttempt" class="d-inline-flex align-items-center gap-2">
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        Importing...
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endcan
 
         <div class="post fs-6 d-flex flex-column-fluid" id="kt_post">
             <div class="container-fluid">
