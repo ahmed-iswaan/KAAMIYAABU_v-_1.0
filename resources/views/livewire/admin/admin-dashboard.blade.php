@@ -61,6 +61,18 @@
         </div>
     </div>
 
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+                <div class="fs-5 fw-bold faruma">Q3 Support Export</div>
+                <div class="fs-7 text-muted">Directory name, phone numbers, SubConsite code, address, selected option (filters follow the Call Center chart selection)</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadQ3SupportDirectoriesCsv">
+                Download Q3 Support CSV
+            </button>
+        </div>
+    </div>
+
     {{-- Q1 / Q3 / Q4 / Q5 answers by SubConsite --}}
     @if(!empty($qsBySubCharts) && count($qsBySubCharts))
         @foreach($qsBySubCharts as $chart)

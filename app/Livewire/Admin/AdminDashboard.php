@@ -1041,6 +1041,110 @@ class AdminDashboard extends Component
         }
     }
 
+    public function downloadQ3SupportDirectoriesCsv(): StreamedResponse
+    {
+        $electionId = $this->ccElectionId ?: Election::query()->where('status', Election::STATUS_ACTIVE)->value('id');
+        if (!$electionId) {
+            abort(422, 'No active election');
+        }
+
+        $subCodeById = DB::table('sub_consites')->pluck('code', 'id')->toArray();
+
+        $filename = 'q3_support_directories_' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($electionId, $subCodeById) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [
+                'Directory Name',
+                'Phone 1',
+                'Phone 2',
+                'Phone 3',
+                'SubConsite Code',
+                'Address',
+                'Q3 Support (Selected Option)',
+            ]);
+
+            DB::table('call_center_forms as ccf')
+                ->join('directories as d', 'd.id', '=', 'ccf.directory_id')
+                ->leftJoin('properties as p', 'p.id', '=', 'd.properties_id')
+                ->leftJoin('properties as cp', 'cp.id', '=', 'd.current_properties_id')
+                ->where('ccf.election_id', (string) $electionId)
+                ->when($this->ccSubConsiteId, function ($q) {
+                    $q->where('d.sub_consite_id', $this->ccSubConsiteId);
+                })
+                ->select([
+                    'd.name as directory_name',
+                    'd.phones as phones',
+                    'd.sub_consite_id',
+                    'd.address',
+                    'd.current_address',
+                    'd.properties_id',
+                    'd.current_properties_id',
+                    'p.name as property_name',
+                    'cp.name as current_property_name',
+                    'ccf.q3_support as q3_support',
+                ])
+                ->orderByRaw("COALESCE(NULLIF(d.address,''), 'zzz') asc")
+                ->orderBy('d.name')
+                ->chunk(1000, function ($rows) use ($out, $subCodeById) {
+                    foreach ($rows as $r) {
+                        $subCode = $subCodeById[$r->sub_consite_id] ?? '';
+
+                        $phonesRaw = $r->phones ?? null;
+                        $phones = [];
+                        if (is_array($phonesRaw)) {
+                            $phones = $phonesRaw;
+                        } elseif (is_string($phonesRaw) && trim($phonesRaw) !== '') {
+                            $decoded = json_decode($phonesRaw, true);
+                            $phones = is_array($decoded)
+                                ? $decoded
+                                : (preg_split('/\s*,\s*/', $phonesRaw) ?: []);
+                        }
+                        $phones = array_values(array_filter(array_map(fn ($p) => trim((string) $p), $phones), fn ($p) => $p !== ''));
+
+                        // Match CallCenterBeta-style display: property name + address with fallback
+                        $addressRaw = trim((string) ($r->address ?? ''));
+                        if ($addressRaw === '') {
+                            $addressRaw = trim((string) ($r->current_address ?? ''));
+                        }
+
+                        $addressParts = [];
+                        $propName = trim((string) ($r->property_name ?? ''));
+                        $curPropName = trim((string) ($r->current_property_name ?? ''));
+
+                        // prefer permanent property if set, otherwise current property
+                        if ($propName !== '') {
+                            $addressParts[] = $propName;
+                        } elseif ($curPropName !== '') {
+                            $addressParts[] = $curPropName;
+                        }
+
+                        if ($addressRaw !== '') {
+                            $addressParts[] = $addressRaw;
+                        }
+
+                        $address = trim(implode(', ', array_filter($addressParts)));
+
+                        fputcsv($out, [
+                            (string)($r->directory_name ?? ''),
+                            (string)($phones[0] ?? ''),
+                            (string)($phones[1] ?? ''),
+                            (string)($phones[2] ?? ''),
+                            (string)$subCode,
+                            (string)$address,
+                            (string)($r->q3_support ?? ''),
+                        ]);
+                    }
+                });
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function render()
     {
         return view('livewire.admin.admin-dashboard',[
