@@ -260,88 +260,7 @@
             $upAttempts = collect($userPerformanceRows ?? [])->pluck('attempts')->values()->all();
         @endphp
 
-        <script>
-            document.addEventListener('livewire:init', () => {
-                const initUsersPerformanceBar = () => {
-                    if (!window.Chart) return;
-                    const el = document.getElementById('usersPerformanceBar');
-                    if (!el) return;
-
-                    const labels = @json($upLabels);
-                    const completed = @json($upCompleted);
-                    const attempts = @json($upAttempts);
-
-                    if (el._chart) {
-                        el._chart.destroy();
-                        el._chart = null;
-                    }
-
-                    el._chart = new Chart(el.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Attempts',
-                                    data: attempts,
-                                    backgroundColor: 'rgba(62, 151, 255, 0.85)',
-                                    borderColor: 'rgba(62, 151, 255, 1)',
-                                    borderWidth: 1,
-                                    stack: 'stack1',
-                                },
-                                {
-                                    label: 'Completed',
-                                    data: completed,
-                                    backgroundColor: 'rgba(255, 159, 64, 0.85)',
-                                    borderColor: 'rgba(255, 159, 64, 1)',
-                                    borderWidth: 1,
-                                    stack: 'stack1',
-                                },
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                title: {
-                                    display: true,
-                                    text: 'Users Performance',
-                                    font: { size: 18, weight: '600' },
-                                    padding: { top: 10, bottom: 10 },
-                                },
-                                legend: {
-                                    position: 'bottom',
-                                    labels: { boxWidth: 14, boxHeight: 14 },
-                                },
-                                tooltip: {
-                                    mode: 'index',
-                                    intersect: false,
-                                }
-                            },
-                            interaction: {
-                                mode: 'index',
-                                intersect: false,
-                            },
-                            scales: {
-                                x: {
-                                    stacked: true,
-                                    ticks: { autoSkip: false },
-                                    grid: { display: false },
-                                },
-                                y: {
-                                    stacked: true,
-                                    beginAtZero: true,
-                                    ticks: { precision: 0 },
-                                }
-                            }
-                        }
-                    });
-                };
-
-                initUsersPerformanceBar();
-                Livewire.hook('morph.updated', () => initUsersPerformanceBar());
-            });
-        </script>
+        {{-- Chart is initialized by the global initAllAdminDashboardCharts() script below to avoid Livewire hook collisions. --}}
     </div>
 
     <div class="card card-flush p-6 shadow-sm mt-6">
@@ -357,6 +276,24 @@
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge badge-light">{{ $lbl }}</span>
                     <span class="fs-7 text-muted">{{ (int) (($provTotalsPieCounts[$i] ?? 0)) }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="card card-flush p-6 shadow-sm mt-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="fs-5 fw-bold">Q3 Support (Total)</div>
+            <div class="fs-7 text-muted">Options + Pending (Not answered) — active election</div>
+        </div>
+        <div class="position-relative" style="height: 320px;">
+            <canvas id="ccQ3SupportPie" wire:ignore class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+        </div>
+        <div class="d-flex flex-wrap gap-4 mt-4">
+            @foreach(($ccQ3SupportPieLabels ?? []) as $i => $lbl)
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge badge-light">{{ $lbl }}</span>
+                    <span class="fs-7 text-muted">{{ (int) (($ccQ3SupportPieCounts[$i] ?? 0)) }}</span>
                 </div>
             @endforeach
         </div>
@@ -439,6 +376,44 @@
             });
         })();
 
+        // 3.1) Users Performance (bar)
+        (function(){
+            const el = document.getElementById('usersPerformanceBar');
+            if(!el) return;
+
+            const labels = @json($upLabels ?? []);
+            const completed = @json($upCompleted ?? []);
+            const attempts = @json($upAttempts ?? []);
+            if (!labels || !labels.length) return;
+
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            el.__chart = new Chart(el.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Attempts', data: attempts, backgroundColor: 'rgba(62, 151, 255, 0.85)', borderColor: 'rgba(62, 151, 255, 1)', borderWidth: 1, stack: 's1' },
+                        { label: 'Completed', data: completed, backgroundColor: 'rgba(255, 159, 64, 0.85)', borderColor: 'rgba(255, 159, 64, 1)', borderWidth: 1, stack: 's1' },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Users Performance', font: { size: 18, weight: '600' }, padding: { top: 10, bottom: 10 } },
+                        legend: { position: 'bottom', labels: { boxWidth: 14, boxHeight: 14 } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { stacked: true, ticks: { autoSkip: false }, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+                    }
+                },
+                plugins: (typeof TotalsAboveBarsPlugin !== 'undefined') ? [TotalsAboveBarsPlugin] : []
+            });
+        })();
+
         // 4) Q-position charts (Q1/Q3/Q4/Q5 by SubConsite)
         (function(){
             const charts = @json($qsBySubCharts ?? []);
@@ -471,6 +446,26 @@
             if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
             const vals = (data || []).map(v => parseInt(v, 10) || 0);
             const colors = labels.map((_, i) => ['#3e97ff','#50cd89','#f6c000','#f1416c','#a1a5b7'][i % 5]);
+            el.__chart = new Chart(el, {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+            });
+        })();
+
+        // 5.1) Q3 Support (Call Center) totals (pie)
+        (function(){
+            const el = document.getElementById('ccQ3SupportPie');
+            if(!el) return;
+
+            const labels = @json($ccQ3SupportPieLabels ?? []);
+            const data = @json($ccQ3SupportPieCounts ?? []);
+            if (!labels || !labels.length) return;
+
+            if (el.__chart) { try { el.__chart.destroy(); } catch(e) {} }
+            const vals = (data || []).map(v => parseInt(v, 10) || 0);
+            const colors = labels.map((_, i) => ['#3e97ff','#50cd89','#f6c000','#f1416c','#a1a5b7','#7239ea'][i % 6]);
+
             el.__chart = new Chart(el, {
                 type: 'doughnut',
                 data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] },

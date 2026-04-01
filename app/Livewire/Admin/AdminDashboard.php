@@ -115,6 +115,10 @@ class AdminDashboard extends Component
     public array $provTotalsPieLabels = [];
     public array $provTotalsPieCounts = [];
 
+    // Call Center Q3 Support pie (option totals + Pending not answered)
+    public array $ccQ3SupportPieLabels = [];
+    public array $ccQ3SupportPieCounts = [];
+
     public function mount(): void
     {
         // Do not block with authorize to avoid zeros; authorize in route/middleware
@@ -154,6 +158,7 @@ class AdminDashboard extends Component
         $this->computeQPositionsBySubConsiteCharts([1,3,4,5]);
 
         $this->computeUsersPerformance();
+        $this->computeCallCenterQ3SupportPie();
 
         // build user select list for daily CSV
         $this->userPerformanceUsersForSelect = collect($this->userPerformanceRows ?? [])
@@ -765,6 +770,72 @@ class AdminDashboard extends Component
         })->toArray();
     }
 
+    private function computeCallCenterQ3SupportPie(): void
+    {
+        $electionId = $this->ccElectionId ?: Election::query()->where('status', Election::STATUS_ACTIVE)->value('id');
+        if (!$electionId) {
+            $this->ccQ3SupportPieLabels = ['Pending (Not answered)'];
+            $this->ccQ3SupportPieCounts = [0];
+            return;
+        }
+
+        // Scope: Active directories (optionally filtered by SubConsite)
+        $activeDirsQuery = Directory::query()
+            ->where('status', 'Active')
+            ->when($this->ccSubConsiteId, fn($q) => $q->where('sub_consite_id', $this->ccSubConsiteId));
+
+        $activeDirsTotal = (int) $activeDirsQuery->count();
+
+        // Count answered directories grouped by q3_support (non-empty only)
+        $answeredRows = DB::table('call_center_forms as ccf')
+            ->join('directories as d', 'd.id', '=', 'ccf.directory_id')
+            ->where('ccf.election_id', (string) $electionId)
+            ->where('d.status', 'Active')
+            ->when($this->ccSubConsiteId, fn ($q) => $q->where('d.sub_consite_id', $this->ccSubConsiteId))
+            ->whereRaw("TRIM(COALESCE(ccf.q3_support,'')) <> ''")
+            ->selectRaw('TRIM(ccf.q3_support) as opt')
+            ->selectRaw('COUNT(DISTINCT ccf.directory_id) as total')
+            ->groupBy('opt')
+            ->get();
+
+        $answeredTotal = (int) $answeredRows->sum('total');
+        $pendingTotal = max(0, $activeDirsTotal - $answeredTotal);
+
+        // Stable option order (keeps chart colors consistent). Add any known options here.
+        $knownOrder = [
+            'Support',
+            'Oppose',
+            'Undecided',
+            'Not voting',
+        ];
+
+        $countsBy = $answeredRows->pluck('total', 'opt')->map(fn ($v) => (int) $v)->toArray();
+
+        $labels = [];
+        $counts = [];
+
+        foreach ($knownOrder as $opt) {
+            if (array_key_exists($opt, $countsBy)) {
+                $labels[] = $opt;
+                $counts[] = (int) $countsBy[$opt];
+                unset($countsBy[$opt]);
+            }
+        }
+
+        // Add any other options found in DB
+        foreach ($countsBy as $opt => $total) {
+            $labels[] = (string) $opt;
+            $counts[] = (int) $total;
+        }
+
+        // Pending last
+        $labels[] = 'Pending (Not answered)';
+        $counts[] = $pendingTotal;
+
+        $this->ccQ3SupportPieLabels = $labels;
+        $this->ccQ3SupportPieCounts = $counts;
+    }
+
     public function toggleShowAllUsersPerformance(): void
     {
         $this->showAllUsersPerformance = !$this->showAllUsersPerformance;
@@ -1256,6 +1327,10 @@ class AdminDashboard extends Component
             'showAllUsersPerformance' => $this->showAllUsersPerformance,
             'expandedUserIds' => $this->expandedUserIds,
             'userDailyStats' => $this->userDailyStats,
+            'provTotalsPieLabels' => $this->provTotalsPieLabels,
+            'provTotalsPieCounts' => $this->provTotalsPieCounts,
+            'ccQ3SupportPieLabels' => $this->ccQ3SupportPieLabels,
+            'ccQ3SupportPieCounts' => $this->ccQ3SupportPieCounts,
         ])->layout('layouts.master');
     }
 }
