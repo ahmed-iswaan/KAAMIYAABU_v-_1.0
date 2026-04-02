@@ -19,6 +19,9 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    // Hard limits to keep memory usage predictable on small servers
+    private const DIR_CHUNK_SIZE = 25;
+
     public function __construct(public string $reportId)
     {
     }
@@ -146,21 +149,61 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
             fputcsv($out, $header);
 
             $baseQuery->orderBy('directories.id')
-                ->chunk(250, function ($rows) use ($out, $maxPledges, $electionId) {
+                ->chunkById(self::DIR_CHUNK_SIZE, function ($rows) use ($out, $maxPledges, $electionId) {
                     $dirIds = $rows->pluck('id')->map(fn($v) => (string) $v)->all();
 
-                    $pledges = DB::table('voter_provisional_user_pledges as vpp')
-                        ->leftJoin('users', 'users.id', '=', 'vpp.user_id')
-                        ->where('vpp.election_id', $electionId)
-                        ->whereIn('vpp.directory_id', $dirIds)
-                        ->orderBy('vpp.updated_at', 'desc')
-                        ->get([
-                            'vpp.directory_id',
-                            'vpp.status',
-                            'vpp.updated_at',
-                            'users.name as pledge_by',
-                        ])
-                        ->groupBy('directory_id');
+                    // Load only the most recent N provisional pledges per directory to avoid large per-chunk spikes.
+                    // MySQL 8+ supports window functions; if not available, fall back to the previous behavior.
+                    $pledgesByDirectory = [];
+                    try {
+                        $placeholders = implode(',', array_fill(0, count($dirIds), '?'));
+                        $bindings = array_merge([$electionId], $dirIds, [$maxPledges]);
+
+                        $sql = "
+                            SELECT directory_id, status, updated_at, user_id
+                            FROM (
+                                SELECT vpp.directory_id,
+                                       vpp.status,
+                                       vpp.updated_at,
+                                       vpp.user_id,
+                                       ROW_NUMBER() OVER (PARTITION BY vpp.directory_id ORDER BY vpp.updated_at DESC) AS rn
+                                FROM voter_provisional_user_pledges vpp
+                                WHERE vpp.election_id = ?
+                                  AND vpp.directory_id IN ($placeholders)
+                            ) t
+                            WHERE t.rn <= ?
+                            ORDER BY t.directory_id ASC, t.updated_at DESC
+                        ";
+
+                        $rowsP = DB::select($sql, $bindings);
+                        foreach ($rowsP as $pp) {
+                            $did = (string) $pp->directory_id;
+                            $pledgesByDirectory[$did][] = $pp;
+                        }
+                    } catch (Throwable $e) {
+                        // Fallback: may use more memory, but still bounded by DIR_CHUNK_SIZE.
+                        $pledges = DB::table('voter_provisional_user_pledges as vpp')
+                            ->where('vpp.election_id', $electionId)
+                            ->whereIn('vpp.directory_id', $dirIds)
+                            ->orderBy('vpp.updated_at', 'desc')
+                            ->get([
+                                'vpp.directory_id',
+                                'vpp.status',
+                                'vpp.updated_at',
+                                'vpp.user_id',
+                            ]);
+
+                        foreach ($pledges as $pp) {
+                            $did = (string) $pp->directory_id;
+                            if (!isset($pledgesByDirectory[$did])) {
+                                $pledgesByDirectory[$did] = [];
+                            }
+                            // Keep only the first N in-memory (query is already DESC)
+                            if (count($pledgesByDirectory[$did]) < $maxPledges) {
+                                $pledgesByDirectory[$did][] = $pp;
+                            }
+                        }
+                    }
 
                     foreach ($rows as $r) {
                         $phones = $r->phones;
@@ -173,13 +216,13 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                             }
                         }
 
-                        $p = ($pledges->get($r->id) ?? collect())->values();
+                        $p = collect($pledgesByDirectory[(string) $r->id] ?? []);
 
                         $cells = [];
                         for ($i = 0; $i < $maxPledges; $i++) {
                             $row = $p->get($i);
                             $cells[] = $row ? (strtolower(trim((string) ($row->status ?? ''))) ?: 'pending') : '';
-                            $cells[] = $row ? ($row->pledge_by ?? '') : '';
+                            $cells[] = $row ? ((string) ($row->user_id ?? '')) : '';
                             $cells[] = $row ? ($row->updated_at ?? '') : '';
                         }
 
@@ -196,7 +239,12 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                             $final,
                         ], $cells));
                     }
-                });
+
+                    // Flush file buffers periodically
+                    if (function_exists('fflush')) {
+                        @fflush($out);
+                    }
+                }, 'directories.id');
 
             fclose($out);
 
