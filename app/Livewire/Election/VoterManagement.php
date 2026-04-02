@@ -1017,4 +1017,57 @@ class VoterManagement extends Component
         $this->showBulkProvisionalPledgeModal = false;
         $this->dispatch('$refresh');
     }
+
+    /**
+     * Inline update from the voters table dropdown.
+     * Allowed pledge values: Yes, No, Undecided, Not voting.
+     * Empty/Pending will remove the current user's provisional pledge.
+     */
+    public function updateProvisionalPledgeFromTable(string $directoryId, ?string $status = null): void
+    {
+        $this->authorize('voters-openProvisionalPledge');
+
+        $electionId = (string) ($this->electionId ?: '');
+        if ($electionId === '') {
+            return;
+        }
+
+        $raw = strtolower(trim((string) $status));
+
+        // Normalize common spellings from UI.
+        $normalized = match ($raw) {
+            'yes' => 'yes',
+            'no' => 'no',
+            'undecided' => 'undecided',
+            'not voting', 'not_voting', 'not-voting' => 'not_voting',
+            '', 'pending', 'none', 'null' => 'pending',
+            default => '__invalid__',
+        };
+
+        if ($normalized === '__invalid__') {
+            return;
+        }
+
+        if ($normalized === 'pending') {
+            VoterProvisionalUserPledge::query()
+                ->where('directory_id', $directoryId)
+                ->where('election_id', $electionId)
+                ->where('user_id', Auth::id())
+                ->delete();
+        } else {
+            VoterProvisionalUserPledge::query()->updateOrCreate(
+                [
+                    'directory_id' => $directoryId,
+                    'election_id' => $electionId,
+                    'user_id' => Auth::id(),
+                ],
+                [
+                    'status' => $normalized,
+                ]
+            );
+        }
+
+        event(new VoterDataChanged($directoryId));
+        $this->dispatch('$refresh');
+    }
 }
