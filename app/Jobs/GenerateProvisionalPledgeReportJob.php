@@ -47,6 +47,13 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                 throw new \RuntimeException('Election is required');
             }
 
+            // IMPORTANT: stream to local filesystem to keep memory usage low
+            $reportDisk = $report->disk ?: 'local';
+            if ($reportDisk !== 'local') {
+                // Fallback: force local to avoid memory-heavy buffering for non-local disks.
+                $reportDisk = 'local';
+            }
+
             $baseQuery = Directory::query()
                 ->where('directories.status', 'Active')
                 ->when(!empty($allowedSubconsiteIds), fn($q) => $q->whereIn('directories.sub_consite_id', $allowedSubconsiteIds))
@@ -107,17 +114,20 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
             $maxPledges = max(0, min($maxPledges, 25));
 
             $filename = 'provisional-pledges-election-'.$electionId.'-pivot-'.$maxPledges.'-'.now()->format('Ymd_His').'.csv';
-            $path = 'reports/'.$report->user_id.'/'.now()->format('Y-m-d').'/'.$report->id.'.csv';
+            $relativePath = 'reports/'.$report->user_id.'/'.now()->format('Y-m-d').'/'.$report->id.'.csv';
 
-            Storage::disk($report->disk)->put($path, '');
-            $stream = Storage::disk($report->disk)->readStream($path);
-            if (is_resource($stream)) {
-                fclose($stream);
+            $fullPath = storage_path('app/'.ltrim($relativePath, '/'));
+            if (! is_dir(dirname($fullPath))) {
+                mkdir(dirname($fullPath), 0775, true);
             }
 
-            // Write CSV using temp stream then store (keeps storage drivers compatible)
-            $tmp = fopen('php://temp', 'w+');
-            fprintf($tmp, chr(0xEF).chr(0xBB).chr(0xBF));
+            $out = fopen($fullPath, 'w');
+            if (! $out) {
+                throw new \RuntimeException('Failed to open report output file for writing');
+            }
+
+            // UTF-8 BOM
+            fwrite($out, "\xEF\xBB\xBF");
 
             $header = [
                 'Name',
@@ -133,10 +143,10 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                 $header[] = "Provisional Pledge {$i} By";
                 $header[] = "Provisional Pledge {$i} Updated At";
             }
-            fputcsv($tmp, $header);
+            fputcsv($out, $header);
 
             $baseQuery->orderBy('directories.id')
-                ->chunk(250, function ($rows) use ($tmp, $maxPledges, $electionId) {
+                ->chunk(250, function ($rows) use ($out, $maxPledges, $electionId) {
                     $dirIds = $rows->pluck('id')->map(fn($v) => (string) $v)->all();
 
                     $pledges = DB::table('voter_provisional_user_pledges as vpp')
@@ -168,7 +178,7 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                         $cells = [];
                         for ($i = 0; $i < $maxPledges; $i++) {
                             $row = $p->get($i);
-                            $cells[] = $row ? (strtolower($row->status ?? '') ?: 'pending') : '';
+                            $cells[] = $row ? (strtolower(trim((string) ($row->status ?? ''))) ?: 'pending') : '';
                             $cells[] = $row ? ($row->pledge_by ?? '') : '';
                             $cells[] = $row ? ($row->updated_at ?? '') : '';
                         }
@@ -176,7 +186,7 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                         $final = strtolower((string) ($r->final_pledge_status ?? ''));
                         if ($final === '') $final = 'pending';
 
-                        fputcsv($tmp, array_merge([
+                        fputcsv($out, array_merge([
                             $r->name,
                             $r->id_card_number,
                             $phones,
@@ -188,15 +198,12 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                     }
                 });
 
-            rewind($tmp);
-            $csvContent = stream_get_contents($tmp);
-            fclose($tmp);
-
-            Storage::disk($report->disk)->put($path, $csvContent ?? '');
+            fclose($out);
 
             $report->status = GeneratedReport::STATUS_COMPLETED;
             $report->filename = $filename;
-            $report->path = $path;
+            $report->disk = $reportDisk;
+            $report->path = $relativePath;
             $report->finished_at = now();
             $report->save();
         } catch (Throwable $e) {
