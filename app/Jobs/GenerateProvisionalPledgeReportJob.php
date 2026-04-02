@@ -244,7 +244,7 @@ class GenerateProvisionalPledgeReportJob implements ShouldQueue
                     if (function_exists('fflush')) {
                         @fflush($out);
                     }
-                }, 'directories.id');
+                });
 
             fclose($out);
 
