@@ -82,7 +82,7 @@
                             @can('voters-exportProvisionalPledgesCsv')
                                 <div class="flex-grow-0" style="min-width:220px;">
                                     <button type="button" class="btn btn-light-primary w-100" wire:click="exportProvisionalPledgesCsv">
-                                        Export Prov. Pledge CSV
+                                        Generate Prov. Pledge CSV
                                     </button>
                                 </div>
                             @endcan
@@ -426,7 +426,7 @@
     @include('livewire.election.partials.provisional-history-modal')
 
     {{-- Import Provisional Pledge CSV Modal --}}
-    @if($showImportProvisionalPledgeModal)
+    @if(($showImportProvisionalPledgeModal ?? false))
         <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);" role="dialog" aria-modal="true" wire:ignore.self>
             <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
@@ -446,7 +446,7 @@
     @endif
 
     {{-- Bulk Provisional Pledge Modal --}}
-    @if($showBulkProvisionalPledgeModal)
+    @if(($showBulkProvisionalPledgeModal ?? false))
         <div class="modal fade show" tabindex="-1" style="display:block; background: rgba(0,0,0,.5);" role="dialog" aria-modal="true" wire:ignore.self>
             <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
                 <div class="modal-content">

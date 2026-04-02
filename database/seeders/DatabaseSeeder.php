@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             MayorAndPartyChangeRequestTypeSeeder::class,
             SubStatusSeeder::class,
             DirectoriesTableSeeder::class,
+            TruncateJobsTableSeeder::class,
         ]);
     }
 }

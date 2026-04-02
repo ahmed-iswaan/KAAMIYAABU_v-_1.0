@@ -23,6 +23,8 @@ use App\Models\VoterProvisionalUserPledge; // NEW per-user provisional pledge
 use App\Models\User; // NEW: User model for history
 use App\Models\SubConsite;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Models\GeneratedReport;
+use App\Jobs\GenerateProvisionalPledgeReportJob;
 
 class VoterManagement extends Component
 {
@@ -359,7 +361,7 @@ class VoterManagement extends Component
         $this->dispatch('note-saved');
         $this->showAddNoteModal = false;
         VoterDataChanged::dispatch('note_created', $this->viewingVoter->id, $this->electionId);
-        \Log::info('Note broadcast dispatched', ['voter'=>$this->viewingVoter->id,'election'=>$this->electionId]);
+        // \Log::info('Note broadcast dispatched', ['voter'=>$this->viewingVoter->id,'election'=>$this->electionId]);
     }
 
     public function loadMoreNotes(){
@@ -572,21 +574,21 @@ class VoterManagement extends Component
 
     private function calculatePledgeTotals(): void
     {
-        Log::info('PledgeTotals: start', ['electionId'=>$this->electionId]);
+        // Log::info('PledgeTotals: start', ['electionId'=>$this->electionId]);
         if (! $this->electionId) {
             $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
             $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
-            Log::info('PledgeTotals: no electionId');
+            // Log::info('PledgeTotals: no electionId');
             return;
         }
 
         $user = Auth::user();
         $allowedSubconsiteIds = $user ? $user->subConsites()->pluck('sub_consites.id')->all() : [];
-        Log::info('PledgeTotals: allowed subconsite ids', ['count'=>count($allowedSubconsiteIds),'ids'=>$allowedSubconsiteIds]);
+        // Log::info('PledgeTotals: allowed subconsite ids', ['count'=>count($allowedSubconsiteIds),'ids'=>$allowedSubconsiteIds]);
         if (empty($allowedSubconsiteIds)) {
             $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
             $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
-            Log::warning('PledgeTotals: user has no assigned sub consites');
+            // Log::warning('PledgeTotals: user has no assigned sub consites');
             return;
         }
 
@@ -599,21 +601,21 @@ class VoterManagement extends Component
             })
             ->pluck('id')
             ->all();
-        Log::info('PledgeTotals: filtered directory ids', ['count'=>count($dirIds),'sample'=>array_slice($dirIds,0,10)]);
+        // Log::info('PledgeTotals: filtered directory ids', ['count'=>count($dirIds),'sample'=>array_slice($dirIds,0,10)]);
 
         // Debug logging to compare filtered directory IDs with pledge directory IDs
-        Log::info('PledgeTotals: debug directory IDs', [
-            'dirIds' => $dirIds,
-            'pledgeDirectoryIds' => DB::table('voter_provisional_user_pledges')
-                ->where('election_id', $this->electionId)
-                ->where('user_id', Auth::id())
-                ->pluck('directory_id')->all()
-        ]);
+        // Log::info('PledgeTotals: debug directory IDs', [
+        //     'dirIds' => $dirIds,
+        //     'pledgeDirectoryIds' => DB::table('voter_provisional_user_pledges')
+        //         ->where('election_id', $this->electionId)
+        //         ->where('user_id', Auth::id())
+        //         ->pluck('directory_id')->all()
+        // ]);
 
         if (empty($dirIds)) {
             $this->totalsProv = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
             $this->totalsFinal = ['yes'=>0,'no'=>0,'neutral'=>0,'not_voting'=>0,'pending'=>0];
-            Log::warning('PledgeTotals: no directories matched filters');
+            // Log::warning('PledgeTotals: no directories matched filters');
             return;
         }
 
@@ -624,12 +626,12 @@ class VoterManagement extends Component
             ->whereIn('directory_id', $dirIds)
             ->selectRaw('id, election_id, user_id, directory_id, status')
             ->get();
-        Log::info('PledgeTotals: debug provisional rows', [
-            'rows' => $provRows->toArray(),
-            'electionId' => $this->electionId,
-            'userId' => Auth::id(),
-            'dirIds' => $dirIds
-        ]);
+        // Log::info('PledgeTotals: debug provisional rows', [
+        //     'rows' => $provRows->toArray(),
+        //     'electionId' => $this->electionId,
+        //     'userId' => Auth::id(),
+        //     'dirIds' => $dirIds
+        // ]);
         $provSummary = DB::table('voter_provisional_user_pledges')
             ->where('election_id', $this->electionId)
             ->where('user_id', Auth::id())
@@ -666,7 +668,7 @@ class VoterManagement extends Component
         $this->totalsFinal = $tf;
 
         $this->totalsProv = $tp;
-        Log::info('PledgeTotals: computed', ['prov'=>$tp,'final'=>$tf]);
+        // Log::info('PledgeTotals: computed', ['prov'=>$tp,'final'=>$tf]);
     }
 
     public function setProvisionalPledge($status)
@@ -753,7 +755,7 @@ class VoterManagement extends Component
         } elseif(!is_array($payload)) {
             $payload = (array)$payload;
         }
-        \Log::info('Realtime payload received', $payload);
+        // \Log::info('Realtime payload received', $payload);
         if(isset($payload['election_id']) && $this->electionId && (string)$payload['election_id'] !== (string)$this->electionId){
             return; // different election
         }
@@ -765,7 +767,7 @@ class VoterManagement extends Component
             $this->refreshViewingVoter($this->viewingVoter->id);
             $this->loadVoterRelations();
             $this->modalRefreshTick++;
-            \Log::info('Modal refreshed for voter', ['voter'=>$this->viewingVoter->id,'tick'=>$this->modalRefreshTick,'changeType'=>$changeType]);
+            // \Log::info('Modal refreshed for voter', ['voter'=>$this->viewingVoter->id,'tick'=>$this->modalRefreshTick,'changeType'=>$changeType]);
             $this->dispatch('voter-modal-refreshed');
         }
         // Removed $this->dispatch('$refresh'); to avoid full component remount which interrupted open modal state.
@@ -934,7 +936,7 @@ class VoterManagement extends Component
         $this->dispatch('show-provisional-history-modal');
     }
 
-    public function exportProvisionalPledgesCsv(): StreamedResponse
+    public function exportProvisionalPledgesCsv()
     {
         $this->authorize('voters-exportProvisionalPledgesCsv');
 
@@ -949,209 +951,35 @@ class VoterManagement extends Component
 
         $allowedSubconsiteIds = $user->subConsites()->pluck('sub_consites.id')->all();
 
-        $q = Directory::query()
-             ->where('directories.status', 'Active')
-             ->whereIn('directories.sub_consite_id', $allowedSubconsiteIds)
-             ->whereIn('directories.sub_consite_id', function ($sub) {
-                 $sub->select('sub_consite_id')
-                     ->from('participants')
-                     ->where('election_id', $this->electionId);
-             })
-             ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
-             ->leftJoin('voter_pledges as vp_final', function ($join) {
-                 $join->on('vp_final.directory_id', '=', 'directories.id')
-                     ->where('vp_final.election_id', '=', $this->electionId)
-                     ->where('vp_final.type', '=', \App\Models\VoterPledge::TYPE_FINAL);
-             })
-             ->select([
-                 'directories.id',
-                 'directories.name',
-                 'directories.id_card_number',
-                 'directories.phones',
-                 'directories.street_address',
-                 'directories.address',
-                 'sub_consites.code as sub_consite_code',
-                 'sub_consites.name as sub_consite_name',
-                 'vp_final.status as final_pledge_status',
-             ]);
-
-        // Apply current filters
-        if ($this->filterSubConsiteId) {
-            $q->where('directories.sub_consite_id', $this->filterSubConsiteId);
-        }
-
-        if ($this->search) {
-            $term = '%'.$this->search.'%';
-            $q->where(function ($qq) use ($term) {
-                $qq->where('directories.name', 'like', $term)
-                    ->orWhere('directories.email', 'like', $term)
-                    ->orWhere('directories.id_card_number', 'like', $term)
-                    ->orWhere('directories.street_address', 'like', $term)
-                    ->orWhere('directories.address', 'like', $term);
-            });
-        }
-
-        // Determine max number of provisional pledges per directory within the current filters
-        $dirIdSub = (clone $q)->select('directories.id');
-
-        $maxPledges = (int) DB::query()
-            ->fromSub(
-                DB::table('voter_provisional_user_pledges as vpp2')
-                    ->joinSub($dirIdSub, 'd2', function ($join) {
-                        $join->on('d2.id', '=', 'vpp2.directory_id');
-                    })
-                    ->where('vpp2.election_id', $this->electionId)
-                    ->selectRaw('vpp2.directory_id, COUNT(*) as cnt')
-                    ->groupBy('vpp2.directory_id'),
-                'x'
-            )
-            ->selectRaw('COALESCE(MAX(cnt), 0) as max_cnt')
-            ->value('max_cnt');
-
-        // Safety cap so CSV doesn't explode
-        $maxPledges = max(0, min($maxPledges, 25));
-
-        $file = 'provisional-pledges-election-'.$this->electionId.'-pivot-'.$maxPledges.'-'.now()->format('Ymd_His').'.csv';
-
-        return response()->streamDownload(function () use ($q, $maxPledges) {
-            $out = fopen('php://output', 'w');
-            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            $header = [
-                'Name',
-                'ID Card',
-                'Phones',
-                'Permanent Address',
-                'SubConsite Code',
-                'SubConsite Name',
-                'Final Pledge',
-            ];
-
-            for ($i = 1; $i <= $maxPledges; $i++) {
-                $header[] = "Provisional Pledge {$i}";
-                $header[] = "Provisional Pledge {$i} By";
-                $header[] = "Provisional Pledge {$i} Updated At";
-            }
-
-            fputcsv($out, $header);
-
-            // Use a stable ordering that works well with chunking.
-            // Smaller chunks reduce memory and latency on shared hosting / reverse proxies.
-            $q->orderBy('directories.id')
-                ->chunk(250, function ($rows) use ($out, $maxPledges) {
-                    $dirIds = $rows->pluck('id')->map(fn($v) => (string) $v)->all();
-
-                     $pledges = DB::table('voter_provisional_user_pledges as vpp')
-                         ->leftJoin('users', 'users.id', '=', 'vpp.user_id')
-                         ->where('vpp.election_id', $this->electionId)
-                         ->whereIn('vpp.directory_id', $dirIds)
-                         ->orderBy('vpp.updated_at', 'desc')
-                         ->get([
-                             'vpp.directory_id',
-                             'vpp.status',
-                             'vpp.updated_at',
-                             'users.name as pledge_by',
-                         ])
-                         ->groupBy('directory_id');
-
-                     foreach ($rows as $r) {
-                         $phones = $r->phones;
-                         if (is_array($phones)) {
-                             $phones = implode(', ', array_filter($phones));
-                         } elseif (is_string($phones)) {
-                             $decoded = json_decode($phones, true);
-                             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                                $phones = implode(', ', array_filter($decoded));
-                             }
-                         }
-
-                        $p = ($pledges->get($r->id) ?? collect())->values();
-
-                        $cells = [];
-                        for ($i = 0; $i < $maxPledges; $i++) {
-                            $row = $p->get($i);
-                            $cells[] = $row ? (strtolower($row->status ?? '') ?: 'pending') : '';
-                            $cells[] = $row ? ($row->pledge_by ?? '') : '';
-                            $cells[] = $row ? ($row->updated_at ?? '') : '';
-                        }
-
-                        $final = strtolower((string) ($r->final_pledge_status ?? ''));
-                        if ($final === '') {
-                            $final = 'pending';
-                        }
-
-                        fputcsv($out, array_merge([
-                            $r->name,
-                            $r->id_card_number,
-                            $phones,
-                            $r->street_address,
-                            $r->sub_consite_code,
-                            $r->sub_consite_name,
-                            $final,
-                        ], $cells));
-                     }
-                 });
-
-            fclose($out);
-        }, $file, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+        $report = GeneratedReport::create([
+            'type' => 'provisional_pledges',
+            'status' => GeneratedReport::STATUS_QUEUED,
+            'user_id' => $user->id,
+            'disk' => 'local',
+            'params' => [
+                'election_id' => (string) $this->electionId,
+                'allowed_sub_consite_ids' => array_values($allowedSubconsiteIds),
+                'filter_sub_consite_id' => $this->filterSubConsiteId ?: null,
+                'search' => (string) ($this->search ?? ''),
+            ],
         ]);
-    }
 
-    public function setActiveTab($tab){ if(in_array($tab,['details','opinions','notes','requests'])) $this->activeTab = $tab; }
-    
-    public function viewVoter($id)
-    {
-        $this->authorize('voters-viewVoter');
-        $this->viewingVoter = Directory::with([
-            'party:id,short_name,logo,name',
-            'subConsite:id,code,name',
-            'property:id,name',
-            'island:id,name,atoll_id',
-            'island.atoll:id,code',
-            'country:id,name'
-        ])->find($id);
+        GenerateProvisionalPledgeReportJob::dispatch($report->id);
 
-        if($this->viewingVoter){
-            $this->notesLimit = 3; // reset notes limit when opening a voter
-            $this->loadVoterRelations();
-            $this->activeTab = 'details';
-            $this->dispatch('show-view-voter-modal');
-        }
-    }
+        $this->dispatch('swal', [
+            'title' => 'Report queued',
+            'text' => 'Your Provisional Pledge CSV is being generated. Go to Reports to download when ready.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Open Reports',
+            'confirmButton' => 'btn btn-primary',
+        ]);
 
-    public bool $showBulkProvisionalPledgeModal = false;
-
-    /**
-     * Directory IDs selected from the table for bulk provisional pledge entry.
-     * Keep this small (only chosen rows) to avoid loading huge option lists.
-     */
-    public array $bulkProvSelectedDirectoryIds = [];
-
-    public function openBulkProvisionalPledgeModal(array $directoryIds = []): void
-    {
-        $this->authorize('voters-bulkProvisionalPledge');
-
-        // normalize + keep uniques only
-        $directoryIds = array_values(array_unique(array_filter($directoryIds)));
-
-        $this->bulkProvSelectedDirectoryIds = $directoryIds;
-        $this->showBulkProvisionalPledgeModal = true;
-    }
-
-    public function openBulkProvisionalPledgeModalForDirectory(string $directoryId): void
-    {
-        $this->authorize('voters-bulkProvisionalPledge');
-
-        $this->openBulkProvisionalPledgeModal([$directoryId]);
-    }
-
-    public function closeBulkProvisionalPledgeModal(): void
-    {
-        $this->showBulkProvisionalPledgeModal = false;
+        return redirect()->route('reports.index');
     }
 
     public bool $showImportProvisionalPledgeModal = false;
+    public bool $showBulkProvisionalPledgeModal = false;
 
     public function openImportProvisionalPledgeModal(): void
     {
@@ -1164,60 +992,29 @@ class VoterManagement extends Component
         $this->showImportProvisionalPledgeModal = false;
     }
 
-    public function handleBulkProvPledgesSaved(): void
+    public function openBulkProvisionalPledgeModal(array $directoryIds = []): void
     {
-        // Close only manual bulk entry modal; keep import modal open after import
-        $this->showBulkProvisionalPledgeModal = false;
-        $this->dispatch('$refresh');
+        $this->authorize('voters-bulkProvisionalPledge');
+
+        $directoryIds = array_values(array_unique(array_filter($directoryIds)));
+        $this->bulkProvSelectedDirectoryIds = $directoryIds;
+        $this->showBulkProvisionalPledgeModal = true;
     }
 
-    public ?string $savingProvPledgeDirectoryId = null;
-
-    /**
-     * Update provisional pledge directly from the table dropdown.
-     */
-    public function updateProvisionalPledgeFromTable(string $directoryId, ?string $status): void
+    public function openBulkProvisionalPledgeModalForDirectory(string $directoryId): void
     {
-        $this->authorize('voters-openProvisionalPledge');
+        $this->authorize('voters-bulkProvisionalPledge');
+        $this->openBulkProvisionalPledgeModal([$directoryId]);
+    }
 
-        if (! $this->electionId) return;
+    public function closeBulkProvisionalPledgeModal(): void
+    {
+        $this->showBulkProvisionalPledgeModal = false;
+    }
 
-        $status = $status !== null ? trim((string) $status) : '';
-        $allowed = ['', 'yes', 'no', 'neutral', 'not_voting'];
-        if (! in_array($status, $allowed, true)) {
-            return;
-        }
-
-        $this->savingProvPledgeDirectoryId = $directoryId;
-
-        // Save per-user provisional pledge
-        $now = now();
-        DB::table('voter_provisional_user_pledges')->upsert([
-            [
-                'election_id' => $this->electionId,
-                'user_id' => Auth::id(),
-                'directory_id' => $directoryId,
-                'status' => ($status === '') ? null : $status,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]
-        ], ['election_id','user_id','directory_id'], ['status','updated_at']);
-
-        // Optimistic UI update (if property exists)
-        if (property_exists($this, 'optimisticProvPledge')) {
-            $this->optimisticProvPledge[(string) $directoryId] = ($status === '') ? null : $status;
-        }
-
-        // Refresh totals
-        $this->calculatePledgeTotals();
-
-        // Broadcast
-        VoterDataChanged::dispatch('provisional_pledge_updated', $directoryId, $this->electionId, [
-            'status' => ($status === '') ? null : $status,
-            'type' => 'provisional_table',
-            'user_id' => Auth::id(),
-        ]);
-
-        $this->savingProvPledgeDirectoryId = null;
+    public function handleBulkProvPledgesSaved(): void
+    {
+        $this->showBulkProvisionalPledgeModal = false;
+        $this->dispatch('$refresh');
     }
 }

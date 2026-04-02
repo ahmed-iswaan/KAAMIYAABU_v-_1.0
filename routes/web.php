@@ -74,6 +74,9 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/admin/dashboard', \App\Livewire\Admin\AdminDashboard::class)->name('admin.dashboard');
     Route::get('/elections/representatives', \App\Livewire\Election\Representatives::class)->name('elections.representatives');
 
+    // Reports
+    Route::get('/reports', \App\Livewire\Reports\ReportsIndex::class)->name('reports.index');
+
     Route::get('/elections/consites-focals', \App\Livewire\Election\ConsiteFocals::class)
         ->name('elections.consites-focals')
         ->middleware('permission:consites-focals-render');

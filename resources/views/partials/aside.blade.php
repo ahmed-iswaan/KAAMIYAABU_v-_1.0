@@ -243,6 +243,21 @@
                                     </div>
                                  <!--end:Menu item-->
                                  @endcan
+
+                                 @can('voters-exportProvisionalPledgesCsv')
+                                 <div class="menu-item">
+                                     <a class="menu-link {{ request()->is('reports') ? 'active' : '' }}" href="{{ route('reports.index') }}">
+                                         <span class="menu-icon">
+                                             <i class="ki-duotone ki-file-down fs-2">
+                                                 <span class="path1"></span>
+                                                 <span class="path2"></span>
+                                             </i>
+                                         </span>
+                                         <span class="menu-title">Reports</span>
+                                     </a>
+                                 </div>
+                                 @endcan
+
                                  @can('property-render')
                                  <!--begin:Menu item-->
                                     <div class="menu-item">
