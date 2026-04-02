@@ -1067,7 +1067,7 @@ class VoterManagement extends Component
             );
         }
 
-        event(new VoterDataChanged($directoryId));
+        event(new VoterDataChanged('provisional_pledge_updated', $directoryId, $electionId));
         $this->dispatch('$refresh');
     }
 }
