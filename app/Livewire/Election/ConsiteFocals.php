@@ -7,6 +7,7 @@ use App\Models\Election;
 use App\Models\EventLog;
 use App\Models\VotedRepresentative;
 use App\Models\VoterPledge;
+use App\Models\VotingBox;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class ConsiteFocals extends Component
 
     public $search = '';
     public $subConsiteId = '';
+    public $votingBoxId = '';
 
     protected $paginationTheme = 'bootstrap';
 
@@ -51,6 +53,17 @@ class ConsiteFocals extends Component
     }
 
     public function updatedSubConsiteId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedBox(): void
+    {
+        // Backward compat if referenced somewhere; no-op
+        $this->resetPage();
+    }
+
+    public function updatedVotingBoxId(): void
     {
         $this->resetPage();
     }
@@ -191,9 +204,11 @@ class ConsiteFocals extends Component
 
         $q = Directory::query()
             ->leftJoin('sub_consites', 'sub_consites.id', '=', 'directories.sub_consite_id')
+            ->leftJoin('voting_boxes', 'voting_boxes.id', '=', 'directories.voting_box_id')
             ->where('directories.status', 'Active')
             ->whereIn('directories.sub_consite_id', $allowed)
             ->when($this->subConsiteId, fn($qq) => $qq->where('directories.sub_consite_id', $this->subConsiteId))
+            ->when($this->votingBoxId, fn($qq) => $qq->where('directories.voting_box_id', $this->votingBoxId))
             ->when($this->search, function ($qq) {
                 $sRaw = trim((string) $this->search);
                 $s = $sRaw;
@@ -231,6 +246,7 @@ class ConsiteFocals extends Component
                 'directories.serial',
                 'sub_consites.code as sub_consite_code',
                 'sub_consites.name as sub_consite_name',
+                'voting_boxes.name as voting_box_name',
                 'directories.phones',
                 'directories.street_address',
                 'directories.address',
@@ -246,6 +262,7 @@ class ConsiteFocals extends Component
                 'Serial',
                 'SubConsite Code',
                 'SubConsite Name',
+                'Voting Box',
                 'Phones',
                 'Street Address',
                 'Address',
@@ -269,6 +286,7 @@ class ConsiteFocals extends Component
                         $r->serial,
                         $r->sub_consite_code,
                         $r->sub_consite_name,
+                        $r->voting_box_name,
                         $phones,
                         $r->street_address,
                         $r->address,
@@ -290,20 +308,25 @@ class ConsiteFocals extends Component
 
         $subConsites = Auth::user()?->subConsites()->orderBy('code')->get(['sub_consites.id', 'code', 'name']);
 
+        $votingBoxes = VotingBox::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         // Summary counts (scoped to allowed sub consites and optional selected filter)
         $baseDirs = Directory::query()
             ->where('status', 'Active')
             ->whereIn('sub_consite_id', $allowed)
-            ->when($this->subConsiteId, fn($q) => $q->where('sub_consite_id', $this->subConsiteId));
+            ->when($this->subConsiteId, fn($q) => $q->where('sub_consite_id', $this->subConsiteId))
+            ->when($this->votingBoxId, fn($q) => $q->where('voting_box_id', $this->votingBoxId));
 
         $totalDirectories = (clone $baseDirs)->count();
 
         $votedCount = (clone $baseDirs)
             ->whereExists(function ($q) {
                 $q->selectRaw(1)
-                  ->from('voted_representatives')
-                  ->whereColumn('voted_representatives.directory_id', 'directories.id')
-                  ->where('voted_representatives.election_id', $this->electionId);
+                    ->from('voted_representatives')
+                    ->whereColumn('voted_representatives.directory_id', 'directories.id')
+                    ->where('voted_representatives.election_id', $this->electionId);
             })
             ->count();
 
@@ -317,7 +340,8 @@ class ConsiteFocals extends Component
                 'id_card_number',
                 'serial',
                 'sub_consite_id',
-                'address','street_address',
+                'voting_box_id',
+                'address', 'street_address',
                 'phones',
             ])
             ->addSelect([
@@ -327,10 +351,11 @@ class ConsiteFocals extends Component
                     ->where('type', VoterPledge::TYPE_FINAL)
                     ->limit(1),
             ])
-            ->with(['subConsite:id,code,name'])
+            ->with(['subConsite:id,code,name', 'votingBox:id,name'])
             ->where('status', 'Active')
             ->whereIn('sub_consite_id', $allowed)
             ->when($this->subConsiteId, fn($q) => $q->where('sub_consite_id', $this->subConsiteId))
+            ->when($this->votingBoxId, fn($q) => $q->where('voting_box_id', $this->votingBoxId))
             ->when($this->search, function ($q) {
                 $sRaw = trim($this->search);
                 $s = $sRaw;
@@ -358,9 +383,9 @@ class ConsiteFocals extends Component
             })
             ->whereNotExists(function ($q) {
                 $q->selectRaw(1)
-                  ->from('voted_representatives')
-                  ->whereColumn('voted_representatives.directory_id', 'directories.id')
-                  ->where('voted_representatives.election_id', $this->electionId);
+                    ->from('voted_representatives')
+                    ->whereColumn('voted_representatives.directory_id', 'directories.id')
+                    ->where('voted_representatives.election_id', $this->electionId);
             })
             ->orderByRaw("CASE
                 WHEN final_pledge_status IN ('strong_yes','yes') THEN 0
@@ -375,6 +400,7 @@ class ConsiteFocals extends Component
         return view('livewire.election.consite-focals', [
             'directories' => $directories,
             'subConsites' => $subConsites,
+            'votingBoxes' => $votingBoxes,
             'directoryImageUrls' => $directories->getCollection()->mapWithKeys(fn($d) => [$d->id => $this->directoryImageUrl($d)]),
             'totalDirectories' => $totalDirectories,
             'votedCount' => $votedCount,

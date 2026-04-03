@@ -55,6 +55,15 @@
                         </select>
                     </div>
 
+                    <div style="min-width:220px">
+                        <select class="form-select" wire:model.live="votingBoxId">
+                            <option value="">All Voting Boxes</option>
+                            @foreach(($votingBoxes ?? []) as $vb)
+                                <option value="{{ $vb->id }}">{{ $vb->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <div style="min-width:260px">
                         <input type="text" class="form-control" placeholder="Search name, NID, serial, address or phone" wire:model.live.debounce.400ms="search" />
                     </div>
@@ -141,6 +150,7 @@
                             <th>NID</th>
                             <th>Serial</th>
                             <th>Sub Consite</th>
+                            <th>Box</th>
                             <th>Permanent</th>
                             <th>Phones</th>
                             @can('votedRepresentative-markAsVoted')
@@ -177,6 +187,13 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @if(!empty($d->box))
+                                        <span class="badge badge-light">{{ $d->box }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                <td>
                                     <div class="text-muted small">
                                         @php
                                             $perm = trim(($d->street_address ?? '') . (($d->street_address && $d->address) ? ' / ' : '') . ($d->address ?? ''));
@@ -203,7 +220,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center py-10 text-muted">No not-voted directories found.</td>
+                                <td colspan="9" class="text-center py-10 text-muted">No not-voted directories found.</td>
                             </tr>
                         @endforelse
                     </tbody>
