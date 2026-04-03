@@ -18,8 +18,8 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
      */
     public function run(): void
     {
-        // Use ACTIVE election
-        $electionId = Election::query()->where('is_active', 1)->value('id');
+        // Use ACTIVE election (elections.status = 'Active')
+        $electionId = Election::query()->where('status', 'Active')->orderByDesc('start_date')->value('id');
         if (!$electionId) {
             $this->command?->warn('No active election found. Seeder aborted.');
             return;
@@ -65,6 +65,12 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
                 ->where('status', 'neutral')
                 ->exists();
 
+            $provAnyNotVoting = DB::table('voter_provisional_user_pledges')
+                ->where('election_id', $electionId)
+                ->where('directory_id', $directoryId)
+                ->whereIn('status', ['not voting', 'not_voting', 'notvoting'])
+                ->exists();
+
             // Call center answer from CallCenterForm (latest row)
             $q3Raw = DB::table('call_center_forms')
                 ->where('election_id', $electionId)
@@ -78,7 +84,7 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
             // Decide final according to the matrix
             $final = null;
 
-            $hasAnyProvData = ($provAnyYes || $provAnyNo || $provAnyUndecided);
+            $hasAnyProvData = ($provAnyYes || $provAnyNo || $provAnyUndecided || $provAnyNotVoting);
             $hasAnyCallCentreData = !is_null($qNormalized);
 
             // YES if any YES anywhere
