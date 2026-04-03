@@ -17,7 +17,7 @@ class Representatives extends Component
 {
      use AuthorizesRequests;
 
-    public $searchMode = 'nid'; // nid | serial
+    public $searchMode = 'serial'; // nid | serial
     public $searchNid = '';
     public $searchSerial = '';
     public $foundUser = null;
