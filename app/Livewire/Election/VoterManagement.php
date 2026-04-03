@@ -405,6 +405,27 @@ class VoterManagement extends Component
         $this->dispatch('hide-view-voter-modal');
     }
 
+    /**
+     * Open the voter details modal from the table.
+     */
+    public function viewVoter(string $directoryId): void
+    {
+        $this->authorize('voters-viewVoter');
+
+        $voter = Directory::query()->where('id', $directoryId)->first();
+        if (! $voter) {
+            return;
+        }
+
+        $this->viewingVoter = $voter;
+        $this->activeTab = 'details';
+        $this->modalRefreshTick++;
+
+        $this->loadVoterRelations();
+
+        $this->dispatch('show-view-voter-modal');
+    }
+
     public function openRequestDetail($id){
         if($this->voterRequests){
             $this->selectedRequestId = $id;
