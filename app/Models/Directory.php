@@ -31,7 +31,7 @@ class Directory extends Model
         'phones', 'email', 'website',
         'country_id', 'island_id', 'address', 'street_address', 'properties_id',
         'current_country_id', 'current_island_id', 'current_address', 'current_street_address', 'current_properties_id',
-        'party_id', 'sub_consite_id', 'status'
+        'party_id', 'sub_consite_id', 'voting_box_id', 'status'
     ];
 
     protected $casts = [
@@ -106,6 +106,11 @@ class Directory extends Model
     public function subConsite(): BelongsTo
     {
         return $this->belongsTo(SubConsite::class, 'sub_consite_id');
+    }
+
+    public function votingBox(): BelongsTo
+    {
+        return $this->belongsTo(VotingBox::class, 'voting_box_id');
     }
 
     public function opinions()

@@ -106,4 +106,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/call-center-beta/completed-daily', \App\Livewire\CallCenter\DailyCompletedDirectories::class)
         ->name('call-center.beta.completed-daily')
         ->middleware('permission:call-center-daily-completed-render');
+
+    Route::get('/elections/voting-boxes', \App\Livewire\Election\VotingBoxes::class)
+        ->name('elections.voting-boxes')
+        ->middleware('permission:voting-boxes-render');
 });

@@ -244,6 +244,22 @@
                                  <!--end:Menu item-->
                                  @endcan
 
+                                @can('voting-boxes-render')
+                                 <div class="menu-item">
+                                     <a class="menu-link {{ request()->is('elections.voting-boxes') ? 'active' : '' }}" href="{{ route('elections.voting-boxes') }}">
+                                         <span class="menu-icon">
+                                             <i class="ki-duotone ki-directbox-default fs-2">
+                                                 <span class="path1"></span>
+                                                 <span class="path2"></span>
+                                                 <span class="path3"></span>
+                                                 <span class="path4"></span>
+                                             </i>
+                                         </span>
+                                         <span class="menu-title">Voting Boxes</span>
+                                     </a>
+                                 </div>
+                                 @endcan
+
                                  @can('voters-exportProvisionalPledgesCsv')
                                  <div class="menu-item">
                                      <a class="menu-link {{ request()->is('reports') ? 'active' : '' }}" href="{{ route('reports.index') }}">
