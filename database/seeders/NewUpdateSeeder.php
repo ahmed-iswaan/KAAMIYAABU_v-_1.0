@@ -25,14 +25,14 @@ class NewUpdateSeeder extends Seeder
      */
     public function run(): void
     {
-        $file = database_path('seeders/data/dhaftharulist.json');
+        $file = database_path('seeders/data/newelection2026.json');
         if (!File::exists($file)) {
             $this->command->error("JSON file missing: {$file}");
             return;
         }
 
         $rows = json_decode(File::get($file), true);
-        if (!is_array($rows)) { $this->command->error('dhaftharulist.json not valid JSON array.'); return; }
+        if (!is_array($rows)) { $this->command->error('newelection2026.json not valid JSON array.'); return; }
 
         $maldivesId = Country::where('name', 'Maldives')->value('id');
         if (!$maldivesId) { $this->command->error('Country Maldives missing.'); return; }
