@@ -18,23 +18,19 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
      */
     public function run(): void
     {
-        // Use latest election by start_date (same pattern used elsewhere)
-        $electionId = Election::orderBy('start_date', 'desc')->value('id');
+        // Use ACTIVE election
+        $electionId = Election::query()->where('is_active', 1)->value('id');
         if (!$electionId) {
-            $this->command?->warn('No election found. Seeder aborted.');
+            $this->command?->warn('No active election found. Seeder aborted.');
             return;
         }
 
-        // Question text to read from form submissions
-        $questionText = "3.\tމާލޭގެ މޭޔަރ ކަމަށް އިތުރު ދައުރަކަށް އާދަމް އާޒިމް ކުރިމަތި ލެއްވުމަށް ފެނިވަޑައިގަންވާތޯ؟";
-
-        // Map option labels -> normalized value
+        // Question 3 mapping (from CallCenterForm.q3_support)
         $qMap = [
-            'ފެނޭ (5)' => 'yes',
-            'ނުފެނޭ (4)' => 'no',
-            'ނޭނގޭ (4)' => 'undecided',
-            // Treat any explicit "not reached" style option as data (non-yes)
-            'Not reached' => 'not_reached',
+            'aanekey' => 'yes',
+            'noonekay' => 'no',
+            'neyngey' => 'undecided',
+            'vote_laan_nudhaanan' => 'not_voting',
         ];
 
         // Get all active directory ids
@@ -69,22 +65,15 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
                 ->where('status', 'neutral')
                 ->exists();
 
-            // Question-derived answer (latest submission)
-            $qAnswer = DB::table('form_submission_answers as fsa')
-                ->join('form_questions as fq', 'fq.id', '=', 'fsa.form_question_id')
-                ->join('form_submissions as fs', 'fs.id', '=', 'fsa.form_submission_id')
-                ->leftJoin('form_question_options as fqo', function ($join) {
-                    $join->on('fqo.form_question_id', '=', 'fq.id')
-                        ->whereRaw('(fsa.value_text = fqo.value OR fsa.value_text = fqo.id)');
-                })
-                ->where('fs.election_id', $electionId)
-                ->where('fs.directory_id', $directoryId)
-                ->where('fq.question_text', $questionText)
-                ->whereNotNull('fsa.value_text')
-                ->orderByDesc('fs.created_at')
-                ->value('fqo.label');
+            // Call center answer from CallCenterForm (latest row)
+            $q3Raw = DB::table('call_center_forms')
+                ->where('election_id', $electionId)
+                ->where('directory_id', $directoryId)
+                ->whereNotNull('q3_support')
+                ->orderByDesc('created_at')
+                ->value('q3_support');
 
-            $qNormalized = $qAnswer ? ($qMap[$qAnswer] ?? null) : null;
+            $qNormalized = $q3Raw ? ($qMap[$q3Raw] ?? null) : null;
 
             // Decide final according to the matrix
             $final = null;
@@ -117,7 +106,7 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
 
             if ($existing) {
                 $existing->status = $final;
-                $existing->note = 'Seeded from provisional pledges + form Q3';
+                $existing->note = 'Seeded from provisional pledges + CallCenterForm.q3_support';
                 $existing->created_by = $existing->created_by ?? $createdBy;
                 $existing->updated_at = $now;
                 $existing->save();
@@ -128,7 +117,7 @@ class SeedFinalPledgesFromQuestionAndProvisionalSeeder extends Seeder
                     'election_id' => $electionId,
                     'type' => VoterPledge::TYPE_FINAL,
                     'status' => $final,
-                    'note' => 'Seeded from provisional pledges + form Q3',
+                    'note' => 'Seeded from provisional pledges + CallCenterForm.q3_support',
                     'created_by' => $createdBy,
                 ]);
                 $inserted++;

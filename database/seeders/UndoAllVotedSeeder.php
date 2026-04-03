@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\DB;
 class UndoAllVotedSeeder extends Seeder
 {
     /**
-     * Deletes voted marks (voted_representatives) for an election.
+     * Deletes voted marks (voted_representatives) for election(s).
      *
-     * By default it targets the latest election (by start_date).
-     * You can optionally pass an election id using: php artisan db:seed --class=UndoAllVotedSeeder -- --election=ID
+     * - If --election=ID is provided, it targets only that election.
+     * - Otherwise it targets all ACTIVE elections.
      */
     public function run(): void
     {
@@ -25,19 +25,27 @@ class UndoAllVotedSeeder extends Seeder
             // ignore when seeder run without command context
         }
 
-        if (!$electionId) {
-            $electionId = Election::orderBy('start_date', 'desc')->value('id');
+        $electionIds = [];
+
+        if ($electionId) {
+            $electionIds = [(string) $electionId];
+        } else {
+            $electionIds = Election::query()
+                ->where('status', 'Active')
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
         }
 
-        if (!$electionId) {
-            $this->command?->warn('No election found. Seeder aborted.');
+        if (empty($electionIds)) {
+            $this->command?->warn('No active election found. Seeder aborted.');
             return;
         }
 
         $deleted = DB::table('voted_representatives')
-            ->where('election_id', $electionId)
+            ->whereIn('election_id', $electionIds)
             ->delete();
 
-        $this->command?->info("UndoAllVotedSeeder: deleted {$deleted} voted marks for election_id={$electionId}");
+        $this->command?->info('UndoAllVotedSeeder: deleted '.$deleted.' voted marks for election_id in ['.implode(',', $electionIds).']');
     }
 }
