@@ -75,6 +75,7 @@
                                 @include('livewire.user.user-view-form')
                                 @include('livewire.user.user-role-remove')
                                 @include('livewire.user.user-subconsites-modal')
+                                @include('livewire.user.user-votingboxes-modal')
 
                             </div>
                             <!--end::Card toolbar-->
@@ -180,6 +181,10 @@
 
                                                 <div class="menu-item px-3">
                                                     <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openSubconsiteModal({{ $user->id }})">Manage Sub Consites</a>
+                                                </div>
+
+                                                <div class="menu-item px-3">
+                                                    <a href="javascript:void(0)" class="menu-link px-3" wire:click.prevent="openVotingBoxesModal({{ $user->id }})">Manage Voting Boxes</a>
                                                 </div>
                                             </div>
                                             <!--end::Menu-->

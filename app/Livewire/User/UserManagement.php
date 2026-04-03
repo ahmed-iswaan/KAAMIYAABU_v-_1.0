@@ -317,7 +317,7 @@ public function createUser()
     EventLog::create([
         'user_id'        => auth()->id(),
         'event_tab'      => 'User',
-        'event_entry_id'=> $this->edituserId,
+        'event_entry_id' => $this->edituserId,
         'event_type'     => 'User Update Started',
         'description'    => 'Updating user ID ' . $this->edituserId,
         'event_data'     => [
@@ -538,6 +538,11 @@ public function createUser()
     public $subconsiteOptions = [];
     public $selectedSubconsiteIds = [];
 
+    public $showVotingBoxesModal = false;
+    public $manageVotingBoxesUserId = null;
+    public $votingBoxOptions = [];
+    public $selectedVotingBoxIds = [];
+
     /**
      * Password view modal state (shows stored password hash only).
      */
@@ -584,6 +589,30 @@ public function createUser()
         $this->dispatch('showSubconsitesModal');
     }
 
+    public function openVotingBoxesModal(int $userId): void
+    {
+        $this->authorize('user-openVotingBoxesModal');
+
+        $user = User::find($userId);
+        if (! $user) {
+            session()->flash('error', 'User not found.');
+            return;
+        }
+
+        $this->manageVotingBoxesUserId = $userId;
+
+        $this->votingBoxOptions = \App\Models\VotingBox::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name])
+            ->toArray();
+
+        $this->selectedVotingBoxIds = $user->votingBoxes()->pluck('voting_boxes.id')->toArray();
+
+        $this->showVotingBoxesModal = true;
+        $this->dispatch('showVotingBoxesModal');
+    }
+
     public function saveUserSubconsites(): void
     {
         $this->authorize('user-saveUserSubconsites');
@@ -617,6 +646,40 @@ public function createUser()
         $this->subconsiteOptions = [];
         $this->selectedSubconsiteIds = [];
         $this->dispatch('closeSubconsitesModal');
+    }
+
+    public function saveUserVotingBoxes(): void
+    {
+        $this->authorize('user-saveUserVotingBoxes');
+
+        if (! $this->manageVotingBoxesUserId) {
+            session()->flash('error', 'No user selected.');
+            return;
+        }
+
+        $user = User::find($this->manageVotingBoxesUserId);
+        if (! $user) {
+            session()->flash('error', 'User not found.');
+            return;
+        }
+
+        $ids = is_array($this->selectedVotingBoxIds) ? array_values($this->selectedVotingBoxIds) : [];
+        $user->votingBoxes()->sync($ids);
+
+        $this->dispatch('swal', [
+            'title' => 'Saved',
+            'text' => 'Voting boxes updated.',
+            'icon' => 'success',
+            'buttonsStyling' => false,
+            'confirmButtonText' => 'Ok',
+            'confirmButton' => 'btn btn-primary',
+        ]);
+
+        $this->showVotingBoxesModal = false;
+        $this->manageVotingBoxesUserId = null;
+        $this->votingBoxOptions = [];
+        $this->selectedVotingBoxIds = [];
+        $this->dispatch('closeVotingBoxesModal');
     }
 
     public function openPasswordViewModal(int $userId): void

@@ -308,9 +308,9 @@ class ConsiteFocals extends Component
 
         $subConsites = Auth::user()?->subConsites()->orderBy('code')->get(['sub_consites.id', 'code', 'name']);
 
-        $votingBoxes = VotingBox::query()
+        $votingBoxes = Auth::user()?->votingBoxes()
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['voting_boxes.id', 'voting_boxes.name']) ?? collect();
 
         // Summary counts (scoped to allowed sub consites and optional selected filter)
         $baseDirs = Directory::query()

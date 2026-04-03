@@ -12,10 +12,11 @@ use Illuminate\Support\Facades\DB;
 use App\Models\EventLog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Events\RepresentativeVotedChanged;
+use App\Models\VotingBox;
 
 class Representatives extends Component
 {
-     use AuthorizesRequests;
+    use AuthorizesRequests;
 
     public $searchMode = 'serial'; // nid | serial
     public $searchNid = '';
@@ -66,9 +67,9 @@ class Representatives extends Component
         $this->historyLimit += 10;
     }
 
-    protected function allowedSubConsiteIds(): array
+    protected function allowedVotingBoxIds(): array
     {
-        return Auth::user()?->subConsites()->pluck('sub_consites.id')->all() ?? [];
+        return Auth::user()?->votingBoxes()->pluck('voting_boxes.id')->all() ?? [];
     }
 
     public function updatedSearchMode(): void
@@ -100,9 +101,9 @@ class Representatives extends Component
             return;
         }
 
-        $allowedSubConsiteIds = $this->allowedSubConsiteIds();
-        if (empty($allowedSubConsiteIds)) {
-            $this->swal('error', 'Permission denied', 'You do not have sub consite permission to view representatives.');
+        $allowedVotingBoxIds = $this->allowedVotingBoxIds();
+        if (empty($allowedVotingBoxIds)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission to view representatives.');
             return;
         }
 
@@ -119,12 +120,12 @@ class Representatives extends Component
             ])
             ->where('serial', $serial)
             ->where('status', 'Active')
-            ->whereIn('sub_consite_id', $allowedSubConsiteIds)
+            ->whereIn('voting_box_id', $allowedVotingBoxIds)
             ->orderBy('name')
             ->get();
 
         if ($results->isEmpty()) {
-            $this->swal('warning', 'Not found', 'No directory found for that Serial (within your permitted sub consites).');
+            $this->swal('warning', 'Not found', 'No directory found for that Serial (within your permitted voting boxes).');
             return;
         }
 
@@ -152,9 +153,9 @@ class Representatives extends Component
     {
         $this->reset(['foundUser','alreadyVoted']);
 
-        $allowedSubConsiteIds = $this->allowedSubConsiteIds();
-        if (empty($allowedSubConsiteIds)) {
-            $this->swal('error', 'Permission denied', 'You do not have sub consite permission to view representatives.');
+        $allowedVotingBoxIds = $this->allowedVotingBoxIds();
+        if (empty($allowedVotingBoxIds)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission to view representatives.');
             return;
         }
 
@@ -171,7 +172,7 @@ class Representatives extends Component
             ])
             ->where('id', $directoryId)
             ->where('status', 'Active')
-            ->whereIn('sub_consite_id', $allowedSubConsiteIds)
+            ->whereIn('voting_box_id', $allowedVotingBoxIds)
             ->first();
 
         if (!$user) {
@@ -209,9 +210,9 @@ class Representatives extends Component
             }
         }
 
-        $allowedSubConsiteIds = Auth::user()?->subConsites()->pluck('sub_consites.id')->all() ?? [];
-        if (empty($allowedSubConsiteIds)) {
-            $this->swal('error', 'Permission denied', 'You do not have sub consite permission to view representatives.');
+        $allowedVotingBoxIds = $this->allowedVotingBoxIds();
+        if (empty($allowedVotingBoxIds)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission to view representatives.');
             return;
         }
 
@@ -228,6 +229,7 @@ class Representatives extends Component
             ])
             ->where('id_card_number', $nid)
             ->where('status', 'Active')
+            ->whereIn('voting_box_id', $allowedVotingBoxIds)
             ->first();
 
         if (!$user) {
@@ -235,8 +237,8 @@ class Representatives extends Component
             return;
         }
 
-        if (!$user->sub_consite_id || !in_array($user->sub_consite_id, $allowedSubConsiteIds, true)) {
-            $this->swal('error', 'Permission denied', 'You do not have consites permission to view this directory.');
+        if (!$user->voting_box_id || !in_array($user->voting_box_id, $allowedVotingBoxIds, true)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission to view this directory.');
             return;
         }
 
@@ -261,10 +263,10 @@ class Representatives extends Component
             return;
         }
 
-        // Enforce sub consite permission again for safety
-        $allowedSubConsiteIds = Auth::user()?->subConsites()->pluck('sub_consites.id')->all() ?? [];
-        if (empty($allowedSubConsiteIds) || !$this->foundUser->sub_consite_id || !in_array($this->foundUser->sub_consite_id, $allowedSubConsiteIds, true)) {
-            $this->swal('error', 'Permission denied', 'You do not have consites permission to mark this directory.');
+        // Enforce voting box permission again for safety
+        $allowedVotingBoxIds = Auth::user()?->votingBoxes()->pluck('voting_boxes.id')->all() ?? [];
+        if (empty($allowedVotingBoxIds) || !$this->foundUser->voting_box_id || !in_array($this->foundUser->voting_box_id, $allowedVotingBoxIds, true)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission to mark this directory.');
             return;
         }
 
@@ -319,9 +321,9 @@ class Representatives extends Component
             return;
         }
 
-        $allowedSubConsiteIds = $this->allowedSubConsiteIds();
-        if (empty($allowedSubConsiteIds)) {
-            $this->swal('error', 'Permission denied', 'You do not have sub consite permission.');
+        $allowedVotingBoxIds = $this->allowedVotingBoxIds();
+        if (empty($allowedVotingBoxIds)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission.');
             return;
         }
 
@@ -335,8 +337,8 @@ class Representatives extends Component
             return;
         }
 
-        if (!$vr->directory?->sub_consite_id || !in_array($vr->directory->sub_consite_id, $allowedSubConsiteIds, true)) {
-            $this->swal('error', 'Permission denied', 'You do not have consites permission to undo this record.');
+        if (!$vr->directory?->sub_consite_id || !in_array($vr->directory->sub_consite_id, $allowedVotingBoxIds, true)) {
+            $this->swal('error', 'Permission denied', 'You do not have voting box permission to undo this record.');
             return;
         }
 

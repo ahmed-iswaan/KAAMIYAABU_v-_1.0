@@ -108,7 +108,11 @@ class PermissionTableSeeder extends Seeder
             // Call Center Beta - daily completed directories page
             // 'call-center-daily-completed-render',
             // 'call-center-import',
-            'voting-boxes-render',
+            // 'voting-boxes-render',
+
+            // Users - manage voting boxes
+            'user-openVotingBoxesModal',
+            'user-saveUserVotingBoxes',
         ];
         
         foreach ($permissions as $permission) {

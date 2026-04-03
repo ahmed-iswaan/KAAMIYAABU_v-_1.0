@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\VotingBox;
 
 class User extends Authenticatable
 {
@@ -58,6 +59,15 @@ class User extends Authenticatable
     public function subConsites(): BelongsToMany
     {
         return $this->belongsToMany(SubConsite::class, 'users_sub_consites', 'user_id', 'sub_consite_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Voting boxes assigned to the user.
+     */
+    public function votingBoxes(): BelongsToMany
+    {
+        return $this->belongsToMany(VotingBox::class, 'users_voting_boxes', 'user_id', 'voting_box_id')
             ->withTimestamps();
     }
 }
