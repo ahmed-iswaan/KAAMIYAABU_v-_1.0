@@ -69,7 +69,20 @@ class Representatives extends Component
 
     protected function allowedVotingBoxIds(): array
     {
-        return Auth::user()?->votingBoxes()->pluck('voting_boxes.id')->all() ?? [];
+        $user = Auth::user();
+        if (!$user) return [];
+
+        // Some deployments store the pivot as voting_box_id instead of id.
+        // Support both to avoid unexpected permission denials.
+        $ids = $user->votingBoxes()->pluck('voting_boxes.id')->all();
+        if (empty($ids)) {
+            $ids = $user->votingBoxes()->pluck('voting_boxes.voting_box_id')->all();
+        }
+
+        // Normalize (remove nulls, cast to int, unique)
+        $ids = array_values(array_unique(array_map('intval', array_filter($ids, fn ($v) => $v !== null && $v !== ''))));
+
+        return $ids;
     }
 
     public function updatedSearchMode(): void
@@ -327,7 +340,7 @@ class Representatives extends Component
             return;
         }
 
-        $vr = VotedRepresentative::with(['directory:id,name,sub_consite_id', 'user:id,name'])
+        $vr = VotedRepresentative::with(['directory:id,name,sub_consite_id,voting_box_id', 'user:id,name'])
             ->where('id', $votedRepresentativeId)
             ->where('election_id', $this->electionId)
             ->first();
@@ -337,9 +350,16 @@ class Representatives extends Component
             return;
         }
 
-        if (!$vr->directory?->sub_consite_id || !in_array($vr->directory->sub_consite_id, $allowedVotingBoxIds, true)) {
-            $this->swal('error', 'Permission denied', 'You do not have voting box permission to undo this record.');
-            return;
+        // Allow undo if the current user is the one who marked it (common expected behavior),
+        // otherwise require voting box permission.
+        $dirVotingBoxId = $vr->directory?->voting_box_id;
+        $isOwner = (int) $vr->user_id === (int) Auth::id();
+
+        if (!$isOwner) {
+            if (!$dirVotingBoxId || !in_array($dirVotingBoxId, $allowedVotingBoxIds, true)) {
+                $this->swal('error', 'Permission denied', 'You do not have voting box permission to undo this record.');
+                return;
+            }
         }
 
         $dirId = $vr->directory_id;
