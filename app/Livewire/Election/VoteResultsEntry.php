@@ -161,6 +161,7 @@ class VoteResultsEntry extends Component
 
         $allowed = $this->allowedVotingBoxIds();
 
+        // Dropdown: ONLY allowed voting boxes
         $votingBoxes = VotingBox::query()
             ->whereIn('id', $allowed)
             ->orderBy('name')
@@ -189,12 +190,12 @@ class VoteResultsEntry extends Component
             'invalid' => 0,
         ];
 
-        if ($this->electionId && !empty($allowed)) {
-            // Box-wise
+        // Charts: show ALL results for the election (not restricted to assignments)
+        if ($this->electionId) {
+            // Box-wise (all boxes)
             $rowsBox = ElectionResult::query()
                 ->join('voting_boxes', 'voting_boxes.id', '=', 'election_results.voting_box_id')
                 ->where('election_results.election_id', $this->electionId)
-                ->whereIn('election_results.voting_box_id', $allowed)
                 ->groupBy('voting_boxes.id', 'voting_boxes.name')
                 ->orderBy('voting_boxes.name')
                 ->selectRaw('voting_boxes.name as label')
@@ -217,12 +218,11 @@ class VoteResultsEntry extends Component
                 'total' => $rowsBox->map(fn($r) => (int) $r->c1 + (int) $r->c2 + (int) $r->c3 + (int) $r->c4 + (int) $r->c5 + (int) $r->invalid_votes)->values()->all(),
             ];
 
-            // SubConsite-wise
+            // SubConsite-wise (all subconsites)
             $rowsSub = ElectionResult::query()
                 ->join('voting_boxes', 'voting_boxes.id', '=', 'election_results.voting_box_id')
                 ->leftJoin('sub_consites', 'sub_consites.id', '=', 'voting_boxes.sub_consite_id')
                 ->where('election_results.election_id', $this->electionId)
-                ->whereIn('election_results.voting_box_id', $allowed)
                 ->groupBy('sub_consites.code')
                 ->orderBy('sub_consites.code')
                 ->selectRaw('COALESCE(sub_consites.code, "N/A") as label')
