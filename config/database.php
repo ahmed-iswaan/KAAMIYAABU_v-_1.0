@@ -54,6 +54,27 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+
+            'read' => [
+                'host' => [env('DB_READ_HOST', env('DB_HOST'))],
+                'port' => env('DB_READ_PORT', env('DB_PORT')),
+                'database' => env('DB_READ_DATABASE', env('DB_DATABASE')),
+                'username' => env('DB_READ_USERNAME', env('DB_USERNAME')),
+                'password' => env('DB_READ_PASSWORD', env('DB_PASSWORD')),
+            ],
+
+            'write' => [
+                'host' => [env('DB_WRITE_HOST', env('DB_HOST'))],
+                'port' => env('DB_WRITE_PORT', env('DB_PORT')),
+                'database' => env('DB_WRITE_DATABASE', env('DB_DATABASE')),
+                'username' => env('DB_WRITE_USERNAME', env('DB_USERNAME')),
+                'password' => env('DB_WRITE_PASSWORD', env('DB_PASSWORD')),
+            ],
+
+            // When true, after a write Laravel will use the write connection for subsequent reads
+            // in the same request cycle (helps avoid "read after write" issues with replicas).
+            'sticky' => true,
+
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
