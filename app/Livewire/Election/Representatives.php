@@ -69,20 +69,7 @@ class Representatives extends Component
 
     protected function allowedVotingBoxIds(): array
     {
-        $user = Auth::user();
-        if (!$user) return [];
-
-        // Some deployments store the pivot as voting_box_id instead of id.
-        // Support both to avoid unexpected permission denials.
-        $ids = $user->votingBoxes()->pluck('voting_boxes.id')->all();
-        if (empty($ids)) {
-            $ids = $user->votingBoxes()->pluck('voting_boxes.voting_box_id')->all();
-        }
-
-        // Normalize (remove nulls, cast to int, unique)
-        $ids = array_values(array_unique(array_map('intval', array_filter($ids, fn ($v) => $v !== null && $v !== ''))));
-
-        return $ids;
+ return Auth::user()?->votingBoxes()->pluck('voting_boxes.id')->all() ?? [];
     }
 
     public function updatedSearchMode(): void
@@ -120,6 +107,9 @@ class Representatives extends Component
             return;
         }
 
+        // DEBUG: comment/remove after confirming IDs
+        // $this->swal('info', 'DEBUG voting boxes', 'Allowed: '.implode(',', $allowedVotingBoxIds));
+
         $results = Directory::with([
                 'subConsite:id,code,name',
                 'property:id,name',
@@ -136,6 +126,11 @@ class Representatives extends Component
             ->whereIn('voting_box_id', $allowedVotingBoxIds)
             ->orderBy('name')
             ->get();
+
+        // DEBUG
+        // if ($results->isNotEmpty()) {
+        //     $this->swal('info', 'DEBUG result box', 'Result voting_box_id: '.($results->first()->voting_box_id ?? 'null'));
+        // }
 
         if ($results->isEmpty()) {
             $this->swal('warning', 'Not found', 'No directory found for that Serial (within your permitted voting boxes).');
