@@ -90,7 +90,12 @@
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start gap-3">
                                         <div class="flex-grow-1">
-                                            <div class="fw-semibold">{{ $item->directory?->name ?? '—' }}</div>
+                                            <div class="fw-semibold">
+                                                {{ $item->directory?->name ?? '—' }}
+                                                @if(!empty($item->directory?->serial))
+                                                    <span class="badge bg-light text-dark border ms-2">S: {{ $item->directory->serial }}</span>
+                                                @endif
+                                            </div>
                                             <div class="text-muted small">
                                                 <span class="me-2">{{ $item->directory?->id_card_number ?? '' }}</span>
                                                 @if($item->directory?->subConsite)

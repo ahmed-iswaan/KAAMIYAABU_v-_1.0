@@ -438,7 +438,7 @@ class Representatives extends Component
             $historyTotal = (clone $baseQuery)->count();
 
             $history = VotedRepresentative::with([
-                    'directory:id,name,id_card_number,sub_consite_id',
+                    'directory:id,name,serial,id_card_number,sub_consite_id',
                     'directory.subConsite:id,code,name',
                     'user:id,name',
                 ])
