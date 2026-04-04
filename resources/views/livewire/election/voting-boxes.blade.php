@@ -88,21 +88,43 @@
                             <span class="badge badge-light-info">Total directories: {{ method_exists($directories, 'total') ? $directories->total() : $directories->count() }}</span>
                         </div>
 
+                        <div class="row g-3 align-items-center mb-4">
+                            <div class="col-12 col-md-7">
+                                <input type="text" class="form-control form-control-solid" placeholder="Search name / NID / serial (use: s 123)" wire:model.live.debounce.400ms="directoriesSearch">
+                                <div class="text-muted fs-8 mt-1">Tip: to search only by serial, type <b>s</b> then the number (e.g. <b>s 123</b>).</div>
+                            </div>
+                        </div>
+
                         <div class="table-responsive">
                             <table class="table table-row-dashed align-middle gs-0 gy-3">
                                 <thead>
                                 <tr class="fw-bold text-muted">
                                     <th>Name</th>
+                                    <th style="width: 140px">NID</th>
+                                    <th style="width: 110px">Serial</th>
                                     <th>Phones / Email</th>
                                     <th>Party / SubConsite</th>
                                     <th>Permanent Address</th>
                                     <th>Final Pledge</th>
+                                    @can('votedRepresentative-markAsVoted')
+                                        <th class="text-end">Action</th>
+                                    @endcan
                                 </tr>
                                 </thead>
                                 <tbody>
                                 @forelse($directories as $d)
                                     <tr>
                                         <td class="fw-semibold text-gray-900">{{ $d->name }}</td>
+                                        <td>
+                                            <span class="badge badge-light">{{ $d->id_card_number ?? '-' }}</span>
+                                        </td>
+                                        <td>
+                                            @if(!empty($d->serial))
+                                                <span class="badge badge-light">{{ $d->serial }}</span>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
                                         <td>
                                             @php
                                                 $phones = $d->phones;
@@ -132,10 +154,19 @@
                                                 {{ $fp ?: 'pending' }}
                                             </span>
                                         </td>
+                                        @can('votedRepresentative-markAsVoted')
+                                            <td class="text-end">
+                                                @if(!empty($d->is_voted))
+                                                    <span class="badge badge-light-success">Voted</span>
+                                                @else
+                                                    <button type="button" class="btn btn-sm btn-success" wire:click="markAsVoted('{{ $d->id }}')">Vote</button>
+                                                @endif
+                                            </td>
+                                        @endcan
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-10">No directories assigned to this box.</td>
+                                        <td colspan="8" class="text-center text-muted py-10">No directories assigned to this box.</td>
                                     </tr>
                                 @endforelse
                                 </tbody>

@@ -111,8 +111,11 @@ class PermissionTableSeeder extends Seeder
             // 'voting-boxes-render',
 
             // Users - manage voting boxes
-            'user-openVotingBoxesModal',
-            'user-saveUserVotingBoxes',
+            // 'user-openVotingBoxesModal',
+            // 'user-saveUserVotingBoxes',
+
+            // Voting / voted representatives
+            'votedRepresentative-list-render',
         ];
         
         foreach ($permissions as $permission) {

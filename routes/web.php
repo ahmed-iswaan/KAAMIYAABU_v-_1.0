@@ -110,4 +110,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/elections/voting-boxes', \App\Livewire\Election\VotingBoxes::class)
         ->name('elections.voting-boxes')
         ->middleware('permission:voting-boxes-render');
+
+    Route::get('/elections/voted-list', \App\Livewire\Election\VotedRepresentativesList::class)
+        ->name('elections.voted-list')
+        ->middleware('permission:votedRepresentative-list-render');
 });
