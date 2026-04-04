@@ -188,8 +188,12 @@ class VotingBoxes extends Component
     {
         $this->authorize('votedRepresentative-markAsVoted');
 
-        // Use latest election (same behavior as voted-list)
+        // Use selected election, otherwise active election
         $electionId = $this->electionId;
+        if (!$electionId) {
+            $electionId = Election::query()->where('status', Election::STATUS_ACTIVE)->value('id');
+        }
+        // Fallback: latest election
         if (!$electionId) {
             $latest = Election::orderBy('start_date', 'desc')->first(['id']);
             $electionId = $latest?->id;
@@ -249,6 +253,72 @@ class VotingBoxes extends Component
 
         $this->swal('success', 'Saved', 'Marked as voted!', ['showConfirmButton' => false, 'timer' => 1200]);
         $this->resetPage();
+    }
+
+    public function undoVoted(string $directoryId): void
+    {
+        $this->authorize('box-voted-undo');
+
+        // Use selected election, otherwise active election
+        $electionId = $this->electionId;
+        if (!$electionId) {
+            $electionId = Election::query()->where('status', Election::STATUS_ACTIVE)->value('id');
+        }
+        // Fallback: latest election
+        if (!$electionId) {
+            $latest = Election::orderBy('start_date', 'desc')->first(['id']);
+            $electionId = $latest?->id;
+        }
+
+        if (!$electionId) {
+            $this->swal('error', 'No election', 'No election selected.');
+            return;
+        }
+
+        // Only allow undo within the selected box details
+        if ($this->selectedBoxId) {
+            $inBox = Directory::query()
+                ->where('id', $directoryId)
+                ->where('voting_box_id', $this->selectedBoxId)
+                ->exists();
+
+            if (!$inBox) {
+                $this->swal('error', 'Invalid', 'This directory is not in the selected voting box.');
+                return;
+            }
+        }
+
+        $vr = VotedRepresentative::query()
+            ->where('election_id', $electionId)
+            ->where('directory_id', $directoryId)
+            ->first();
+
+        if (!$vr) {
+            $this->swal('warning', 'Not found', 'Voted record not found.');
+            return;
+        }
+
+        DB::transaction(function () use ($vr, $electionId, $directoryId) {
+            $vrId = $vr->id;
+            $vr->delete();
+
+            EventLog::create([
+                'user_id' => Auth::id(),
+                'event_tab' => 'Election',
+                'event_entry_id' => $directoryId,
+                'event_type' => 'Representative Undo Voted (Voting Box)',
+                'description' => 'Undid representative voted mark from voting box details',
+                'event_data' => [
+                    'election_id' => $electionId,
+                    'directory_id' => $directoryId,
+                    'voted_representative_id' => $vrId,
+                ],
+                'ip_address' => request()->ip(),
+            ]);
+        });
+
+        $this->swal('success', 'Undone', 'Voted record removed.', ['showConfirmButton' => false, 'timer' => 1200]);
+        $this->resetPage('directoriesPage');
     }
 
     public function render()

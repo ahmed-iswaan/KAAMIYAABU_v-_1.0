@@ -154,15 +154,21 @@
                                                 {{ $fp ?: 'pending' }}
                                             </span>
                                         </td>
-                                        @can('votedRepresentative-markAsVoted')
-                                            <td class="text-end">
-                                                @if(!empty($d->is_voted))
+
+                                        <td class="text-end">
+                                            @if(!empty($d->is_voted))
+                                                <div class="d-flex flex-column align-items-end gap-1">
                                                     <span class="badge badge-light-success">Voted</span>
-                                                @else
+                                                    @can('box-voted-undo')
+                                                        <button type="button" class="btn btn-sm btn-light-danger" wire:click="undoVoted('{{ $d->id }}')">Undo</button>
+                                                    @endcan
+                                                </div>
+                                            @else
+                                                @can('votedRepresentative-markAsVoted')
                                                     <button type="button" class="btn btn-sm btn-success" wire:click="markAsVoted('{{ $d->id }}')">Vote</button>
-                                                @endif
-                                            </td>
-                                        @endcan
+                                                @endcan
+                                            @endif
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>

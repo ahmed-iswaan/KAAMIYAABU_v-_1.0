@@ -115,7 +115,8 @@ class PermissionTableSeeder extends Seeder
             // 'user-saveUserVotingBoxes',
 
             // Voting / voted representatives
-            'votedRepresentative-list-render',
+            // 'votedRepresentative-list-render',
+            'box-voted-undo',
         ];
         
         foreach ($permissions as $permission) {
