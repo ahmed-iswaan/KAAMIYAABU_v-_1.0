@@ -1,7 +1,7 @@
 <div class="container-xxl py-6">
     <div class="row g-6 mb-6">
-        <div class="col-12 col-lg-8">
-            <div class="card h-100">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-header border-0 pt-6">
                     <div class="card-title">
                         <div>
@@ -12,15 +12,38 @@
                 </div>
                 <div class="card-body">
                     <div wire:ignore>
+                        <div id="vote_results_by_box" style="min-height: 420px;"></div>
+                    </div>
+                    <div id="vote-results-box-chart-data" class="d-none" data-chart='@json($boxChart ?? [])'></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-6 mb-6">
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header border-0 pt-6">
+                    <div class="card-title">
+                        <div>
+                            <h3 class="fw-bold mb-0">Election Results (By SubConsite)</h3>
+                            <div class="text-muted small">Total = Candidate 1-5 + Invalid</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div wire:ignore>
                         <div id="vote_results_by_sub_consite" style="min-height: 420px;"></div>
                     </div>
-                    <div id="vote-results-chart-data" class="d-none" data-chart='@json($chart ?? [])'></div>
+                    <div id="vote-results-subconsite-chart-data" class="d-none" data-chart='@json($subConsiteChart ?? [])'></div>
                     <div id="vote-results-totals-data" class="d-none" data-totals='@json($totals ?? [])'></div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-12 col-lg-4">
+    <div class="row g-6 mb-6">
+        <div class="col-12">
             <div class="card h-100">
                 <div class="card-header border-0 pt-6">
                     <div class="card-title">
@@ -164,12 +187,13 @@
         document.head.appendChild(s);
     }
 
-    let barChart = null;
+    let barChartBox = null;
+    let barChartSub = null;
     let pieChart = null;
 
-    function readBarData(){
+    function readChartData(elId){
         try{
-            const el = document.getElementById('vote-results-chart-data');
+            const el = document.getElementById(elId);
             if(!el) return { labels: [], c1: [], c2: [], c3: [], c4: [], c5: [], invalid: [], total: [] };
             const raw = el.dataset.chart;
             if(!raw) return { labels: [], c1: [], c2: [], c3: [], c4: [], c5: [], invalid: [], total: [] };
@@ -199,21 +223,16 @@
         }
     }
 
-    function buildBar(){
-        const data = readBarData();
-        const el = document.querySelector('#vote_results_by_sub_consite');
-        if(!el) return;
+    function barOptions(labels, data){
+        const c1 = (data.c1||[]).map(n => Number(n||0));
+        const c2 = (data.c2||[]).map(n => Number(n||0));
+        const c3 = (data.c3||[]).map(n => Number(n||0));
+        const c4 = (data.c4||[]).map(n => Number(n||0));
+        const c5 = (data.c5||[]).map(n => Number(n||0));
+        const invalid = (data.invalid||[]).map(n => Number(n||0));
+        const total = (data.total||[]).map(n => Number(n||0));
 
-        const labels = Array.isArray(data.labels) ? data.labels : [];
-        const c1 = Array.isArray(data.c1) ? data.c1.map(n => Number(n||0)) : [];
-        const c2 = Array.isArray(data.c2) ? data.c2.map(n => Number(n||0)) : [];
-        const c3 = Array.isArray(data.c3) ? data.c3.map(n => Number(n||0)) : [];
-        const c4 = Array.isArray(data.c4) ? data.c4.map(n => Number(n||0)) : [];
-        const c5 = Array.isArray(data.c5) ? data.c5.map(n => Number(n||0)) : [];
-        const invalid = Array.isArray(data.invalid) ? data.invalid.map(n => Number(n||0)) : [];
-        const total = Array.isArray(data.total) ? data.total.map(n => Number(n||0)) : [];
-
-        const options = {
+        return {
             series: [
                 { name: '1. Ahmed Aiham Mohamed', data: c1 },
                 { name: '2. Ismail Zariyandhu', data: c2 },
@@ -238,10 +257,26 @@
             tooltip: { y: { formatter: (val) => Number(val).toLocaleString() } },
             yaxis: { labels: { formatter: (val) => Number(val).toLocaleString() } },
         };
+    }
 
-        try{ barChart && barChart.destroy(); }catch(e){}
-        barChart = new ApexCharts(el, options);
-        barChart.render();
+    function buildBars(){
+        // By box
+        const box = readChartData('vote-results-box-chart-data');
+        const boxEl = document.querySelector('#vote_results_by_box');
+        if(boxEl){
+            try{ barChartBox && barChartBox.destroy(); }catch(e){}
+            barChartBox = new ApexCharts(boxEl, barOptions(Array.isArray(box.labels)?box.labels:[], box));
+            barChartBox.render();
+        }
+
+        // By subconsite
+        const sub = readChartData('vote-results-subconsite-chart-data');
+        const subEl = document.querySelector('#vote_results_by_sub_consite');
+        if(subEl){
+            try{ barChartSub && barChartSub.destroy(); }catch(e){}
+            barChartSub = new ApexCharts(subEl, barOptions(Array.isArray(sub.labels)?sub.labels:[], sub));
+            barChartSub.render();
+        }
     }
 
     function buildPie(){
@@ -259,16 +294,7 @@
             },
             legend: { position: 'bottom' },
             colors: ['#f97316', '#16a34a', '#0ea5e9', '#a855f7', '#1e5a7a', '#94a3b8'],
-            dataLabels: {
-                enabled: true,
-                formatter: function (val, opts) {
-                    const s = opts.w.config.series[opts.seriesIndex] || 0;
-                    return s.toLocaleString() + ' (' + val.toFixed(1) + '%)';
-                }
-            },
-            tooltip: {
-                y: { formatter: (v) => Number(v||0).toLocaleString() }
-            }
+            tooltip: { y: { formatter: (val) => Number(val).toLocaleString() } },
         };
 
         try{ pieChart && pieChart.destroy(); }catch(e){}
@@ -276,25 +302,16 @@
         pieChart.render();
     }
 
-    function rebuildAll(){
-        buildBar();
-        buildPie();
+    function refreshAll(){
+        ensureApex(() => {
+            buildBars();
+            buildPie();
+        });
     }
 
-    ensureApex(() => {
-        rebuildAll();
-
-        document.addEventListener('livewire:navigated', () => setTimeout(rebuildAll, 0));
-        document.addEventListener('livewire:updated', () => setTimeout(rebuildAll, 0));
-
-        // Fired from Livewire after saving results
-        window.addEventListener('vote-results-updated', () => setTimeout(rebuildAll, 0));
-
-        window.addEventListener('resize', () => {
-            try{ barChart && barChart.resize(); }catch(e){}
-            try{ pieChart && pieChart.resize(); }catch(e){}
-        });
-    });
+    document.addEventListener('livewire:initialized', refreshAll);
+    window.addEventListener('vote-results-updated', refreshAll);
+    document.addEventListener('livewire:navigated', refreshAll);
 })();
 </script>
 @endpush

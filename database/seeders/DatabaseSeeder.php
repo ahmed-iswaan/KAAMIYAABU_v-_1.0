@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             WardSeeder::class,
             PartySeeder::class,
             ConsiteSeeder::class,
+            BackfillVotingBoxesSubConsiteSeeder::class,
             RegistrationTypeSeeder::class,
             PropertyTypesSeeder::class,
             PropertySeeder::class,

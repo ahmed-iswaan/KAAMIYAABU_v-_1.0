@@ -173,14 +173,12 @@ class VoteResultsEntry extends Component
             + (int) $this->candidate5Votes
             + (int) $this->invalidVotes;
 
-        $chartLabels = [];
-        $chartC1 = [];
-        $chartC2 = [];
-        $chartC3 = [];
-        $chartC4 = [];
-        $chartC5 = [];
-        $chartInvalid = [];
-        $chartTotal = [];
+        $boxChart = [
+            'labels' => [], 'c1' => [], 'c2' => [], 'c3' => [], 'c4' => [], 'c5' => [], 'invalid' => [], 'total' => [],
+        ];
+        $subConsiteChart = [
+            'labels' => [], 'c1' => [], 'c2' => [], 'c3' => [], 'c4' => [], 'c5' => [], 'invalid' => [], 'total' => [],
+        ];
 
         $totals = [
             'c1' => 0,
@@ -192,7 +190,8 @@ class VoteResultsEntry extends Component
         ];
 
         if ($this->electionId && !empty($allowed)) {
-            $rows = ElectionResult::query()
+            // Box-wise
+            $rowsBox = ElectionResult::query()
                 ->join('voting_boxes', 'voting_boxes.id', '=', 'election_results.voting_box_id')
                 ->where('election_results.election_id', $this->electionId)
                 ->whereIn('election_results.voting_box_id', $allowed)
@@ -207,22 +206,53 @@ class VoteResultsEntry extends Component
                 ->selectRaw('SUM(election_results.invalid_votes) as invalid_votes')
                 ->get();
 
-            $chartLabels = $rows->pluck('label')->values()->all();
-            $chartC1 = $rows->pluck('c1')->map(fn($v) => (int) $v)->values()->all();
-            $chartC2 = $rows->pluck('c2')->map(fn($v) => (int) $v)->values()->all();
-            $chartC3 = $rows->pluck('c3')->map(fn($v) => (int) $v)->values()->all();
-            $chartC4 = $rows->pluck('c4')->map(fn($v) => (int) $v)->values()->all();
-            $chartC5 = $rows->pluck('c5')->map(fn($v) => (int) $v)->values()->all();
-            $chartInvalid = $rows->pluck('invalid_votes')->map(fn($v) => (int) $v)->values()->all();
-            $chartTotal = $rows->map(fn($r) => (int) $r->c1 + (int) $r->c2 + (int) $r->c3 + (int) $r->c4 + (int) $r->c5 + (int) $r->invalid_votes)->values()->all();
+            $boxChart = [
+                'labels' => $rowsBox->pluck('label')->values()->all(),
+                'c1' => $rowsBox->pluck('c1')->map(fn($v) => (int) $v)->values()->all(),
+                'c2' => $rowsBox->pluck('c2')->map(fn($v) => (int) $v)->values()->all(),
+                'c3' => $rowsBox->pluck('c3')->map(fn($v) => (int) $v)->values()->all(),
+                'c4' => $rowsBox->pluck('c4')->map(fn($v) => (int) $v)->values()->all(),
+                'c5' => $rowsBox->pluck('c5')->map(fn($v) => (int) $v)->values()->all(),
+                'invalid' => $rowsBox->pluck('invalid_votes')->map(fn($v) => (int) $v)->values()->all(),
+                'total' => $rowsBox->map(fn($r) => (int) $r->c1 + (int) $r->c2 + (int) $r->c3 + (int) $r->c4 + (int) $r->c5 + (int) $r->invalid_votes)->values()->all(),
+            ];
 
+            // SubConsite-wise
+            $rowsSub = ElectionResult::query()
+                ->join('voting_boxes', 'voting_boxes.id', '=', 'election_results.voting_box_id')
+                ->leftJoin('sub_consites', 'sub_consites.id', '=', 'voting_boxes.sub_consite_id')
+                ->where('election_results.election_id', $this->electionId)
+                ->whereIn('election_results.voting_box_id', $allowed)
+                ->groupBy('sub_consites.code')
+                ->orderBy('sub_consites.code')
+                ->selectRaw('COALESCE(sub_consites.code, "N/A") as label')
+                ->selectRaw('SUM(election_results.candidate_1_votes) as c1')
+                ->selectRaw('SUM(election_results.candidate_2_votes) as c2')
+                ->selectRaw('SUM(election_results.candidate_3_votes) as c3')
+                ->selectRaw('SUM(election_results.candidate_4_votes) as c4')
+                ->selectRaw('SUM(election_results.candidate_5_votes) as c5')
+                ->selectRaw('SUM(election_results.invalid_votes) as invalid_votes')
+                ->get();
+
+            $subConsiteChart = [
+                'labels' => $rowsSub->pluck('label')->values()->all(),
+                'c1' => $rowsSub->pluck('c1')->map(fn($v) => (int) $v)->values()->all(),
+                'c2' => $rowsSub->pluck('c2')->map(fn($v) => (int) $v)->values()->all(),
+                'c3' => $rowsSub->pluck('c3')->map(fn($v) => (int) $v)->values()->all(),
+                'c4' => $rowsSub->pluck('c4')->map(fn($v) => (int) $v)->values()->all(),
+                'c5' => $rowsSub->pluck('c5')->map(fn($v) => (int) $v)->values()->all(),
+                'invalid' => $rowsSub->pluck('invalid_votes')->map(fn($v) => (int) $v)->values()->all(),
+                'total' => $rowsSub->map(fn($r) => (int) $r->c1 + (int) $r->c2 + (int) $r->c3 + (int) $r->c4 + (int) $r->c5 + (int) $r->invalid_votes)->values()->all(),
+            ];
+
+            // Totals (for pie)
             $totals = [
-                'c1' => (int) $rows->sum('c1'),
-                'c2' => (int) $rows->sum('c2'),
-                'c3' => (int) $rows->sum('c3'),
-                'c4' => (int) $rows->sum('c4'),
-                'c5' => (int) $rows->sum('c5'),
-                'invalid' => (int) $rows->sum('invalid_votes'),
+                'c1' => (int) $rowsBox->sum('c1'),
+                'c2' => (int) $rowsBox->sum('c2'),
+                'c3' => (int) $rowsBox->sum('c3'),
+                'c4' => (int) $rowsBox->sum('c4'),
+                'c5' => (int) $rowsBox->sum('c5'),
+                'invalid' => (int) $rowsBox->sum('invalid_votes'),
             ];
         }
 
@@ -230,16 +260,8 @@ class VoteResultsEntry extends Component
             'votingBoxes' => $votingBoxes,
             'eligibleCount' => $this->eligibleCount,
             'totalVotes' => $totalVotes,
-            'chart' => [
-                'labels' => $chartLabels,
-                'c1' => $chartC1,
-                'c2' => $chartC2,
-                'c3' => $chartC3,
-                'c4' => $chartC4,
-                'c5' => $chartC5,
-                'invalid' => $chartInvalid,
-                'total' => $chartTotal,
-            ],
+            'boxChart' => $boxChart,
+            'subConsiteChart' => $subConsiteChart,
             'totals' => $totals,
         ]);
     }

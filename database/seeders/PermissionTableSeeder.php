@@ -116,7 +116,8 @@ class PermissionTableSeeder extends Seeder
 
             // Voting / voted representatives
             // 'votedRepresentative-list-render',
-            'box-voted-undo',
+            // 'box-voted-undo',
+            'voting-boxes-render',
         ];
         
         foreach ($permissions as $permission) {

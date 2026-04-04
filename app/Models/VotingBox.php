@@ -14,10 +14,16 @@ class VotingBox extends Model
 
     protected $fillable = [
         'name',
+        'sub_consite_id',
     ];
 
     public function directories(): HasMany
     {
         return $this->hasMany(Directory::class, 'voting_box_id');
+    }
+
+    public function subConsite(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(SubConsite::class, 'sub_consite_id');
     }
 }
