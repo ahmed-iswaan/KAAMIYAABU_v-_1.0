@@ -140,10 +140,12 @@
                             <option value="{{ $u['id'] }}">{{ $u['name'] }}</option>
                         @endforeach
                     </select>
-                    <button type="button" class="btn btn-sm btn-light-primary" wire:click="downloadUserPerformanceDailyCsv">
+
+                    <button type="button" class="btn btn-sm btn-light-primary" wire:click="openUserPerformanceDailyExportModal">
                         Download Daily CSV
                     </button>
-                    <button type="button" class="btn btn-sm btn-light" wire:click="downloadUsersPerformanceDailyZip">
+
+                    <button type="button" class="btn btn-sm btn-light" wire:click="openUsersPerformanceDailyExportModal">
                         Download All Daily (Users)
                     </button>
                 </div>
@@ -298,6 +300,48 @@
             @endforeach
         </div>
     </div>
+
+    {{-- Date range modal for Daily exports --}}
+    @if(($showDailyExportModal ?? false))
+        <div class="modal fade show" style="display:block;" tabindex="-1" role="dialog" aria-modal="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Select date range</h5>
+                        <button type="button" class="btn-close" aria-label="Close" wire:click="cancelDailyExportModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">From</label>
+                            <input type="date" class="form-control" wire:model.defer="dailyExportFrom" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">To</label>
+                            <input type="date" class="form-control" wire:model.defer="dailyExportTo" />
+                        </div>
+                        <div class="text-muted fs-8">
+                            Export type: {{ ($dailyExportModalType ?? '') === 'all' ? 'All users (ZIP)' : 'Selected user (CSV)' }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="cancelDailyExportModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="confirmDailyExportModal">Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    @endif
+
+    <script>
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('daily-export-download', (payload) => {
+                const url = payload?.url;
+                if (!url) return;
+                window.location.href = url;
+            });
+        });
+    </script>
 </div>
 
 <!-- Load Chart.js first -->

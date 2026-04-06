@@ -105,6 +105,12 @@ class AdminDashboard extends Component
     public ?int $selectedUserPerformanceCsvUserId = null;
     public array $userPerformanceUsersForSelect = []; // [['id'=>..,'name'=>..], ...]
 
+    // Date-range modal for daily exports
+    public bool $showDailyExportModal = false;
+    public string $dailyExportModalType = ''; // 'single' | 'all'
+    public ?string $dailyExportFrom = null; // Y-m-d
+    public ?string $dailyExportTo = null;   // Y-m-d
+
     // Completed / Attempts / Pending by SubConsite (one bucket per directory)
     public array $ccSubConsiteBarLabels = [];
     public array $ccSubConsiteBarCompleted = [];
@@ -881,6 +887,22 @@ class AdminDashboard extends Component
         ]);
     }
 
+    public function openUserPerformanceDailyExportModal(): void
+    {
+        $this->dailyExportModalType = 'single';
+        $this->dailyExportFrom = $this->dailyExportFrom ?: now()->toDateString();
+        $this->dailyExportTo = $this->dailyExportTo ?: now()->toDateString();
+        $this->showDailyExportModal = true;
+    }
+
+    public function openUsersPerformanceDailyExportModal(): void
+    {
+        $this->dailyExportModalType = 'all';
+        $this->dailyExportFrom = $this->dailyExportFrom ?: now()->toDateString();
+        $this->dailyExportTo = $this->dailyExportTo ?: now()->toDateString();
+        $this->showDailyExportModal = true;
+    }
+
     public function downloadUserPerformanceDailyCsv(): StreamedResponse
     {
         $userId = (int) ($this->selectedUserPerformanceCsvUserId ?? 0);
@@ -898,13 +920,23 @@ class AdminDashboard extends Component
         $safeName = preg_replace('/[^A-Za-z0-9_\-]+/','_', (string)$userName);
         $filename = 'users_performance_daily_' . $safeName . '_' . now()->format('Y-m-d_His') . '.csv';
 
-        return response()->streamDownload(function () use ($userId, $userName) {
+        $from = $this->dailyExportFrom ? (string)$this->dailyExportFrom : null;
+        $to = $this->dailyExportTo ? (string)$this->dailyExportTo : null;
+
+        // Close modal state
+        $this->showDailyExportModal = false;
+
+        return response()->streamDownload(function () use ($userId, $userName, $from, $to) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
 
             fputcsv($out, ['User', 'Date', 'Completed', 'Attempts']);
 
-            foreach (($this->userDailyStats[$userId] ?? []) as $d) {
+            $rows = collect($this->userDailyStats[$userId] ?? []);
+            if ($from) $rows = $rows->where('date', '>=', $from);
+            if ($to) $rows = $rows->where('date', '<=', $to);
+
+            foreach ($rows as $d) {
                 fputcsv($out, [
                     (string)$userName,
                     (string)($d['date'] ?? ''),
@@ -921,11 +953,15 @@ class AdminDashboard extends Component
 
     public function downloadUsersPerformanceDailyZip(): Response
     {
+        $from = $this->dailyExportFrom ? (string)$this->dailyExportFrom : null;
+        $to = $this->dailyExportTo ? (string)$this->dailyExportTo : null;
+        $this->showDailyExportModal = false;
+
         // CSV can't have sheets; preferred is a ZIP containing one CSV per user.
         // If the ZipArchive extension is missing, fall back to a single combined CSV.
 
         if (!class_exists(\ZipArchive::class)) {
-            return $this->downloadUsersPerformanceDailyCombinedCsv();
+            return $this->downloadUsersPerformanceDailyCombinedCsv($from, $to);
         }
 
         if (empty($this->userPerformanceRows)) {
@@ -958,7 +994,9 @@ class AdminDashboard extends Component
             $safeName = preg_replace('/[^A-Za-z0-9_\-]+/', '_', $name);
 
             $this->loadUserDailyStats($userId);
-            $rows = $this->userDailyStats[$userId] ?? [];
+            $rows = collect($this->userDailyStats[$userId] ?? []);
+            if ($from) $rows = $rows->where('date', '>=', $from);
+            if ($to) $rows = $rows->where('date', '<=', $to);
 
             $fh = fopen('php://temp', 'w+');
             fwrite($fh, "\xEF\xBB\xBF");
@@ -988,30 +1026,34 @@ class AdminDashboard extends Component
         ])->deleteFileAfterSend(true);
     }
 
-    public function downloadUsersPerformanceDailyCombinedCsv(): StreamedResponse
+    protected function downloadUsersPerformanceDailyCombinedCsv(?string $from = null, ?string $to = null): StreamedResponse
     {
         if (empty($this->userPerformanceRows)) {
             $this->computeUsersPerformance();
         }
 
-        $activeUsers = collect($this->userPerformanceRows ?? []);
-        $filename = 'users_performance_daily_ALL_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'users_performance_daily_all_' . now()->format('Y-m-d_His') . '.csv';
 
-        return response()->streamDownload(function () use ($activeUsers) {
+        return response()->streamDownload(function () use ($from, $to) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
+
             fputcsv($out, ['User', 'Date', 'Completed', 'Attempts']);
 
-            foreach ($activeUsers as $r) {
+            foreach (($this->userPerformanceRows ?? []) as $r) {
                 $userId = (int)($r['user_id'] ?? 0);
                 if ($userId <= 0) continue;
 
-                $name = (string)($r['name'] ?? ('User_' . $userId));
+                $userName = (string)($r['name'] ?? ('User_' . $userId));
                 $this->loadUserDailyStats($userId);
 
-                foreach (($this->userDailyStats[$userId] ?? []) as $d) {
+                $rows = collect($this->userDailyStats[$userId] ?? []);
+                if ($from) $rows = $rows->where('date', '>=', $from);
+                if ($to) $rows = $rows->where('date', '<=', $to);
+
+                foreach ($rows as $d) {
                     fputcsv($out, [
-                        $name,
+                        $userName,
                         (string)($d['date'] ?? ''),
                         (int)($d['completed'] ?? 0),
                         (int)($d['attempts'] ?? 0),
@@ -1023,6 +1065,55 @@ class AdminDashboard extends Component
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    public function cancelDailyExportModal(): void
+    {
+        $this->showDailyExportModal = false;
+        $this->dailyExportModalType = '';
+        $this->dailyExportFrom = null;
+        $this->dailyExportTo = null;
+    }
+
+    public function confirmDailyExportModal(): void
+    {
+        // Basic validation
+        if (!$this->dailyExportFrom || !$this->dailyExportTo) {
+            $this->addError('dailyExportFrom', 'From and To dates are required');
+            return;
+        }
+        if ($this->dailyExportFrom > $this->dailyExportTo) {
+            $this->addError('dailyExportFrom', 'From date must be before To date');
+            return;
+        }
+
+        // Close modal before triggering download
+        $type = $this->dailyExportModalType;
+        $from = $this->dailyExportFrom;
+        $to = $this->dailyExportTo;
+        $userId = (int) ($this->selectedUserPerformanceCsvUserId ?? 0);
+
+        $this->showDailyExportModal = false;
+
+        // Trigger browser download via GET endpoint (Livewire actions can't reliably return binary downloads)
+        if ($type === 'all') {
+            $this->dispatch('daily-export-download', url: route('admin.exports.users-performance.daily-zip', [
+                'from' => $from,
+                'to' => $to,
+            ]));
+            return;
+        }
+
+        if ($userId <= 0) {
+            $this->addError('selectedUserPerformanceCsvUserId', 'Select a user');
+            return;
+        }
+
+        $this->dispatch('daily-export-download', url: route('admin.exports.users-performance.daily-csv', [
+            'user' => $userId,
+            'from' => $from,
+            'to' => $to,
+        ]));
     }
 
     private function computeUsersPerformance(): void

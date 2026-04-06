@@ -118,4 +118,12 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/elections/voted-list', \App\Livewire\Election\VotedRepresentativesList::class)
         ->name('elections.voted-list')
         ->middleware('permission:votedRepresentative-list-render');
+
+    Route::prefix('admin/exports')->name('admin.exports.')->group(function () {
+        Route::get('users-performance/daily/{user}.csv', [\App\Http\Controllers\Admin\ExportsController::class, 'usersPerformanceDailyCsv'])
+            ->name('users-performance.daily-csv');
+
+        Route::get('users-performance/daily.zip', [\App\Http\Controllers\Admin\ExportsController::class, 'usersPerformanceDailyZip'])
+            ->name('users-performance.daily-zip');
+    });
 });
