@@ -14,14 +14,6 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
      */
     public function run(): void
     {
-        $activeElectionId = DB::table('elections')
-            ->where('status', 'active')
-            ->value('id');
-
-        if (!$activeElectionId) {
-            throw new \RuntimeException('No active election found.');
-        }
-
         $dirPath = storage_path('app/exports');
         if (!is_dir($dirPath) && !@mkdir($dirPath, 0775, true) && !is_dir($dirPath)) {
             throw new \RuntimeException('Unable to create exports directory: ' . $dirPath);
@@ -55,14 +47,15 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
             'Property (Current)',
         ]);
 
-        DB::table('election_directory_call_statuses as edcs')
-            ->join('directories as d', 'd.id', '=', 'edcs.directory_id')
+        // Export active directories based on directories.status
+        // (No election filtering)
+        DB::table('directories as d')
             ->leftJoin('sub_consites as sc', 'sc.id', '=', 'd.sub_consite_id')
             ->leftJoin('voting_boxes as vb', 'vb.id', '=', 'd.voting_box_id')
             ->leftJoin('properties as p', 'p.id', '=', 'd.properties_id')
             ->leftJoin('properties as cp', 'cp.id', '=', 'd.current_properties_id')
             ->leftJoin('parties as pa', 'pa.id', '=', 'd.party_id')
-            ->where('edcs.election_id', (string) $activeElectionId)
+            ->where('d.status', 'active')
             ->select([
                 'd.id',
                 'd.name',
@@ -82,7 +75,6 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                 'pa.name as party_name',
             ])
             ->orderBy('d.id')
-            ->distinct()
             ->chunk(1000, function ($rows) use ($out) {
                 foreach ($rows as $r) {
                     // phones may be json array/string
