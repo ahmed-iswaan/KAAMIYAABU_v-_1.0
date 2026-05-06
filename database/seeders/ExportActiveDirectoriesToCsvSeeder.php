@@ -74,7 +74,6 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                 'd.phones',
                 'sc.code as sub_consite_code',
                 'sc.name as sub_consite_name',
-                'vb.code as voting_box_code',
                 'vb.name as voting_box_name',
                 'd.address',
                 'd.current_address',
@@ -104,10 +103,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                         $sub = $sub ? ($sub . ' - ' . $r->sub_consite_name) : (string)$r->sub_consite_name;
                     }
 
-                    $vbox = trim((string)($r->voting_box_code ?? ''));
-                    if (!empty($r->voting_box_name)) {
-                        $vbox = $vbox ? ($vbox . ' - ' . $r->voting_box_name) : (string)$r->voting_box_name;
-                    }
+                    $vbox = (string)($r->voting_box_name ?? '');
 
                     $dob = '';
                     if (!empty($r->date_of_birth)) {
