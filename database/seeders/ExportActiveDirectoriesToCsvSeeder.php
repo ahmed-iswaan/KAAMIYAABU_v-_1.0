@@ -77,7 +77,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                 'pa.name as party_name',
             ])
             ->orderBy('d.id')
-            ->chunkById(1000, function ($rows) use ($out, &$exported) {
+            ->chunk(1000, function ($rows) use ($out, &$exported) {
                 foreach ($rows as $r) {
                     // phones may be json array/string
                     $phones = '';
@@ -128,7 +128,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
 
                     $exported++;
                 }
-            }, 'd.id');
+            });
 
         fclose($out);
 
