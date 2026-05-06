@@ -47,6 +47,8 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
             'Property (Current)',
         ]);
 
+        $exported = 0;
+
         // Export active directories based on directories.status
         // (No election filtering)
         DB::table('directories as d')
@@ -75,7 +77,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                 'pa.name as party_name',
             ])
             ->orderBy('d.id')
-            ->chunk(1000, function ($rows) use ($out) {
+            ->chunkById(1000, function ($rows) use ($out, &$exported) {
                 foreach ($rows as $r) {
                     // phones may be json array/string
                     $phones = '';
@@ -105,8 +107,9 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                             : (method_exists($r->date_of_birth, 'format') ? $r->date_of_birth->format('Y-m-d') : (string)$r->date_of_birth);
                     }
 
+                    // IMPORTANT: directories.id is UUID (string). Do not cast to int.
                     fputcsv($out, [
-                        (int) $r->id,
+                        (string) $r->id,
                         (string) ($r->name ?? ''),
                         (string) ($r->id_card_number ?? ''),
                         (string) ($r->serial ?? ''),
@@ -122,12 +125,15 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                         (string) ($r->property_name ?? ''),
                         (string) ($r->current_property_name ?? ''),
                     ]);
+
+                    $exported++;
                 }
-            });
+            }, 'd.id');
 
         fclose($out);
 
         // Print where it went (shows when running seeder via artisan)
         $this->command?->info('CSV exported: ' . $file);
+        $this->command?->info('Rows exported: ' . $exported);
     }
 }
