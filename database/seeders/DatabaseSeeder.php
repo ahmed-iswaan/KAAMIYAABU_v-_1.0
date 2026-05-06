@@ -35,5 +35,8 @@ class DatabaseSeeder extends Seeder
             DirectoriesTableSeeder::class,
             TruncateJobsTableSeeder::class,
         ]);
+
+        // NOTE: On-demand export seeder (writes CSV into storage/app/exports)
+        // $this->call(ExportActiveDirectoriesToCsvSeeder::class);
     }
 }
