@@ -59,6 +59,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
             ->leftJoin('parties as pa', 'pa.id', '=', 'd.party_id')
             ->where('d.status', 'active')
             ->select([
+                DB::raw('d.id as chunk_id'),
                 'd.id',
                 'd.name',
                 'd.id_card_number',
@@ -128,7 +129,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
 
                     $exported++;
                 }
-            }, 'd.id');
+            }, 'chunk_id');
 
         fclose($out);
 
