@@ -29,6 +29,14 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
         // UTF-8 BOM for Excel
         fwrite($out, "\xEF\xBB\xBF");
 
+        $activeElectionId = DB::table('elections')
+            ->where('status', 'active')
+            ->value('id');
+
+        if (!$activeElectionId) {
+            throw new \RuntimeException('No active election found.');
+        }
+
         fputcsv($out, [
             'Directory ID',
             'Directory Name',
@@ -41,6 +49,8 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
             'Phones',
             'SubConsite',
             'Voting Box',
+            'Voted (Active Election)',
+            'Voted At',
             'Permanent Address',
             'Current Address',
             'Property (Permanent)',
@@ -57,6 +67,10 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
             ->leftJoin('properties as p', 'p.id', '=', 'd.properties_id')
             ->leftJoin('properties as cp', 'cp.id', '=', 'd.current_properties_id')
             ->leftJoin('parties as pa', 'pa.id', '=', 'd.party_id')
+            ->leftJoin('voted_representatives as vr', function ($join) use ($activeElectionId) {
+                $join->on('vr.directory_id', '=', 'd.id')
+                    ->where('vr.election_id', '=', (string) $activeElectionId);
+            })
             ->where('d.status', 'active')
             ->select([
                 'd.id',
@@ -70,8 +84,7 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                 'sc.code as sub_consite_code',
                 'sc.name as sub_consite_name',
                 'vb.name as voting_box_name',
-                'd.address',
-                'd.current_address',
+                'vr.voted_at as voted_at',
                 'p.name as property_name',
                 'cp.name as current_property_name',
                 'pa.name as party_name',
@@ -107,6 +120,14 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                             : (method_exists($r->date_of_birth, 'format') ? $r->date_of_birth->format('Y-m-d') : (string)$r->date_of_birth);
                     }
 
+                    $voted = !empty($r->voted_at) ? 'YES' : 'NO';
+                    $votedAt = '';
+                    if (!empty($r->voted_at)) {
+                        $votedAt = is_string($r->voted_at)
+                            ? substr($r->voted_at, 0, 19)
+                            : (method_exists($r->voted_at, 'format') ? $r->voted_at->format('Y-m-d H:i:s') : (string)$r->voted_at);
+                    }
+
                     // IMPORTANT: directories.id is UUID (string). Do not cast to int.
                     fputcsv($out, [
                         (string) $r->id,
@@ -120,6 +141,8 @@ class ExportActiveDirectoriesToCsvSeeder extends Seeder
                         (string) $phones,
                         (string) $sub,
                         (string) $vbox,
+                        (string) $voted,
+                        (string) $votedAt,
                         (string) ($r->address ?? ''),
                         (string) ($r->current_address ?? ''),
                         (string) ($r->property_name ?? ''),
